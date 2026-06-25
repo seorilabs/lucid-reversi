@@ -104,7 +104,7 @@ if [ "${#existing_release_configs[@]}" -gt 0 ]; then
   scan_targets+=("${existing_release_configs[@]}")
 fi
 
-if rg -n "확정 필요|TBD|TODO" "${scan_targets[@]}"; then
+if grep -rnE "확정 필요|TBD|TODO" "${scan_targets[@]}"; then
   echo
   echo "Release blockers remain. Resolve placeholders before deployment approval." >&2
   blockers=1

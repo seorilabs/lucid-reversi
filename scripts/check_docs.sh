@@ -21,12 +21,12 @@ for file in "${required_files[@]}"; do
   fi
 done
 
-if ! rg -q "Lucid Reversi" docs/01-planning/product-spec.md; then
+if ! grep -q "Lucid Reversi" docs/01-planning/product-spec.md; then
   echo "Product spec does not mention Lucid Reversi." >&2
   exit 1
 fi
 
-if ! rg -q "루시드 리버시" docs/01-planning/product-spec.md; then
+if ! grep -q "루시드 리버시" docs/01-planning/product-spec.md; then
   echo "Product spec does not mention 루시드 리버시." >&2
   exit 1
 fi

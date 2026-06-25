@@ -18,6 +18,8 @@ concurrency:
 jobs:
   build:
     name: Build Godot Web
+    # GitHub Pages 게시는 public repo에서만 수행한다. private repo는 Pages 미활성이라 skip(needs: build인 deploy도 함께 skip).
+    if: ${{ !github.event.repository.private }}
     runs-on: ${{ github.event.repository.private && 'seorilabs-rpi-arm64' || 'ubuntu-latest' }}
     timeout-minutes: 30
     env:

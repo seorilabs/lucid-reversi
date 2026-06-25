@@ -22,14 +22,14 @@ fi
 
 forbidden_pattern='(from|import|require|extends|class_name).*(Godot|Firebase|firebase|Firestore|firestore|AppsInToss|Toss|StoreKit|BillingClient|AdMob|JavaScriptBridge|Node|Control|SceneTree)'
 
-if rg -n "${forbidden_pattern}" "${scan_paths[@]}" --glob '!README.md'; then
+if grep -rnE "${forbidden_pattern}" "${scan_paths[@]}" --exclude='README.md'; then
   echo "Architecture boundary violation found in product core." >&2
   exit 1
 fi
 
 godot_forbidden_pattern='(extends Node|extends Control|SceneTree|Firebase|firebase|AppsInToss|Toss|AdMob|JavaScriptBridge)'
 
-if rg -n "${godot_forbidden_pattern}" "${godot_core_file}"; then
+if grep -nE "${godot_forbidden_pattern}" "${godot_core_file}"; then
   echo "Architecture boundary violation found in Godot Reversi engine." >&2
   exit 1
 fi
