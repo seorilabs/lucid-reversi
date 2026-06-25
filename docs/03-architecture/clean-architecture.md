@@ -1,0 +1,78 @@
+# Clean Architecture Boundary
+
+## Current Shape
+
+```mermaid
+flowchart LR
+  Engine["godot/scripts/reversi_engine.gd\nrules, AI, codec, save DTO"] --> UI["godot/scripts/bootstrap/main.gd\nboard UI, input, local save"]
+  Engine --> Smoke["godot/tests/test_runner.gd\nrule and codec smoke"]
+  UI --> Market["future market adapters\nAdMob, AppsInToss, Firebase optional"]
+  Docs["docs/ source of truth"] --> Market
+```
+
+## Godot Pure Core
+
+`godot/scripts/reversi_engine.gd`는 Phase 1의 실제 순수 코어다.
+
+허용:
+
+- 리버시 규칙
+- 합법 수 계산
+- 패스와 게임오버 판정
+- 난이도별 AI 선택
+- 18-byte 보드 codec
+- save/load DTO 변환
+
+금지:
+
+- `extends Node`, `extends Control`
+- scene tree, UI, input, animation 직접 접근
+- Firebase, AppsInToss, AdMob, Store SDK 직접 접근
+- 파일 시스템 직접 접근
+
+## Godot UI Adapter
+
+`godot/scripts/bootstrap/main.gd`는 Phase 2 플레이어블 shell이다.
+
+허용:
+
+- 화면 구성
+- 보드 입력
+- 로컬 파일 저장소 `user://save_v1.json`
+- 설정 toggle
+- AI 턴 호출
+
+금지:
+
+- 리버시 flip 규칙 재구현
+- 마켓별 SDK 직접 연결
+
+## packages/product-core
+
+템플릿의 장기 Clean Architecture scaffold로 유지한다.
+
+허용:
+
+- Domain entities
+- Value objects
+- Pure use cases
+- Port interfaces
+- Pure fixtures/fakes
+
+금지:
+
+- Godot scene tree, Node, Control, Resource 의존
+- Firebase SDK, Admin SDK, service account
+- AppsInToss SDK
+- Google Play Billing, App Store StoreKit
+- Ad SDK
+- Network/client SDK 직접 호출
+
+## Market Adapters
+
+시장별 release, metadata, config, wrapper는 다음 위치에 둔다.
+
+- Google Play: `play-store/`
+- App Store: `app-store/`
+- AppsInToss: `apps-in-toss/`, `apps/ait/`
+- Firebase: `firebase/`

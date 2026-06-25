@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="body" cx="34%" cy="24%" r="78%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="45%" stop-color="#f3f0e7"/>
+      <stop offset="78%" stop-color="#d9d1c3"/>
+      <stop offset="100%" stop-color="#fffdf6"/>
+    </radialGradient>
+    <linearGradient id="sheen" x1="91" y1="67" x2="406" y2="417">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="42%" stop-color="#ffffff" stop-opacity="0.24"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="104" y1="80" x2="408" y2="432">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="46%" stop-color="#c8bea9"/>
+      <stop offset="100%" stop-color="#8d806b"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="262" r="226" fill="#111315" opacity="0.18"/>
+  <circle cx="256" cy="252" r="222" fill="url(#body)"/>
+  <circle cx="256" cy="252" r="222" fill="none" stroke="url(#rim)" stroke-width="13"/>
+  <path d="M92 157C139 72 284 39 385 92C312 91 223 116 165 164C130 193 107 217 92 157Z" fill="url(#sheen)"/>
+  <ellipse cx="328" cy="360" rx="110" ry="36" fill="#b7ad9c" opacity="0.18" transform="rotate(-18 328 360)"/>
+</svg>

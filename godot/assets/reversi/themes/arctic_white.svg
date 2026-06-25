@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="body" cx="34%" cy="23%" r="81%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="38%" stop-color="#e9fbff"/>
+      <stop offset="73%" stop-color="#b9e3f0"/>
+      <stop offset="100%" stop-color="#f9ffff"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="100" y1="76" x2="408" y2="432">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="45%" stop-color="#95d9ea"/>
+      <stop offset="100%" stop-color="#33829b"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="82" y1="112" x2="421" y2="390">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.86"/>
+      <stop offset="45%" stop-color="#ccf8ff" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="263" r="226" fill="#001423" opacity="0.2"/>
+  <circle cx="256" cy="252" r="222" fill="url(#body)"/>
+  <circle cx="256" cy="252" r="222" fill="none" stroke="url(#rim)" stroke-width="14"/>
+  <path d="M89 166C133 75 279 39 389 95C313 97 219 122 159 176C126 206 105 224 89 166Z" fill="url(#glow)"/>
+  <path d="M155 376C224 413 333 398 394 334" fill="none" stroke="#7edff3" stroke-opacity="0.2" stroke-width="17" stroke-linecap="round"/>
+</svg>

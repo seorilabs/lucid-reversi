@@ -1,0 +1,51 @@
+{
+  "appName": "lucid-reversi",
+  "displayName": "루시드 리버시",
+  "defaultLocale": "ko",
+  "supportedLocales": ["ko", "en"],
+  "registrationCopy": {
+    "ko": {
+      "thumbnailHeadline": "AI와 오델로 한판!",
+      "subtitle": "짧게 즐기는 모바일 리버시",
+      "shortDescription": "선명한 보드와 빠른 AI 대전으로 한 수씩 판세를 뒤집는 모바일 리버시 게임입니다.",
+      "fullDescription": "루시드 리버시는 AI와 바로 한 판 붙는 모바일 리버시 게임입니다. 선명한 보드와 큼직한 흑백 돌, 착수와 뒤집힘 피드백으로 작은 화면에서도 다음 수가 잘 보입니다. 난이도와 보드/돌 테마를 바꾸며 짧은 시간 안에 판세를 뒤집는 재미를 즐겨보세요.",
+      "searchKeywords": [
+        "오델로",
+        "리버시",
+        "보드게임",
+        "AI 대전",
+        "전략게임",
+        "두뇌게임",
+        "흑백돌",
+        "캐주얼게임"
+      ]
+    },
+    "en": {
+      "thumbnailHeadline": "Play Reversi vs AI!",
+      "subtitle": "A quick mobile board match",
+      "shortDescription": "A clear, fast mobile Reversi game where every move can flip the board.",
+      "fullDescription": "Lucid Reversi is a mobile board game built for quick matches against AI. Clear board visuals, large stones, and immediate move feedback make each turn easy to read on a small screen. Change difficulty, board themes, and stone themes while chasing the next board-flipping comeback.",
+      "searchKeywords": [
+        "reversi",
+        "othello",
+        "board game",
+        "AI match",
+        "strategy game",
+        "brain game",
+        "casual game"
+      ]
+    }
+  },
+  "registrationImages": {
+    "logo": "apps-in-toss/release-assets/lucid-reversi-icon-600.png",
+    "thumbnail": "apps-in-toss/release-assets/lucid-reversi-thumbnail-1932x828.png",
+    "screenshots": [
+      "apps-in-toss/release-assets/screenshots/lucid-reversi-start-636x1048.png",
+      "apps-in-toss/release-assets/screenshots/lucid-reversi-main-636x1048.png",
+      "apps-in-toss/release-assets/screenshots/lucid-reversi-settings-636x1048.png"
+    ]
+  },
+  "aitArtifactPath": "release-artifacts/apps-in-toss/lucid-reversi.ait",
+  "sandboxQaStatus": "passed(게임 렌더/조작) — 실기기 intoss://lucid-reversi 동작 확인 완료. 인앱 광고는 샌드박스 불가 → 출시하기 QR 실 토스앱 검증 필요",
+  "adsStatus": "사용함 — AppsInToss 전면(Interstitial) 광고, 한 판 종료 시 1회 노출(Godot→JS 브리지). 광고 ID는 마켓별로 다름: AIT 전용 live adGroupId(ait.v2.live.f2389330c1ce431a)는 apps/ait/.env.production에 설정되어 production 빌드(.ait)에만 주입됨. dev/샌드박스는 테스트 ID(ait-ad-test-interstitial-id) 사용. Google Play/App Store 광고는 별도 네이티브 연동/별도 ID"
+}

@@ -1,0 +1,20 @@
+{
+  "name": "lucid-reversi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lucid Reversi Godot game for Google Play, App Store, and AppsInToss.",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "build:godot:web": "bash scripts/ensure_godot.sh --with-export-templates && bash scripts/export_godot_web.sh",
+    "build:android:smoke": "bash scripts/build_android_smoke_apk.sh",
+    "test": "npm run test:core && npm run check:architecture && npm run test:godot && npm run check:docs",
+    "test:core": "bash scripts/test_core.sh",
+    "test:godot": "bash scripts/godot_quality_gate.sh --project godot --smoke-scene res://tests/test_runner.tscn",
+    "check:architecture": "bash scripts/check_architecture.sh",
+    "check:docs": "bash scripts/check_docs.sh",
+    "check:release": "bash scripts/check_release_readiness.sh",
+    "check:release:ait": "bash scripts/check_release_readiness.sh --target apps-in-toss"
+  }
+}

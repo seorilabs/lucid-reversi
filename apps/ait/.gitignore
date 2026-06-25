@@ -1,0 +1,16 @@
+node_modules/
+dist/
+*.ait
+.ait/
+
+# 로컬 환경변수 — 커밋 금지
+.env.local
+.env.*.local
+
+# 단, production 광고 ID(.env.production)는 release 빌드 재현성을 위해 커밋한다.
+# (live ad ID는 비밀이 아니며 클라이언트 번들에 노출됨). root .gitignore의 `.env.*` 무시를 무효화.
+!.env.production
+
+# build/pages 에서 sync되는 생성물 (소스 아님)
+public/godot/
+!public/godot/.gitkeep

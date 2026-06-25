@@ -1,0 +1,8 @@
+{
+  "appName": "확정 필요",
+  "displayName": "확정 필요",
+  "defaultLocale": "ko",
+  "supportedLocales": ["ko", "en"],
+  "aitArtifactPath": "release-artifacts/apps-in-toss/app.ait",
+  "sandboxQaStatus": "확정 필요"
+}
