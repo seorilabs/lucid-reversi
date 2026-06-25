@@ -10,6 +10,7 @@
     "dev": "granite dev",
     "prebuild": "npm run sync:godot",
     "build": "ait build",
+    "deploy": "ait deploy",
     "preview": "vite preview"
   },
   "dependencies": {
