@@ -7,9 +7,9 @@ Godot Web export를 AppsInToss(Granite `@apps-in-toss/web-framework`)로 패키�
 - AppsInToss `appName`: `lucid-reversi` (콘솔 확정값)
 - `brand.displayName`: 루시드 리버시
 - `brand.icon`: `https://static.toss.im/appsintoss/38345/764909ef-3849-428b-ae2e-1f868ec00ebf.png` (콘솔 업로드 아이콘 HTTPS URL)
-- Godot Web export 원본: `build/pages/` → `npm run sync:godot`로 `public/godot/`에 복사
+- Godot Web export 원본: `build/pages/` → `npm run sync:godot`로 `public/godot/`에 복사. 이때 AppsInToss 보안 정책(eval 금지)에 맞춰 엔진 로더 `index.js`의 `_godot_js_eval` 본문 eval 호출을 제거한다(`scripts/sync-godot-web.mjs`).
 - Web export 렌더: `src/GodotCanvas.tsx`가 `index.js`의 `Engine`을 직접 로드해 canvas에 렌더
-- 인앱 광고: `src/ads.ts` (AppsInToss 전면/Interstitial). 한 판 종료 시 Godot `_request_interstitial_ad` → `window.__aitShowInterstitialAd` 브리지로 노출
+- 인앱 광고: `src/ads.ts` (AppsInToss 전면/Interstitial). 한 판 종료 시 Godot `_request_interstitial_ad`가 `JavaScriptBridge.get_interface("__aitBridge").showInterstitialAd()`(eval 미사용)로 노출. wrapper는 `App.tsx`에서 `window.__aitBridge`를 등록한다.
 
 ## 명령어
 
