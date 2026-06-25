@@ -1184,10 +1184,14 @@ func _request_interstitial_ad() -> void:
 	# 게임 종료 시 AppsInToss 전면(Interstitial) 광고를 요청한다.
 	# AIT(web export)에서만 동작한다. Google Play / App Store 네이티브 export에서는
 	# OS.has_feature("web") 가 false 라 no-op이며, 해당 마켓 광고는 별도 네이티브 연동에서 처리한다.
-	# 호출은 wrapper(window.__aitShowInterstitialAd)에 위임한다.
+	#
+	# AppsInToss 보안 정책상 JavaScriptBridge.eval(외부 코드 문자열 실행)은 금지된다.
+	# eval 없이, wrapper가 노출한 전역 객체(window.__aitBridge)의 메서드를 직접 호출한다.
 	if not OS.has_feature("web"):
 		return
-	JavaScriptBridge.eval("window.__aitShowInterstitialAd && window.__aitShowInterstitialAd();", true)
+	var bridge: JavaScriptObject = JavaScriptBridge.get_interface("__aitBridge")
+	if bridge != null:
+		bridge.showInterstitialAd()
 
 
 func _status_text() -> String:
