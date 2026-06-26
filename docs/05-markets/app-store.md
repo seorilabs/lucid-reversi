@@ -1,34 +1,73 @@
 # Apple App Store
 
+> Source of truth: `app-store/app-store.config.json`. 이 문서는 사람이 읽는 요약이다.
+
 ## App Identity
 
-- Bundle ID: 확정 필요
-- SKU: 확정 필요
-- App name: Lucid Reversi
-- Subtitle: 확정 필요
+- Bundle ID: `com.github.magicsih.MatchSymbol` (기존 앱 레코드 재활용 — 식별자에 MatchSymbol 영구 노출. MatchPictureUnity는 ASC '삭제됨'이라 교체)
+- SKU: `lucid-reversi`
+- App name: 루시드 리버시
+- Subtitle: 짧게 즐기는 모바일 리버시
 - Category: Games / Board
+
+## Listing Copy (ko-KR, ASC 한도 검증)
+
+| 필드 | 값 | 한도 |
+|---|---|---|
+| Name | 루시드 리버시 | 7/30 |
+| Subtitle | 짧게 즐기는 모바일 리버시 | 14/30 |
+| Promotional Text | 선명한 보드와 빠른 AI 대전으로 한 수씩 판세를 뒤집는 모바일 리버시 게임입니다. | 46/170 |
+| Keywords | 오델로,리버시,보드게임,AI 대전,전략게임,두뇌게임,흑백돌,캐주얼게임 | 38/100 |
+| Description | 루시드 리버시는 AI와 바로 한 판 붙는 모바일 리버시 게임입니다. 선명한 보드와 큼직한 흑백 돌, 착수와 뒤집힘 피드백으로 작은 화면에서도 다음 수가 잘 보입니다. 난이도와 보드/돌 테마를 바꾸며 짧은 시간 안에 판세를 뒤집는 재미를 즐겨보세요. | <4000 |
+
+- Support URL: 확정 필요 (App Review 필수)
+- Marketing URL: 확정 필요 (선택)
+- Copyright: 확정 필요
 
 ## Release
 
 - TestFlight target: internal testing
-- Signing team: 확정 필요
-- Provisioning profile: 확정 필요
+- Signing team: `HCDUXX4Z3X`
+- ASC Provider: `HCDUXX4Z3X`
+- Signing: manual / `Apple Distribution` / App Store 프로비저닝 프로파일
 - Build runner: macOS/Xcode runner. RPI ARC runner는 App Store build 대상이 아니다.
+
+## Ads
+
+- **v1: ad-free** (광고 미포함). Info.plist에 GADApplicationIdentifier/SKAdNetwork 미포함.
+- 네이티브 AdMob iOS는 **후속 작업**. Godot 4.6.3 iOS AdMob 플러그인(.xcframework+.gdip)+SDK+GDScript 브리지 어댑터 필요. `check_architecture.sh` 경계 준수.
+- 후속 광고 ID(준비됨): App `ca-app-pub-2444587584524186~1005155551`, Interstitial `ca-app-pub-2444587584524186/8692073883`, 비맞춤형/추적 OFF.
+- 게임 코드 `main.gd:_request_interstitial_ad()`는 네이티브 export에서 `OS.has_feature("web")=false`라 현재 no-op.
 
 ## Privacy / Review
 
-- Privacy nutrition labels: 확정 필요
-- Tracking: Phase 2 기준 없음
-- Encryption/export compliance: 표준 Godot 앱 기준으로 확인 필요
+- Privacy nutrition labels: **No Data Collected** (v1 ad-free). 기존 레코드에 광고 SDK 답변이 남아 있으면 ad-free로 정정.
+- Tracking: No (광고 미포함)
+- Export compliance: `ITSAppUsesNonExemptEncryption = false` (표준 SDK 전송 암호화만)
+- Content rights: third-party 광고 콘텐츠 없음 (first-party 게임 자산만)
+- Age rating: 광고 none, 폭력/도박/UGC 없음 → 4+ 예상
 - Review notes: 확정 필요
 
 ## Assets
 
-- App icon: 확정 필요
-- iPhone screenshots: 확정 필요
-- iPad screenshots: 확정 필요
+- App icon: 1024x1024 store icon(`app-store/assets/AppIcon-1024.png`, 알파 없음) + Xcode AppIcon.appiconset(iPhone+iPad 슬롯)
+- iPhone 6.9" screenshot: `app-store/screenshots/iphone-6.9/01-board.png` (1320×2868) ✅ 실 시뮬레이터 캡처
+- iPad 13" screenshot: `app-store/screenshots/ipad-13/01-board.png` (2064×2752) ✅ 실 시뮬레이터 캡처
+- 캡처 방법: x86_64(Rosetta) 시뮬레이터 빌드(Godot 엔진 simulator lib가 arm64 슬라이스 없음) → iPhone 16 Pro Max / iPad Pro 13"(M4) 부팅·실행·`simctl io screenshot`.
+- 비고: 게임이 720×1280로 설계돼 더 긴 화면에서 하단 레터박스(검은 영역) 발생 — Apple 허용. 더 꽉 찬 화면 원하면 게임 stretch/aspect 조정(별도 작업). 화면당 1장씩이라 다양화하려면 탭 입력 화면 수동 보완.
 
-## Current Implementation
+## Build / Upload 상태 (2026-06-26)
 
-- Phase 2는 Godot 플레이어블 shell만 포함한다.
-- iOS export preset, signing, archive/export/upload는 아직 시작하지 않았다.
+- ✅ **업로드 성공** — v**1.0.5** build 1, universal(iPhone+iPad), min iOS 14.0. ASC 처리 중.
+- 경로: Godot 4.6.3 iOS export(preset `iOS`) → `xcodebuild archive` → `xcodebuild -exportArchive`(method=app-store-connect, destination=upload).
+- 서명: 자동 서명 아카이브 → exportArchive에서 Apple Distribution(Seori Labs) 배포 재서명.
+- 버전/기기 요건: 이전 승인 버전 1.0.4 초과 + 이전 기기 유지 필요 → 1.0.5/universal. 후속 빌드는 build 또는 short version 증가.
+- 자세한 빌드 노트/함정: `docs/09-knowledge/ios-app-store-godot.md`.
+
+## 남은 콘솔/수동 게이트
+
+- [ ] 콘솔에서 업로드된 빌드 선택
+- [x] iPhone 6.9" + iPad 13" 스크린샷 1장씩 실 캡처 (추가 화면은 선택)
+- [ ] App Privacy(No Data Collected) / 연령등급(4+) / 콘텐츠 권리(없음) / 수출규정(false) 답변
+- [ ] 메타데이터(이 문서 카피) 콘솔 반영, Support URL 확정
+- [ ] Submit for Review
