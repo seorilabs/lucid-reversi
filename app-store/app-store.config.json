@@ -1,8 +1,82 @@
 {
-  "bundleId": "확정 필요",
+  "bundleId": "com.github.magicsih.MatchSymbol",
+  "bundleIdNote": "기존 App Store Connect 앱(MatchSymbol) 레코드를 재활용해 Lucid Reversi로 교체 출시. 식별자에 MatchSymbol이 영구 노출됨(사용자 확정). 앞서 시도한 MatchPictureUnity는 ASC에서 '삭제됨' 상태(bundleIdMatchesRemovedApp)라 사용 불가로 교체.",
   "sku": "lucid-reversi",
-  "teamId": "확정 필요",
-  "ascProvider": "확정 필요",
+  "teamId": "HCDUXX4Z3X",
+  "ascProvider": "HCDUXX4Z3X",
+  "ascProviderNote": "단일 멤버십이라 Team ID와 동일. 멀티 프로바이더 계정이면 console short name으로 교체 필요.",
+  "displayName": "루시드 리버시",
+  "primaryLocale": "ko-KR",
   "archivePath": "release-artifacts/ios/App.xcarchive",
-  "displayName": "Lucid Reversi"
+  "exportPath": "release-artifacts/ios/export",
+  "exportOptionsPlist": "app-store/exportOptions.plist",
+  "uploadedBuild": {
+    "status": "Upload succeeded — App Store Connect 처리 중(2026-06-26)",
+    "shortVersion": "1.0.5",
+    "buildNumber": "1",
+    "deviceFamily": "iPhone+iPad (TARGETED_DEVICE_FAMILY=1,2)",
+    "minIosVersion": "14.0",
+    "signing": "Apple Distribution (Seori Labs HCDUXX4Z3X), exportArchive 재서명",
+    "note": "이전 승인 버전 1.0.4보다 높여야 함 + 이전 버전이 지원한 기기를 유지해야 함(Apple 90xxx) → 1.0.5/universal로 해소. 후속 빌드는 buildNumber 또는 shortVersion 증가 필요.",
+    "remaining": "콘솔에서 빌드 선택 + 메타데이터/스크린샷 교체 + App Privacy/연령등급/수출규정 답변 + Submit for Review"
+  },
+  "signing": {
+    "style": "manual",
+    "certificate": "Apple Distribution",
+    "configuration": "Release",
+    "appStoreProfileNote": "Team HCDUXX4Z3X용 App Store 프로비저닝 프로파일 필요(개발용 Apple Development 아님)."
+  },
+  "ads": {
+    "enabledInV1": false,
+    "v1Decision": "App Store v1은 ad-free로 출시. Info.plist에 GADApplicationIdentifier/SKAdNetwork 미포함(SDK 없음). 빈 광고 식별자로 인한 Apple 리뷰 리스크 회피.",
+    "plannedNative": {
+      "network": "AdMob",
+      "iosAppId": "ca-app-pub-2444587584524186~1005155551",
+      "interstitialUnitId": "ca-app-pub-2444587584524186/8692073883",
+      "format": "interstitial",
+      "trigger": "한 판 종료 시 1회 노출",
+      "personalization": "non-personalized",
+      "tracking": false,
+      "status": "후속 작업 — Godot 4.6.3 iOS AdMob 플러그인(.xcframework+.gdip)+SDK+GDScript 브리지 어댑터 필요. v1 범위 아님.",
+      "note": "구현 시 Info.plist에 GADApplicationIdentifier/SKAdNetworkItems 추가, 비맞춤형 광고로 IDFA/추적 미사용 유지, check_architecture.sh 경계(어댑터) 준수."
+    }
+  },
+  "exportCompliance": {
+    "itsAppUsesNonExemptEncryption": false,
+    "note": "표준 SDK(HTTPS/TLS, AdMob, Apple OS)만 사용, 커스텀 암호화 없음 → 비면제 암호화 없음."
+  },
+  "listing": {
+    "name": "루시드 리버시",
+    "subtitle": "짧게 즐기는 모바일 리버시",
+    "promotionalText": "선명한 보드와 빠른 AI 대전으로 한 수씩 판세를 뒤집는 모바일 리버시 게임입니다.",
+    "description": "루시드 리버시는 AI와 바로 한 판 붙는 모바일 리버시 게임입니다. 선명한 보드와 큼직한 흑백 돌, 착수와 뒤집힘 피드백으로 작은 화면에서도 다음 수가 잘 보입니다. 난이도와 보드/돌 테마를 바꾸며 짧은 시간 안에 판세를 뒤집는 재미를 즐겨보세요.",
+    "keywords": "오델로,리버시,보드게임,AI 대전,전략게임,두뇌게임,흑백돌,캐주얼게임",
+    "category": { "primary": "Games", "secondary": "Board" },
+    "copyright": "확정 필요",
+    "supportUrl": "확정 필요",
+    "marketingUrl": "확정 필요(선택)",
+    "screenshots": {
+      "iphone_6_9": "app-store/screenshots/iphone-6.9/01-board.png (1320x2868)",
+      "ipad_13": "app-store/screenshots/ipad-13/01-board.png (2064x2752)",
+      "note": "x86_64 Rosetta 시뮬레이터 빌드로 실 캡처. 화면당 1장. 하단 레터박스는 게임 720x1280 설계 탓(Apple 허용)."
+    },
+    "storeIcon": "app-store/assets/AppIcon-1024.png (1024x1024, 알파 없음)",
+    "limitsValidated": {
+      "name": "7/30",
+      "subtitle": "14/30",
+      "promotionalText": "46/170",
+      "keywords": "38/100",
+      "description": "ASC 4000 이하"
+    }
+  },
+  "consoleGates": {
+    "appShell": "이미 존재(기존 MatchPictureUnity 레코드) — 버전/메타데이터/스크린샷 교체 필요",
+    "appPrivacy": "v1 ad-free 기준: 데이터 수집 없음(No Data Collected)으로 단순. 단 기존 레코드에 광고 SDK 기준 답변이 남아 있으면 ad-free로 정정 필요.",
+    "ageRating": "광고 none, 폭력/도박/UGC 없음 → 4+ 예상",
+    "contentRights": "v1은 third-party 광고 콘텐츠 없음(first-party 게임 자산만) → no third-party content",
+    "exportCompliance": "비면제 암호화 없음으로 답변(ITSAppUsesNonExemptEncryption=false)",
+    "attDecision": "추적 없음(광고 미포함) — No",
+    "buildSelection": "업로드 후 콘솔에서 빌드 선택 필요",
+    "submitForReview": "최종 콘솔 제출 필요"
+  }
 }
