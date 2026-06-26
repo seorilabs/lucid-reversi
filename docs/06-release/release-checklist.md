@@ -49,12 +49,12 @@
 
 ## App Store
 
-- [x] Bundle ID confirmed — `com.github.magicsih.MatchSymbol` (기존 레코드 재활용. MatchPictureUnity는 ASC 삭제됨이라 교체)
+- [x] Bundle ID confirmed — `com.etlegame.reversi` (Lucid Reversi 전용. MatchPictureUnity=삭제됨, MatchSymbol=오타로 교체)
 - [x] Xcode/macOS build path confirmed — Godot 4.6.3 iOS export(preset `iOS`) → Xcode 아카이브. Xcode 26.5
 - [x] Signing/provisioning confirmed — 자동 서명, team `HCDUXX4Z3X`, 배포 재서명은 exportArchive(app-store-connect)에서 수행
 - [x] v1 ad-free 결정 (네이티브 AdMob은 후속)
 - [x] App Store 1024 아이콘(알파 없음) + iPhone 아이콘 카탈로그 생성
-- [x] 빌드 업로드 완료 — v1.0.5 build 1, universal(1,2), 2026-06-26 "Upload succeeded" (ASC 처리 중)
+- [x] 빌드 업로드 완료 — com.etlegame.reversi v2.2.1 build 1, universal(1,2), 2026-06-26 "Upload succeeded" (ASC 처리 중)
 - [x] iPhone 6.9"(1320×2868) + iPad 13"(2064×2752) 스크린샷 실 캡처 (app-store/screenshots/)
 - [ ] App Privacy / 연령등급 / 콘텐츠 권리 / 수출규정 콘솔 답변
 - [ ] TestFlight notes ready

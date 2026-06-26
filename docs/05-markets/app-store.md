@@ -4,7 +4,7 @@
 
 ## App Identity
 
-- Bundle ID: `com.github.magicsih.MatchSymbol` (기존 앱 레코드 재활용 — 식별자에 MatchSymbol 영구 노출. MatchPictureUnity는 ASC '삭제됨'이라 교체)
+- Bundle ID: `com.etlegame.reversi` (Lucid Reversi 전용. 이전 시도 MatchPictureUnity=ASC 삭제됨, MatchSymbol=잘못된 id)
 - SKU: `lucid-reversi`
 - App name: 루시드 리버시
 - Subtitle: 짧게 즐기는 모바일 리버시
@@ -58,7 +58,9 @@
 
 ## Build / Upload 상태 (2026-06-26)
 
-- ✅ **업로드 성공** — v**1.0.5** build 1, universal(iPhone+iPad), min iOS 14.0. ASC 처리 중.
+- ✅ **업로드 성공** — `com.etlegame.reversi` v**2.2.1** build 1, universal(iPhone+iPad), min iOS 14.0. ASC 처리 중.
+- 이 앱은 기존 reversi 앱(이전 승인 2.2.0)을 Godot 버전으로 교체. 2.2.0 초과 필요 → 2.2.1.
+- 주의: v1.0.5 build 1이 잘못된 id(MatchSymbol) 앱 레코드로 1회 오업로드됨 → 콘솔에서 무시/삭제.
 - 경로: Godot 4.6.3 iOS export(preset `iOS`) → `xcodebuild archive` → `xcodebuild -exportArchive`(method=app-store-connect, destination=upload).
 - 서명: 자동 서명 아카이브 → exportArchive에서 Apple Distribution(Seori Labs) 배포 재서명.
 - 버전/기기 요건: 이전 승인 버전 1.0.4 초과 + 이전 기기 유지 필요 → 1.0.5/universal. 후속 빌드는 build 또는 short version 증가.

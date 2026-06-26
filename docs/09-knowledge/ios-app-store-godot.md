@@ -25,7 +25,8 @@ Godot 4.6.3 게임을 Apple App Store에 올리며 실증한 항목.
    수동 서명+`-allowProvisioningUpdates`는 사전 생성된 프로파일이 없으면 실패(자동 생성은 자동 서명에서만).
 
 4. **`bundleIdMatchesRemovedApp`** — App Store Connect에서 삭제된 앱의 bundle id는 재사용 불가.
-   `com.github.magicsih.MatchPictureUnity`(삭제됨) → `com.github.magicsih.MatchSymbol`(활성)로 교체.
+   최종 bundle id는 게임 전용 `com.etlegame.reversi`. (시행착오: MatchPictureUnity=삭제됨, MatchSymbol=잘못된 id로 오업로드.)
+   교훈: 업로드 전 bundle id가 **그 게임 전용 활성 앱 레코드**인지 먼저 확정할 것.
 
 5. **버전/기기 요건**(기존 앱 교체 업로드 시) — Apple 서버가 알려줌:
    - `CFBundleShortVersionString`은 이전 승인 버전(1.0.4)보다 높아야 → **1.0.5**.

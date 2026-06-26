@@ -1,6 +1,6 @@
 {
-  "bundleId": "com.github.magicsih.MatchSymbol",
-  "bundleIdNote": "기존 App Store Connect 앱(MatchSymbol) 레코드를 재활용해 Lucid Reversi로 교체 출시. 식별자에 MatchSymbol이 영구 노출됨(사용자 확정). 앞서 시도한 MatchPictureUnity는 ASC에서 '삭제됨' 상태(bundleIdMatchesRemovedApp)라 사용 불가로 교체.",
+  "bundleId": "com.etlegame.reversi",
+  "bundleIdNote": "Lucid Reversi 전용 bundle id(사용자 확정). 이전 시도: MatchPictureUnity=ASC 삭제됨(사용 불가), MatchSymbol=잘못된 id(그 앱 레코드로 v1.0.5 빌드가 오업로드됨 — 콘솔에서 무시/삭제 요망).",
   "sku": "lucid-reversi",
   "teamId": "HCDUXX4Z3X",
   "ascProvider": "HCDUXX4Z3X",
@@ -11,14 +11,15 @@
   "exportPath": "release-artifacts/ios/export",
   "exportOptionsPlist": "app-store/exportOptions.plist",
   "uploadedBuild": {
-    "status": "Upload succeeded — App Store Connect 처리 중(2026-06-26)",
-    "shortVersion": "1.0.5",
+    "status": "Upload succeeded — com.etlegame.reversi v2.2.1, ASC 처리 중(2026-06-26)",
+    "shortVersion": "2.2.1",
     "buildNumber": "1",
     "deviceFamily": "iPhone+iPad (TARGETED_DEVICE_FAMILY=1,2)",
     "minIosVersion": "14.0",
     "signing": "Apple Distribution (Seori Labs HCDUXX4Z3X), exportArchive 재서명",
-    "note": "이전 승인 버전 1.0.4보다 높여야 함 + 이전 버전이 지원한 기기를 유지해야 함(Apple 90xxx) → 1.0.5/universal로 해소. 후속 빌드는 buildNumber 또는 shortVersion 증가 필요.",
-    "remaining": "콘솔에서 빌드 선택 + 메타데이터/스크린샷 교체 + App Privacy/연령등급/수출규정 답변 + Submit for Review"
+    "note": "기존 reversi 앱(이전 승인 2.2.0)을 Godot 버전으로 교체. 2.2.0 초과 필요 → 2.2.1. 후속 빌드는 buildNumber 또는 shortVersion 증가.",
+    "wrongUpload": "v1.0.5 build 1이 잘못된 id(com.github.magicsih.MatchSymbol) 앱 레코드로 1회 오업로드됨 → 콘솔에서 무시/삭제.",
+    "remaining": "콘솔에서 빌드 선택 + 메타데이터/스크린샷 반영 + App Privacy/연령등급/수출규정 답변 + Submit for Review"
   },
   "signing": {
     "style": "manual",
@@ -70,7 +71,7 @@
     }
   },
   "consoleGates": {
-    "appShell": "이미 존재(기존 MatchPictureUnity 레코드) — 버전/메타데이터/스크린샷 교체 필요",
+    "appShell": "com.etlegame.reversi 앱 레코드가 ASC에 있어야 업로드 성공. 없으면 콘솔에서 새 앱 생성 필요.",
     "appPrivacy": "v1 ad-free 기준: 데이터 수집 없음(No Data Collected)으로 단순. 단 기존 레코드에 광고 SDK 기준 답변이 남아 있으면 ad-free로 정정 필요.",
     "ageRating": "광고 none, 폭력/도박/UGC 없음 → 4+ 예상",
     "contentRights": "v1은 third-party 광고 콘텐츠 없음(first-party 게임 자산만) → no third-party content",
