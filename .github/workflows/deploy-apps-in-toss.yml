@@ -1,3 +1,6 @@
+# Godot Web export → AIT 래퍼 build → AppsInToss 배포 — ARC.
+# org 재사용 워크플로우 호출. export는 build/pages 로 내보내고(래퍼 sync:godot 계약),
+# smoke는 리포의 godot quality gate를 사용한다.
 name: Deploy Apps in Toss
 
 on:
@@ -5,26 +8,26 @@ on:
     inputs:
       release_tag:
         description: "배포할 릴리즈 태그. 비우면 실행한 ref를 사용합니다."
+        type: string
         required: false
         default: ""
-        type: string
       memo:
         description: "앱인토스 배포 메모 (선택, 최대 1000자)"
+        type: string
         required: false
         default: ""
-        type: string
   workflow_call:
     inputs:
       release_tag:
         description: "배포할 릴리즈 태그"
+        type: string
         required: false
         default: ""
-        type: string
       memo:
         description: "앱인토스 배포 메모"
+        type: string
         required: false
         default: ""
-        type: string
 
 permissions:
   contents: read
@@ -34,127 +37,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Build and deploy AIT
-    runs-on: seorilabs-rpi-arm64
-    timeout-minutes: 30
-
-    env:
-      APPS_IN_TOSS_API_KEY: ${{ secrets.APPS_IN_TOSS_API_KEY }}
-      APPS_IN_TOSS_INPUT_MEMO: ${{ inputs.memo || '' }}
-      APPS_IN_TOSS_RELEASE_TAG: ${{ inputs.release_tag || '' }}
-      GODOT_VERSION: "4.6.3"
-      GODOT_STATUS: stable
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.release_tag || github.ref }}
-
-      - name: Resolve release source
-        id: release-source
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          release_ref="$APPS_IN_TOSS_RELEASE_TAG"
-          if [ -z "$release_ref" ]; then
-            release_ref="${GITHUB_REF_NAME:-$(git rev-parse --abbrev-ref HEAD)}"
-          fi
-
-          {
-            echo "ref=$release_ref"
-            echo "sha=$(git rev-parse HEAD)"
-            echo "short_sha=$(git rev-parse --short HEAD)"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Validate Apps in Toss secrets
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "${APPS_IN_TOSS_API_KEY}" ]; then
-            echo "APPS_IN_TOSS_API_KEY secret is required." >&2
-            exit 1
-          fi
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          check-latest: false
-          cache: npm
-          cache-dependency-path: apps/ait/package-lock.json
-
-      - name: Install Godot Runtime Dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if ldconfig -p 2>/dev/null | grep -q "libfontconfig.so.1"; then
-            echo "fontconfig runtime is already available"
-            exit 0
-          fi
-
-          if ! command -v apt-get >/dev/null 2>&1; then
-            echo "libfontconfig.so.1 is missing and apt-get is unavailable" >&2
-            exit 1
-          fi
-
-          sudo_cmd=""
-          if command -v sudo >/dev/null 2>&1; then
-            sudo_cmd="sudo"
-          fi
-
-          ${sudo_cmd} apt-get update
-          ${sudo_cmd} apt-get install -y libfontconfig1 fontconfig
-
-      - name: Ensure Godot
-        shell: bash
-        run: bash scripts/ensure_godot.sh --with-export-templates
-
-      - name: Run Godot smoke gate
-        shell: bash
-        run: npm run test:godot
-
-      - name: Export Godot Web
-        shell: bash
-        run: bash scripts/export_godot_web.sh
-
-      - name: Install wrapper dependencies
-        working-directory: apps/ait
-        run: npm ci
-
-      - name: Build AIT package
-        # prebuild(sync:godot)가 build/pages → public/godot 복사. production 빌드라 .env.production의 live 광고 ID 주입.
-        working-directory: apps/ait
-        run: npm run build
-
-      - name: Deploy to Apps in Toss
-        working-directory: apps/ait
-        env:
-          RELEASE_REF: ${{ steps.release-source.outputs.ref }}
-          RELEASE_SHORT_SHA: ${{ steps.release-source.outputs.short_sha }}
-        run: |
-          set -euo pipefail
-
-          memo="$APPS_IN_TOSS_INPUT_MEMO"
-          if [ -z "$memo" ]; then
-            memo="GitHub Actions ${RELEASE_REF}@${RELEASE_SHORT_SHA}"
-          fi
-
-          npm run deploy -- --api-key "$APPS_IN_TOSS_API_KEY" --memo "$memo"
-
-      - name: Summarize AIT deployment
-        if: always()
-        env:
-          RELEASE_REF: ${{ steps.release-source.outputs.ref }}
-          RELEASE_SHA: ${{ steps.release-source.outputs.sha }}
-        run: |
-          {
-            echo "### Deploy Apps in Toss"
-            echo ""
-            echo "- appName: lucid-reversi"
-            echo "- release_ref: $RELEASE_REF"
-            echo "- release_sha: $RELEASE_SHA"
-          } >> "$GITHUB_STEP_SUMMARY"
+  ait:
+    uses: seorilabs/.github/.github/workflows/godot-deploy-ait.yml@main
+    secrets: inherit
+    with:
+      release_tag: ${{ inputs.release_tag }}
+      memo: ${{ inputs.memo }}
+      project_dir: godot
+      wrapper_dir: apps/ait
+      # 래퍼 sync:godot(prebuild)가 build/pages → public/godot 를 복사하므로 export 출력은 build/pages 여야 한다.
+      web_output_dir: build/pages
+      smoke_command: |
+        bash scripts/godot_quality_gate.sh --project godot --smoke-scene res://tests/test_runner.tscn
