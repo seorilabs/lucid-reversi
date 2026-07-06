@@ -1,6 +1,8 @@
 extends Control
 
 const ReversiEngine = preload("res://scripts/reversi_engine.gd")
+const ReversiAnalytics = preload("res://scripts/analytics.gd")
+const GA4_SENDER_SCRIPT = preload("res://scripts/ga4_mp_sender.gd")
 const CLASSIC_BLACK_TEXTURE = preload("res://assets/reversi/themes/classic_black.svg")
 const CLASSIC_WHITE_TEXTURE = preload("res://assets/reversi/themes/classic_white.svg")
 const ARCTIC_BLACK_TEXTURE = preload("res://assets/reversi/themes/arctic_black.svg")
@@ -139,6 +141,7 @@ var ai_move_pending := false
 var input_locked := false
 # 한 판당 전면 광고 1회만 노출하기 위한 가드 (게임 종료 시 트리거).
 var _interstitial_shown_this_game := false
+var analytics: ReversiAnalytics
 
 var cell_buttons: Array = []
 var cell_piece_views: Array = []
@@ -174,6 +177,12 @@ var white_meter: ColorRect
 
 
 func _ready() -> void:
+	analytics = ReversiAnalytics.new()
+	# GA4 Measurement Protocol 전송기(Node)를 씬 트리에 붙여 어댑터에 주입한다.
+	# 실제 전송은 config 존재 + 릴리스 빌드 + 비-headless 일 때만(전송기가 판단). _ready 에서 game_open 발생.
+	var ga4_sender := GA4_SENDER_SCRIPT.new()
+	add_child(ga4_sender)
+	analytics.set_sender(ga4_sender)
 	_load_or_start()
 	_build_ui()
 	_render()
@@ -836,6 +845,8 @@ func _start_new_game(stone: int) -> void:
 	_sync_identity_labels()
 	_save_state()
 	_render()
+	if analytics != null:
+		analytics.on_game_start(difficulty, player_stone)
 	call_deferred("_maybe_play_ai_turn")
 
 
@@ -1157,15 +1168,19 @@ func _update_result_overlay() -> void:
 	var black_score := int(counts["black"])
 	var white_score := int(counts["white"])
 	var winner := int(state.get("winner", ReversiEngine.NONE))
+	var result_kind := ""
 	if winner == player_stone:
+		result_kind = "win"
 		result_title_label.text = _t("result_win")
 		result_title_label.add_theme_color_override("font_color", _theme_color("accent"))
 		_apply_text_visibility(result_title_label, 3, _theme_color("accent"))
 	elif winner == ReversiEngine.NONE:
+		result_kind = "draw"
 		result_title_label.text = _t("result_draw")
 		result_title_label.add_theme_color_override("font_color", _theme_color("text_primary"))
 		_apply_text_visibility(result_title_label, 3, _theme_color("text_primary"))
 	else:
+		result_kind = "lose"
 		result_title_label.text = _t("result_lose")
 		result_title_label.add_theme_color_override("font_color", _theme_color("danger"))
 		_apply_text_visibility(result_title_label, 3, _theme_color("danger"))
@@ -1175,8 +1190,18 @@ func _update_result_overlay() -> void:
 	]
 	result_detail_label.text = _t("result_detail") % [black_score, white_score]
 	result_overlay.visible = true
+	# game_over 는 광고와 같은 1회 가드 안에서만 전송한다.
+	# (오버레이는 게임 종료 후 입력·AI턴 진입마다 재호출되므로 밖에 두면 중복 집계된다.)
 	if not _interstitial_shown_this_game:
 		_interstitial_shown_this_game = true
+		if analytics != null:
+			analytics.on_game_over(
+				result_kind,
+				black_score if player_stone == ReversiEngine.BLACK else white_score,
+				white_score if player_stone == ReversiEngine.BLACK else black_score,
+				difficulty,
+				state.get("move_history", []).size(),
+			)
 		_request_interstitial_ad()
 
 
@@ -1308,6 +1333,8 @@ func _set_difficulty_from_choice(difficulty_id: String) -> void:
 		return
 	difficulty = difficulty_id
 	state["difficulty"] = difficulty
+	if analytics != null:
+		analytics.on_settings_changed("difficulty", difficulty)
 	_save_state()
 	_render()
 	call_deferred("_maybe_play_ai_turn")
@@ -1321,6 +1348,8 @@ func _set_locale(locale_id: String, persist: bool = true) -> void:
 	settings["locale"] = locale_id
 	state["settings"] = settings
 	if persist:
+		if analytics != null:
+			analytics.on_settings_changed("locale", locale_id)
 		_save_state()
 	_build_ui()
 	_render()
@@ -1408,6 +1437,8 @@ func _set_theme(theme_id: String, persist: bool = true) -> void:
 	settings["theme"] = theme_id
 	state["settings"] = settings
 	if persist:
+		if analytics != null:
+			analytics.on_settings_changed("theme", theme_id)
 		_save_state()
 	_build_ui()
 	_render()
@@ -1423,6 +1454,8 @@ func _set_stone_theme(theme_id: String, persist: bool = true) -> void:
 	settings["stone_theme"] = theme_id
 	state["settings"] = settings
 	if persist:
+		if analytics != null:
+			analytics.on_settings_changed("stone_theme", theme_id)
 		_save_state()
 	_build_ui()
 	_render()

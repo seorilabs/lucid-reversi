@@ -1,0 +1,5 @@
+{
+  "_comment": "GA4 Measurement Protocol 값. 이 예시를 복사해 analytics.config.json 을 만든다(gitignore, 커밋 금지). 값은 provision-game.sh 산출물(~/.config/seorilabs/analytics-lucid-reversi.env) 또는 GA4 데이터스트림 콘솔에서.",
+  "measurement_id": "G-XXXXXXXXXX",
+  "api_secret": "<GA4 Web 스트림의 Measurement Protocol api_secret>"
+}
