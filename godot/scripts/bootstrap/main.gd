@@ -198,6 +198,10 @@ func _load_or_start() -> void:
 	state = loaded
 	player_stone = int(state.get("player_stone", ReversiEngine.BLACK))
 	difficulty = str(state.get("difficulty", "MEDIUM"))
+	# 이미 종료된 게임을 복원한 경우: 그 game_over 는 지난 세션에서 이미 집계됐으므로
+	# 이번 실행에서 광고·analytics on_game_over 를 다시 트리거하지 않는다(오버레이 표시만).
+	if bool(state.get("game_over", false)):
+		_interstitial_shown_this_game = true
 
 
 func _build_ui() -> void:

@@ -1,6 +1,16 @@
 extends Node
 
 const ReversiEngine = preload("res://scripts/reversi_engine.gd")
+const ReversiAnalytics = preload("res://scripts/analytics.gd")
+const GA4Sender = preload("res://scripts/ga4_mp_sender.gd")
+
+
+# analytics 어댑터 포워딩 검증용 프로브(sender 자리에 주입).
+class _AnalyticsProbe:
+	extends Node
+	var sent: Array = []
+	func send(event_name: String, params: Dictionary) -> void:
+		sent.append({"name": event_name, "params": params})
 
 
 func _ready() -> void:
@@ -20,6 +30,12 @@ func _ready() -> void:
 	ok = theme_ok and ok
 	var ui_ok := await _test_ui_hints_return_after_animation()
 	ok = ui_ok and ok
+	ok = _test_ga4_disabled_in_headless() and ok
+	ok = _test_ga4_build_event() and ok
+	ok = _test_ga4_batching() and ok
+	ok = _test_ga4_config_validation() and ok
+	ok = _test_ga4_client_id_persists() and ok
+	ok = _test_analytics_adapter_headless_noop() and ok
 	get_tree().quit(0 if ok else 1)
 
 
@@ -457,6 +473,86 @@ func _moves_equal(actual: Array, expected: Array) -> bool:
 
 func _read_u16(payload: PackedByteArray, offset: int) -> int:
 	return int(payload[offset]) | (int(payload[offset + 1]) << 8)
+
+
+func _rm_user(rel_path: String) -> void:
+	if FileAccess.file_exists(rel_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(rel_path))
+
+
+func _test_ga4_disabled_in_headless() -> bool:
+	# 헤드리스/디버그 빌드: 전송 비활성 + 식별자 파일 미생성(수집 없음 빌드에 흔적 안 남김).
+	_rm_user(GA4Sender.CLIENT_ID_PATH)
+	var sender: Node = GA4Sender.new()
+	add_child(sender)
+	var enabled_ok := _assert(not sender._enabled, "GA4 disabled in headless build")
+	sender.send("game_start", {"difficulty": "EASY"})
+	var noop_ok := _assert(sender._queue.is_empty(), "GA4 send is no-op when disabled")
+	var no_file_ok := _assert(not FileAccess.file_exists(GA4Sender.CLIENT_ID_PATH), "no client_id file when disabled")
+	sender.queue_free()
+	return enabled_ok and noop_ok and no_file_ok
+
+
+func _test_ga4_build_event() -> bool:
+	var sender = GA4Sender.new()
+	sender._session_id = "1700000000"
+	var reserved := sender._build_event("session_start", {})
+	var normal := sender._build_event("game_start", {"difficulty": "HARD"})
+	sender.free()
+	return (
+		_assert(reserved.is_empty(), "reserved event name skipped")
+		and _assert(str(normal.get("name", "")) == "game_start", "event name preserved")
+		and _assert(str(normal["params"].get("difficulty", "")) == "HARD", "event params preserved")
+		and _assert(str(normal["params"].get("session_id", "")) == "1700000000", "session_id attached")
+		and _assert(normal["params"].has("engagement_time_msec"), "engagement_time_msec attached")
+	)
+
+
+func _test_ga4_batching() -> bool:
+	var q: Array = []
+	for i in range(30):
+		q.append({"name": "e%d" % i})
+	var split := GA4Sender._split_batch(q, 25)
+	return (
+		_assert(split["batch"].size() == 25, "batch caps at 25 events")
+		and _assert(split["rest"].size() == 5, "remaining events stay queued")
+	)
+
+
+func _test_ga4_config_validation() -> bool:
+	var sender = GA4Sender.new()
+	sender.set_config("G-ABC123XYZ", "secret")
+	var valid_ok := _assert(sender._config_valid(), "valid G- measurement_id accepted")
+	sender.set_config("ABC123XYZ", "secret")
+	var invalid_ok := _assert(not sender._config_valid(), "non-G- measurement_id rejected")
+	sender.set_config("", "")
+	var empty_ok := _assert(not sender._config_valid(), "empty config rejected")
+	sender.free()
+	return valid_ok and invalid_ok and empty_ok
+
+
+func _test_ga4_client_id_persists() -> bool:
+	_rm_user(GA4Sender.CLIENT_ID_PATH)
+	var sender = GA4Sender.new()
+	var first := sender._load_or_make_client_id()
+	var second := sender._load_or_make_client_id()
+	sender.free()
+	return (
+		_assert(first != "", "client_id generated")
+		and _assert(first == second, "client_id persists across loads")
+	)
+
+
+func _test_analytics_adapter_headless_noop() -> bool:
+	# 어댑터는 headless 에서 log_event 를 no-op 처리(sender 로 포워딩하지 않음).
+	var probe := _AnalyticsProbe.new()
+	var adapter = ReversiAnalytics.new()
+	adapter.set_sender(probe)
+	adapter.on_game_start("EASY", 1)
+	adapter.on_game_over("win", 40, 24, "EASY", 60)
+	var ok := _assert(probe.sent.is_empty(), "analytics adapter is no-op in headless")
+	probe.free()
+	return ok
 
 
 func _assert(condition: bool, label: String) -> bool:
