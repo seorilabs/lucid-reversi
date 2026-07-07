@@ -5,11 +5,13 @@ extends Node
 ## 유스케이스만 노출한다(show_interstitial). iOS 네이티브에서만 동작하며, 그 외 플랫폼·헤드리스·
 ## 에디터에서는 AdMob 싱글톤이 없어 자동 no-op이다(Admob 노드가 Engine.has_singleton으로 가드).
 ##
-## 아키텍처: 이 스크립트는 bootstrap 계층(순수 코어 아님)이다. 순수 코어
-## (reversi_engine.gd / packages/product-core)는 AdMob을 참조하지 않는다(check_architecture.sh).
+## 아키텍처: bootstrap 계층(순수 코어 아님). 순수 코어(reversi_engine.gd / packages/product-core)는
+## AdMob을 참조하지 않는다(check_architecture.sh).
 ##
-## 진단: 단계별 print 로그를 남긴다(iOS 시스템 로그 → Mac Console.app에서 프로세스 필터 "lucidreversi",
-## 검색 "[ios_ads]"). 로드 실패(no-fill 등) 시 일정 간격으로 재시도한다.
+## 주의: 이 노드는 main.gd 에서 "persistent_services" 그룹으로 추가된다. _build_ui() 의
+## get_children() 정리에서 제외되어야 초기화 직후 삭제되지 않는다(그렇지 않으면 광고가 안 뜬다).
+##
+## 로그는 print()로 iOS 시스템 로그에 남는다(로드 실패/no-fill 진단용). 로드 실패 시 재시도한다.
 
 const AdmobNode = preload("res://addons/AdmobPlugin/Admob.gd")
 const AdmobConfigScript = preload("res://addons/AdmobPlugin/model/AdmobConfig.gd")
@@ -22,14 +24,11 @@ const TEST_APP_ID := "ca-app-pub-3940256099942544~1458002511"
 const TEST_INTERSTITIAL_UNIT_ID := "ca-app-pub-3940256099942544/4411468910"
 
 ## AdMob 테스트 기기 ID.
-## 실기기 첫 실행 시 Google Mobile Ads SDK가 시스템 로그에 다음을 출력한다:
-##   "To get test ads on this device, set: GADMobileAds.sharedInstance.requestConfiguration
-##    .testDeviceIdentifiers = @[ @\"<HASHED_ID>\" ];"
-## 이 <HASHED_ID>를 여기에 넣으면, 실 광고 유닛으로도 "테스트 광고"가 떠서(no-fill·정책 위반 없이)
-## 실기기에서 통합을 검증할 수 있다. 비워두면 실 광고를 그대로 요청한다.
+## 실기기 로그의 "GADMobileAds...testDeviceIdentifiers = @[ @\"<ID>\" ]" 값을 넣으면,
+## 실 광고 유닛으로도 테스트 광고가 떠서(no-fill·정책 위반 없이) 실기기에서 검증할 수 있다.
 const TEST_DEVICE_IDS: Array[String] = []
 
-## 로드 실패(no-fill 등) 후 재시도 간격(초). 게임 종료 시점 외에도 백그라운드로 재로드를 시도한다.
+## 로드 실패(no-fill 등) 후 재시도 간격(초).
 const RETRY_DELAY_SEC := 30.0
 
 var _admob: Admob
@@ -47,7 +46,7 @@ func _ready() -> void:
 
 	var use_real: bool = not OS.is_debug_build()
 	var unit: String = REAL_INTERSTITIAL_UNIT_ID if use_real else TEST_INTERSTITIAL_UNIT_ID
-	_log("init start: is_real=%s, interstitial_unit=%s, test_devices=%s" % [use_real, unit, str(TEST_DEVICE_IDS)])
+	_log("init start: is_real=%s, interstitial_unit=%s" % [use_real, unit])
 
 	_admob = AdmobNode.new()
 	_admob.name = "Admob"
@@ -77,7 +76,6 @@ func _ready() -> void:
 ## 다음 판을 위해 미리 로드한다(AIT ads.ts 의 load→show→reload 와 동일한 UX).
 func show_interstitial() -> void:
 	if _admob == null:
-		_log("show 요청: 어댑터 미초기화(iOS 아님) → no-op")
 		return
 	if not _loaded:
 		_log("show 요청: 아직 미로드 → 이번 판 스킵하고 재로드")
@@ -89,24 +87,21 @@ func show_interstitial() -> void:
 
 func _load() -> void:
 	if _admob != null:
-		_log("load_interstitial_ad() 요청")
 		_admob.load_interstitial_ad()
 
 
 func _on_initialization_completed(_status: InitializationStatus) -> void:
 	_log("initialization_completed")
-	# auto_configure_on_initialize 가 test device 없는 config로 덮어쓴 뒤이므로, 여기서 다시 등록한다.
 	if not TEST_DEVICE_IDS.is_empty():
 		var cfg: AdmobConfig = _admob.create_request_configuration()
 		cfg.set_test_device_ids(TEST_DEVICE_IDS)
 		_admob.set_request_configuration(cfg)
-		_log("test devices registered via request configuration: %s" % str(TEST_DEVICE_IDS))
 	_load()
 
 
 func _on_interstitial_loaded(_ad_info: AdInfo, _response_info: ResponseInfo) -> void:
 	_loaded = true
-	_log("interstitial LOADED (표시 준비 완료)")
+	_log("interstitial loaded")
 
 
 func _on_interstitial_failed(_ad_info: AdInfo, error: LoadAdError) -> void:
@@ -114,22 +109,20 @@ func _on_interstitial_failed(_ad_info: AdInfo, error: LoadAdError) -> void:
 	var detail: String = "(no error object)"
 	if error != null:
 		detail = "code=%d domain=%s msg=%s" % [error.get_code(), error.get_domain(), error.get_message()]
-	_log("interstitial FAILED to load: %s → %.0fs 후 재시도" % [detail, RETRY_DELAY_SEC])
+	_log("interstitial failed to load: %s (%.0fs 후 재시도)" % [detail, RETRY_DELAY_SEC])
 	get_tree().create_timer(RETRY_DELAY_SEC).timeout.connect(_load, CONNECT_ONE_SHOT)
 
 
 func _on_interstitial_showed(_ad_info: AdInfo) -> void:
-	_log("interstitial showed (full screen content)")
+	_log("interstitial showed")
 
 
 func _on_interstitial_failed_to_show(_ad_info: AdInfo, _error: AdError) -> void:
 	_loaded = false
-	_log("interstitial FAILED to show → 재로드")
 	_load()
 
 
 func _on_interstitial_dismissed(_ad_info: AdInfo) -> void:
 	# 노출 후 다음 판을 위해 미리 로드.
 	_loaded = false
-	_log("interstitial dismissed → 다음 판 위해 재로드")
 	_load()
