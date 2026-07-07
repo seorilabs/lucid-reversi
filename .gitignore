@@ -46,6 +46,12 @@ godot/export.cfg
 godot/export_credentials.cfg
 *.translation
 
+# iOS AdMob plugin native binaries (다운로드: scripts/install_ios_admob_plugin.sh)
+# GDScript(godot/addons/AdmobPlugin)와 godot/ios/plugins/AdmobPlugin.gdip 는 커밋하고,
+# 용량 큰 xcframework(약 45MB)만 제외한다.
+/godot/ios/framework/
+/godot/ios/plugins/*.xcframework/
+
 # Build outputs
 build/
 dist/

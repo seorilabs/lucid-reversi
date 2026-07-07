@@ -42,7 +42,9 @@ jobs:
     with:
       release_tag: ${{ inputs.release_tag }}
       upload: ${{ inputs.upload == 'true' || inputs.upload == true }}
-      ios_scheme: "루시드 리버시"
+      # Godot iOS export가 생성하는 Xcode scheme은 xcodeproj 파일명(lucidreversi) 기반이다.
+      # config/name("루시드 리버시")이 아니라 lucidreversi 여야 xcodebuild -scheme 이 매칭된다.
+      ios_scheme: "lucidreversi"
       ios_bundle_id: com.etlegame.reversi
       project_dir: godot
       ensure_godot_script: scripts/ensure_godot.sh

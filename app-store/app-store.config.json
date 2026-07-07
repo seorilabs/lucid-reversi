@@ -11,15 +11,16 @@
   "exportPath": "release-artifacts/ios/export",
   "exportOptionsPlist": "app-store/exportOptions.plist",
   "uploadedBuild": {
-    "status": "Upload succeeded — com.etlegame.reversi v2.2.1, ASC 처리 중(2026-06-26)",
-    "shortVersion": "2.2.1",
-    "buildNumber": "1",
+    "status": "Upload succeeded — com.etlegame.reversi v2.2.2 build 5 (AdMob 전면광고 + _build_ui 서비스노드 삭제 버그 수정), ASC 처리 중(2026-07-08). build 1~4는 실기기 광고 미표시 진단 과정.",
+    "shortVersion": "2.2.2",
+    "buildNumber": "5",
     "deviceFamily": "iPhone+iPad (TARGETED_DEVICE_FAMILY=1,2)",
     "minIosVersion": "14.0",
-    "signing": "Apple Distribution (Seori Labs HCDUXX4Z3X), exportArchive 재서명",
-    "note": "기존 reversi 앱(이전 승인 2.2.0)을 Godot 버전으로 교체. 2.2.0 초과 필요 → 2.2.1. 후속 빌드는 buildNumber 또는 shortVersion 증가.",
-    "wrongUpload": "v1.0.5 build 1이 잘못된 id(com.github.magicsih.MatchSymbol) 앱 레코드로 1회 오업로드됨 → 콘솔에서 무시/삭제.",
-    "remaining": "콘솔에서 빌드 선택 + 메타데이터/스크린샷 반영 + App Privacy/연령등급/수출규정 답변 + Submit for Review"
+    "signing": "개발 자동 서명(Apple Development, automatic)으로 archive → exportArchive(app-store-connect, signingStyle=automatic, -allowProvisioningUpdates + ASC API 키)에서 Apple Distribution(Seori Labs HCDUXX4Z3X) 배포 재서명 + 업로드.",
+    "dsymWarning": "GoogleMobileAds/UserMessagingPlatform prebuilt xcframework에 dSYM 미포함 → Upload Symbols 경고(업로드 자체는 성공). AdMob SDK 관련 크래시 심볼화가 불완전할 수 있음.",
+    "previousBuild": "v2.2.1 build 1(광고 미포함, 2026-06-26 업로드, 심사 중이던 빌드). 2.2.2는 AdMob 포함 별도 마케팅 버전.",
+    "verificationNote": "TestFlight 실기기에서 전면광고 표시 확인 완료(테스트 광고로 검증). 미표시 원인은 main.gd _build_ui()가 광고 어댑터·GA4 전송기를 queue_free로 삭제하던 버그였고 build 5에서 수정(persistent_services 그룹).",
+    "remaining": "App Privacy를 GA4+AdMob(비맞춤형·IDFA 미사용) 반영해 갱신 → 콘솔에서 빌드 선택(build 5) → Submit for Review. (실기기 광고 표시 확인 완료, 심사 제출은 미수행)"
   },
   "signing": {
     "style": "manual",
@@ -28,20 +29,23 @@
     "appStoreProfileNote": "Team HCDUXX4Z3X용 App Store 프로비저닝 프로파일 필요(개발용 Apple Development 아님)."
   },
   "ads": {
-    "enabledInV1": false,
-    "v1Decision": "App Store v1은 ad-free로 출시. Info.plist에 GADApplicationIdentifier/SKAdNetwork 미포함(SDK 없음). 빈 광고 식별자로 인한 Apple 리뷰 리스크 회피.",
-    "plannedNative": {
-      "network": "AdMob",
-      "iosAppId": "ca-app-pub-2444587584524186~1005155551",
-      "interstitialUnitId": "ca-app-pub-2444587584524186/8692073883",
-      "format": "interstitial",
-      "trigger": "한 판 종료 시 1회 노출",
-      "personalization": "non-personalized",
-      "tracking": false,
-      "status": "후속 작업 — Godot 4.6.3 iOS AdMob 플러그인(.xcframework+.gdip)+SDK+GDScript 브리지 어댑터 필요. v1 범위 아님.",
-      "note": "구현 시 Info.plist에 GADApplicationIdentifier/SKAdNetworkItems 추가, 비맞춤형 광고로 IDFA/추적 미사용 유지, check_architecture.sh 경계(어댑터) 준수."
-    }
+    "enabled": true,
+    "network": "AdMob",
+    "plugin": "godot-sdk-integrations/godot-admob v6.0 (iOS 전용 사용). 구성: godot/addons/AdmobPlugin(GDScript, 커밋), godot/ios/plugins/AdmobPlugin.gdip(커밋), godot/ios/framework/*.xcframework(약 45MB, .gitignore→scripts/install_ios_admob_plugin.sh로 다운로드).",
+    "iosAppId": "ca-app-pub-2444587584524186~1005155551",
+    "interstitialUnitId": "ca-app-pub-2444587584524186/8692073883",
+    "format": "interstitial",
+    "trigger": "한 판 종료 시 1회 노출(_interstitial_shown_this_game 가드)",
+    "personalization": "non-personalized (PersonalizationState.DISABLED)",
+    "tracking": false,
+    "att": "미사용 — 비맞춤형·IDFA 미사용이라 NSUserTrackingUsageDescription/ATT 프롬프트 없음(ios_export.cfg att_enabled=false).",
+    "adapter": "godot/scripts/ios_ads.gd (bootstrap 계층, check_architecture.sh 경계 준수). main.gd _request_interstitial_ad()의 iOS 분기에서 호출.",
+    "plistInjection": "IosExportPlugin(AdmobPlugin.gd)이 export 시 GADApplicationIdentifier + SKAdNetworkItems를 Info.plist에 자동 주입(ios_export.cfg 기반). is_real=true라 릴리스 아카이브엔 실 iOS App ID.",
+    "testIds": "개발/비릴리스 빌드는 AdMob 공식 테스트 App ID/Unit ID 사용(OS.is_debug_build 분기). 릴리스만 실 유닛(정책 준수).",
+    "cocoaPods": "불필요 — v6.0 iOS는 self-contained xcframework이고 mediation 미사용이라 Podfile 미생성. org App Store 워크플로우의 xcodebuild archive -project 경로 그대로 사용.",
+    "androidNote": "AdMob은 iOS 전용. AdmobPlugin.gd에서 AndroidExportPlugin 미등록(Android AAB에 AdMob 강제 포함 방지). Android 광고는 미탑재."
   },
+  "adsPrivacyReview": "AdMob(비맞춤형) 도입으로 App Store App Privacy는 재검토 필요. GA4(익명 client_id) + AdMob(비맞춤형·IDFA 미사용)을 반영해 dataCollection/consoleGates.appPrivacy를 다음 빌드 제출 전 확정할 것. ATT는 불필요(추적 없음) 유지.",
   "dataCollection": {
     "enabledFrom": "GA4 Analytics 포함 빌드(현재 심사 중 v2.2.1 다음 빌드부터). v2.2.1 자체는 미수집.",
     "sink": "Google Analytics 4 — Measurement Protocol(REST, HTTPRequest 직접 전송, Firebase SDK 미사용)",

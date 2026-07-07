@@ -3,6 +3,7 @@ extends Control
 const ReversiEngine = preload("res://scripts/reversi_engine.gd")
 const ReversiAnalytics = preload("res://scripts/analytics.gd")
 const GA4_SENDER_SCRIPT = preload("res://scripts/ga4_mp_sender.gd")
+const IOS_ADS_SCRIPT = preload("res://scripts/ios_ads.gd")
 const CLASSIC_BLACK_TEXTURE = preload("res://assets/reversi/themes/classic_black.svg")
 const CLASSIC_WHITE_TEXTURE = preload("res://assets/reversi/themes/classic_white.svg")
 const ARCTIC_BLACK_TEXTURE = preload("res://assets/reversi/themes/arctic_black.svg")
@@ -142,6 +143,7 @@ var input_locked := false
 # 한 판당 전면 광고 1회만 노출하기 위한 가드 (게임 종료 시 트리거).
 var _interstitial_shown_this_game := false
 var analytics: ReversiAnalytics
+var _ios_ads: Node
 
 var cell_buttons: Array = []
 var cell_piece_views: Array = []
@@ -181,8 +183,13 @@ func _ready() -> void:
 	# GA4 Measurement Protocol 전송기(Node)를 씬 트리에 붙여 어댑터에 주입한다.
 	# 실제 전송은 config 존재 + 릴리스 빌드 + 비-headless 일 때만(전송기가 판단). _ready 에서 game_open 발생.
 	var ga4_sender := GA4_SENDER_SCRIPT.new()
+	ga4_sender.add_to_group("persistent_services")
 	add_child(ga4_sender)
 	analytics.set_sender(ga4_sender)
+	# App Store(iOS) AdMob 전면광고 어댑터. iOS 네이티브에서만 초기화되고 그 외에는 no-op.
+	_ios_ads = IOS_ADS_SCRIPT.new()
+	_ios_ads.add_to_group("persistent_services")
+	add_child(_ios_ads)
 	_load_or_start()
 	_build_ui()
 	_render()
@@ -206,6 +213,11 @@ func _load_or_start() -> void:
 
 func _build_ui() -> void:
 	for child in get_children():
+		# GA4 전송기·광고 어댑터 같은 백그라운드 서비스 노드는 UI 재구성 시 삭제하지 않는다.
+		# (_build_ui 는 _ready 외에 테마/난이도/언어 변경에서도 재호출되며 get_children 을 전부 지운다.
+		#  이걸 지우면 광고가 초기화 직후 사라지고 GA4 전송기도 game_open 이후 이벤트를 못 보낸다.)
+		if child.is_in_group("persistent_services"):
+			continue
 		child.queue_free()
 
 	theme = _make_ui_theme()
@@ -913,6 +925,9 @@ func _maybe_play_ai_turn() -> void:
 	_save_state()
 	ai_move_pending = false
 	await _render_with_animation(before_board, result)
+	# 플레이어가 착수할 곳이 없어 패스되면 엔진이 턴을 다시 AI 에게 넘긴다.
+	# 이 경우 재호출하지 않으면 AI 차례에서 게임이 멈추므로 다시 트리거한다.
+	call_deferred("_maybe_play_ai_turn")
 
 
 func _render_with_animation(before_board: Array, result: Dictionary) -> void:
@@ -1210,17 +1225,18 @@ func _update_result_overlay() -> void:
 
 
 func _request_interstitial_ad() -> void:
-	# 게임 종료 시 AppsInToss 전면(Interstitial) 광고를 요청한다.
-	# AIT(web export)에서만 동작한다. Google Play / App Store 네이티브 export에서는
-	# OS.has_feature("web") 가 false 라 no-op이며, 해당 마켓 광고는 별도 네이티브 연동에서 처리한다.
-	#
-	# AppsInToss 보안 정책상 JavaScriptBridge.eval(외부 코드 문자열 실행)은 금지된다.
-	# eval 없이, wrapper가 노출한 전역 객체(window.__aitBridge)의 메서드를 직접 호출한다.
-	if not OS.has_feature("web"):
+	# 게임 종료 시 마켓별 전면(Interstitial) 광고를 요청한다. 게임당 1회(_interstitial_shown_this_game).
+	# - AIT(web export): wrapper가 노출한 전역 객체(window.__aitBridge) 메서드를 직접 호출.
+	#   AppsInToss 보안 정책상 JavaScriptBridge.eval(외부 코드 문자열 실행)은 금지되므로 eval을 쓰지 않는다.
+	# - App Store(iOS): AdMob 어댑터(ios_ads.gd)로 전면광고 표시. 비맞춤형·IDFA 미사용.
+	# - Google Play(Android): 현재 광고 미탑재(릴리스 빌드 인프라만) → no-op.
+	if OS.has_feature("web"):
+		var bridge: JavaScriptObject = JavaScriptBridge.get_interface("__aitBridge")
+		if bridge != null:
+			bridge.showInterstitialAd()
 		return
-	var bridge: JavaScriptObject = JavaScriptBridge.get_interface("__aitBridge")
-	if bridge != null:
-		bridge.showInterstitialAd()
+	if OS.has_feature("ios") and _ios_ads != null:
+		_ios_ads.show_interstitial()
 
 
 func _status_text() -> String:

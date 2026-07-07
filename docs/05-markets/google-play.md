@@ -2,7 +2,7 @@
 
 ## App Identity
 
-- Package name: 확정 필요
+- Package name: `com.etlegame.reversi` (iOS bundle id와 통일)
 - App name: 루시드 리버시
 - Default language: Korean
 - Category: Games / Board
@@ -10,16 +10,17 @@
 ## Release
 
 - First track: internal testing
-- AAB signing: 확정 필요
-- Play App Signing: 확정 필요
+- AAB 서명: org 워크플로우가 업로드 키스토어(secrets `GOOGLE_PLAY_UPLOAD_KEYSTORE_BASE64`/`GOOGLE_PLAY_UPLOAD_KEYSTORE_PASSWORD`, alias var `GOOGLE_PLAY_UPLOAD_KEY_ALIAS`)로 서명.
+- Play App Signing: 권장(업로드 키 → Play가 최종 서명). Play Console 앱 등록 시 설정.
+- 업로드: WIF(`GOOGLE_WORKLOAD_IDENTITY_PROVIDER` + `GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL` vars)로 Android Publisher API 업로드.
 - Build runner: x64 Linux runner. RPI ARC runner는 Android release AAB/APK 대상이 아니다.
 
 ## Policy / Data Safety
 
-- Ads: 후보 있음. Phase 2 기준 실제 SDK 연결 없음.
+- Ads: **미탑재**(릴리스 빌드 인프라만 구성). org 워크플로우는 `vars.ADMOB_APP_ID`가 비면 AdMob 단계를 자동 스킵. AdMob은 현재 iOS 전용.
 - In-app purchases: 없음
-- Analytics: 확정 필요
-- Crash reporting: 확정 필요
+- Analytics: GA4 Measurement Protocol(REST, `godot/scripts/ga4_mp_sender.gd`). Firebase SDK 미사용 → google-services.json/Firebase Android app 불요.
+- Crash reporting: 없음(Firebase Crashlytics 미사용)
 - Account deletion requirement: 계정 기능 없음. Firebase Auth를 추가하지 않는 한 삭제 URL 대상 아님.
 
 ## Assets
@@ -34,4 +35,12 @@
 - Godot project name: `루시드 리버시`
 - Playable MVP: 싱글플레이, 난이도, 합법 수 표시, 패스, 게임오버, 로컬 저장
 - Android device smoke: `npm run build:android:smoke` creates `build/android/lucid-reversi-device-smoke.apk` by packaging the Godot export pack into the local Android debug template.
-- Not ready: release AAB preset, signing, Play Console app, store graphics
+- **릴리스 AAB 빌드 인프라 구성 완료**:
+  - `godot/export_presets.cfg`에 Android preset(`Android`) 커밋 — `package/unique_name=com.etlegame.reversi`, gradle AAB(`gradle_build/use_gradle_build=true`, `export_format=0`), arm64-v8a, keystore는 env 주입용으로 비움.
+  - `scripts/install_android_build_template.sh`(org 워크플로우가 export 직전 호출): editor settings에 Android SDK/JDK 경로 주입 + Godot Android build template(`godot/android/build`, `.gitignore` 대상) 설치.
+  - 배포 경로: `.github/workflows/deploy-google-play.yml` → org `godot-deploy-google-play.yml`(`godot --export-release Android` → 서명 → WIF 업로드).
+- 실 배포 전 필요한 GitHub secrets/vars:
+  - secrets: `GOOGLE_PLAY_UPLOAD_KEYSTORE_BASE64`, `GOOGLE_PLAY_UPLOAD_KEYSTORE_PASSWORD`, `GOOGLE_PLAY_UPLOAD_KEY_PASSWORD`
+  - vars: `GOOGLE_PLAY_UPLOAD_KEY_ALIAS`, `GOOGLE_WORKLOAD_IDENTITY_PROVIDER`, `GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL`
+  - Android 광고 미탑재이므로 `ADMOB_APP_ID`는 **미설정**(설정 시 AdMob 강제 포함).
+- 남은 것: Play Console 앱 레코드 생성, store graphics(아이콘/피처그래픽/스크린샷), Android 런처 아이콘 자산(현재 preset은 기본 아이콘).

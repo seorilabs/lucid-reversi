@@ -1,8 +1,13 @@
 {
-  "packageName": "확정 필요",
+  "packageName": "com.etlegame.reversi",
+  "packageNameNote": "iOS bundle id(com.etlegame.reversi)와 통일. export_presets.cfg Android preset의 package/unique_name과 일치.",
   "defaultLanguage": "ko-KR",
   "track": "internal",
-  "serviceAccountSecretName": "확정 필요",
+  "serviceAccountSecretName": "WIF 사용 — org 워크플로우가 GOOGLE_WORKLOAD_IDENTITY_PROVIDER + GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL(vars)로 인증(서비스 계정 JSON 키 미사용).",
   "aabPath": "release-artifacts/android/app-release.aab",
-  "displayName": "루시드 리버시"
+  "displayName": "루시드 리버시",
+  "ads": {
+    "enabled": false,
+    "note": "Android는 릴리스 빌드 인프라만 구성(광고 미탑재). org 워크플로우는 vars.ADMOB_APP_ID가 비어 있으면 AdMob 단계를 자동 스킵한다. Android AdMob 도입 시 addons/AdmobPlugin의 AndroidExportPlugin 재활성화 + Android AdMob App ID/Unit ID 발급 필요."
+  }
 }
