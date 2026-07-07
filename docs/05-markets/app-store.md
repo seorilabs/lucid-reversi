@@ -58,20 +58,22 @@
 - 캡처 방법: x86_64(Rosetta) 시뮬레이터 빌드(Godot 엔진 simulator lib가 arm64 슬라이스 없음) → iPhone 16 Pro Max / iPad Pro 13"(M4) 부팅·실행·`simctl io screenshot`.
 - 비고: 게임이 720×1280로 설계돼 더 긴 화면에서 하단 레터박스(검은 영역) 발생 — Apple 허용. 더 꽉 찬 화면 원하면 게임 stretch/aspect 조정(별도 작업). 화면당 1장씩이라 다양화하려면 탭 입력 화면 수동 보완.
 
-## Build / Upload 상태 (2026-06-26)
+## Build / Upload 상태 (2026-07-07)
 
-- ✅ **업로드 성공** — `com.etlegame.reversi` v**2.2.1** build 1, universal(iPhone+iPad), min iOS 14.0. ASC 처리 중.
-- 이 앱은 기존 reversi 앱(이전 승인 2.2.0)을 Godot 버전으로 교체. 2.2.0 초과 필요 → 2.2.1.
-- 주의: v1.0.5 build 1이 잘못된 id(MatchSymbol) 앱 레코드로 1회 오업로드됨 → 콘솔에서 무시/삭제.
+- ✅ **업로드 성공** — `com.etlegame.reversi` v**2.2.2** build 1 (**AdMob 전면광고 포함**), universal(iPhone+iPad), min iOS 14.0. ASC 처리 중.
+- 이전: v2.2.1 build 1(광고 미포함, 2026-06-26 업로드). 2.2.2는 AdMob 포함 별도 마케팅 버전.
 - 경로: Godot 4.6.3 iOS export(preset `iOS`) → `xcodebuild archive` → `xcodebuild -exportArchive`(method=app-store-connect, destination=upload).
-- 서명: 자동 서명 아카이브 → exportArchive에서 Apple Distribution(Seori Labs) 배포 재서명.
-- 버전/기기 요건: 이전 승인 버전 1.0.4 초과 + 이전 기기 유지 필요 → 1.0.5/universal. 후속 빌드는 build 또는 short version 증가.
+- 서명: **개발 자동 서명(Apple Development, automatic)** 아카이브 → exportArchive(`-allowProvisioningUpdates` + ASC API 키)에서 **Apple Distribution(Seori Labs) 배포 재서명 + 업로드**. manual+Distribution은 로컬에 `com.etlegame.reversi` App Store 프로파일이 없어 실패 → automatic development로 archive 후 export 재서명이 정답.
+- scheme은 **`lucidreversi`**(Godot이 xcodeproj 파일명 기반으로 생성). `deploy-app-store.yml`의 `ios_scheme`도 이 값으로 맞춤.
+- 경고: GoogleMobileAds/UserMessagingPlatform prebuilt framework에 dSYM 미포함 → Upload Symbols 경고(업로드 자체는 성공). AdMob 크래시 심볼화가 불완전할 수 있음.
+- ⚠️ 이 AdMob 빌드는 export 파이프라인만 검증(실기기 미검증). **TestFlight 실기기 검증 필요.**
 - 자세한 빌드 노트/함정: `docs/09-knowledge/ios-app-store-godot.md`.
 
 ## 남은 콘솔/수동 게이트
 
-- [ ] 콘솔에서 업로드된 빌드 선택
+- [ ] **TestFlight 실기기 검증** (AdMob 전면광고 표시·크래시 없음 — 실기기 첫 검증)
+- [ ] 콘솔에서 업로드된 빌드(v2.2.2 build 1) 선택
 - [x] iPhone 6.9" + iPad 13" 스크린샷 1장씩 실 캡처 (추가 화면은 선택)
-- [ ] App Privacy(No Data Collected) / 연령등급(4+) / 콘텐츠 권리(없음) / 수출규정(false) 답변
+- [ ] App Privacy 재작성: GA4(익명 client_id)+AdMob(비맞춤형·IDFA 미사용) 반영 / 연령등급(광고 있음 → 4+) / 콘텐츠 권리(AdMob third-party 포함) / 수출규정(false)
 - [ ] 메타데이터(이 문서 카피) 콘솔 반영, Support URL 확정
-- [ ] Submit for Review
+- [ ] Submit for Review (실기기 검증·App Privacy 갱신 후)
