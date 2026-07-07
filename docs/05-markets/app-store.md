@@ -34,18 +34,20 @@
 
 ## Ads
 
-- **v1: ad-free** (광고 미포함). Info.plist에 GADApplicationIdentifier/SKAdNetwork 미포함.
-- 네이티브 AdMob iOS는 **후속 작업**. Godot 4.6.3 iOS AdMob 플러그인(.xcframework+.gdip)+SDK+GDScript 브리지 어댑터 필요. `check_architecture.sh` 경계 준수.
-- 후속 광고 ID(준비됨): App `ca-app-pub-2444587584524186~1005155551`, Interstitial `ca-app-pub-2444587584524186/8692073883`, 비맞춤형/추적 OFF.
-- 게임 코드 `main.gd:_request_interstitial_ad()`는 네이티브 export에서 `OS.has_feature("web")=false`라 현재 no-op.
+- **AdMob 전면(Interstitial) 광고 탑재** (iOS). 한 판 종료 시 1회 노출(`_interstitial_shown_this_game` 가드).
+- 플러그인: `godot-sdk-integrations/godot-admob` v6.0 (iOS 전용 사용, Godot 4.6 지원). GDScript 애드온(`godot/addons/AdmobPlugin`)과 `godot/ios/plugins/AdmobPlugin.gdip`는 커밋, xcframework(약 45MB)는 `.gitignore` → iOS export 전 `scripts/install_ios_admob_plugin.sh`로 다운로드.
+- 광고 ID: App `ca-app-pub-2444587584524186~1005155551`, Interstitial `ca-app-pub-2444587584524186/8692073883`. 비맞춤형(`PersonalizationState.DISABLED`)·IDFA/추적 미사용.
+- Info.plist 주입: `IosExportPlugin`이 export 시 `GADApplicationIdentifier` + `SKAdNetworkItems`를 자동 주입(`godot/addons/AdmobPlugin/ios_export.cfg` 기반, `is_real=true`라 릴리스엔 실 App ID). CocoaPods 불필요(self-contained xcframework, mediation 미사용 → Podfile 미생성) → org `xcodebuild archive -project` 경로 그대로.
+- 어댑터: `godot/scripts/ios_ads.gd`(bootstrap 계층, `check_architecture.sh` 경계 준수). `main.gd:_request_interstitial_ad()`의 iOS 분기에서 호출. 개발/비릴리스 빌드는 AdMob 공식 테스트 ID(`OS.is_debug_build` 분기), 릴리스만 실 유닛.
+- AdMob은 iOS 전용. `AdmobPlugin.gd`에서 `AndroidExportPlugin` 미등록(Android AAB에 AdMob 강제 포함 방지).
 
 ## Privacy / Review
 
-- Privacy nutrition labels: **No Data Collected** (v1 ad-free). 기존 레코드에 광고 SDK 답변이 남아 있으면 ad-free로 정정.
-- Tracking: No (광고 미포함)
+- Privacy nutrition labels: **재검토 필요** — GA4(익명 client_id) + AdMob(비맞춤형·IDFA 미사용)을 반영해 다음 빌드 제출 전 확정. 현재 심사 중 v2.2.1(analytics/광고 미포함)은 No Data Collected 유지.
+- Tracking: No — 비맞춤형·IDFA 미사용이라 ATT 불필요(`NSUserTrackingUsageDescription` 미포함).
 - Export compliance: `ITSAppUsesNonExemptEncryption = false` (표준 SDK 전송 암호화만)
-- Content rights: third-party 광고 콘텐츠 없음 (first-party 게임 자산만)
-- Age rating: 광고 none, 폭력/도박/UGC 없음 → 4+ 예상
+- Content rights: AdMob 광고(third-party 콘텐츠) 포함 — 콘솔 콘텐츠 권리 답변에 반영. 게임 자산은 first-party.
+- Age rating: 광고 있음(AdMob 전면). 폭력/도박/UGC 없음 → 4+ 예상(광고 존재 자체는 연령등급에 큰 영향 없음).
 - Review notes: 확정 필요
 
 ## Assets
