@@ -4,6 +4,9 @@ const ReversiEngine = preload("res://scripts/reversi_engine.gd")
 const ReversiAnalytics = preload("res://scripts/analytics.gd")
 const GA4_SENDER_SCRIPT = preload("res://scripts/ga4_mp_sender.gd")
 const IOS_ADS_SCRIPT = preload("res://scripts/ios_ads.gd")
+const PLACE_SFX = preload("res://assets/audio/place.wav")
+const FLIP_SFX = preload("res://assets/audio/flip.wav")
+const BIG_FLIP_SFX = preload("res://assets/audio/big_flip.wav")
 const CLASSIC_BLACK_TEXTURE = preload("res://assets/reversi/themes/classic_black.svg")
 const CLASSIC_WHITE_TEXTURE = preload("res://assets/reversi/themes/classic_white.svg")
 const ARCTIC_BLACK_TEXTURE = preload("res://assets/reversi/themes/arctic_black.svg")
@@ -200,6 +203,8 @@ func _load_or_start() -> void:
 	var loaded := _load_state()
 	if loaded.is_empty():
 		state = ReversiEngine.create_new_game(player_stone, difficulty)
+		# 최초 실행: 기기 언어로 로케일 초기화(한국어 기기→ko, 그 외→en). 이후 사용자 변경은 저장돼 우선한다.
+		state["settings"] = {"locale": _device_default_locale()}
 		return
 
 	state = loaded
@@ -229,10 +234,11 @@ func _build_ui() -> void:
 
 	var screen := MarginContainer.new()
 	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
-	screen.add_theme_constant_override("margin_left", 12)
-	screen.add_theme_constant_override("margin_top", 10)
-	screen.add_theme_constant_override("margin_right", 12)
-	screen.add_theme_constant_override("margin_bottom", 8)
+	var safe: Dictionary = _safe_area_margins()
+	screen.add_theme_constant_override("margin_left", 12 + int(safe["left"]))
+	screen.add_theme_constant_override("margin_top", 10 + int(safe["top"]))
+	screen.add_theme_constant_override("margin_right", 12 + int(safe["right"]))
+	screen.add_theme_constant_override("margin_bottom", 8 + int(safe["bottom"]))
 	add_child(screen)
 
 	var root := VBoxContainer.new()
@@ -1076,56 +1082,65 @@ func _pulse_cell(x: int, y: int, color: Color) -> void:
 
 
 func _play_place_sound() -> void:
-	_play_synth_tone(360.0, 0.09, 0.15, 140.0)
+	_play_sfx(PLACE_SFX, 1.0)
 
 
 func _play_flip_sound(index: int) -> void:
-	_play_synth_tone(520.0 + float(index) * 22.0, 0.055, 0.095, -80.0)
+	_play_sfx(FLIP_SFX, flip_pitch(index))
 
 
 func _play_big_flip_sound(flip_count: int) -> void:
-	_play_synth_tone(270.0 + float(flip_count) * 10.0, 0.22, 0.15, 320.0, 0.35)
+	_play_sfx(BIG_FLIP_SFX, big_flip_pitch(flip_count))
 
 
-func _play_synth_tone(base_frequency: float, duration: float, volume: float, sweep: float = 0.0, overtone_mix: float = 0.0) -> void:
+# flip.wav/big_flip.wav 는 sweep 없는 순수 톤(각 520Hz·270Hz). pitch_scale 로 base frequency 를 조정해
+# 뒤집힌 순서(index)·개수(flip_count)에 따라 음이 조금씩 올라간다. static 순수함수라 회귀 테스트가 쉽다.
+static func flip_pitch(index: int) -> float:
+	return (520.0 + float(index) * 22.0) / 520.0
+
+
+static func big_flip_pitch(flip_count: int) -> float:
+	return (270.0 + float(flip_count) * 10.0) / 270.0
+
+
+func _play_sfx(stream: AudioStream, pitch: float) -> void:
+	# AudioStreamGenerator(런타임 실시간 합성)는 iOS 실기기에서 소리가 나지 않아,
+	# 동일한 톤을 미리 구운 .wav(scripts/generate_sfx.py) 를 AudioStreamPlayer 로 재생한다.
 	if !bool(_current_settings().get("sound", true)):
 		return
-
-	var stream := AudioStreamGenerator.new()
-	stream.mix_rate = 44100
-	stream.buffer_length = duration + 0.10
-
 	var player := AudioStreamPlayer.new()
 	player.stream = stream
+	player.pitch_scale = pitch
 	player.volume_db = -5.0
 	add_child(player)
 	player.play()
-
-	var playback = player.get_stream_playback()
-	if playback == null:
-		player.queue_free()
-		return
-
-	var mix_rate: float = float(stream.mix_rate)
-	var frames: int = int(mix_rate * duration)
-	var phase: float = 0.0
-	var overtone_phase: float = 0.0
-	for i in range(frames):
-		var t: float = float(i) / mix_rate
-		var progress: float = t / max(duration, 0.001)
-		var frequency: float = base_frequency + sweep * progress
-		var envelope: float = sin(progress * PI)
-		phase += TAU * frequency / mix_rate
-		var sample: float = sin(phase)
-		if overtone_mix > 0.0:
-			overtone_phase += TAU * frequency * 1.5 / mix_rate
-			sample = sample * (1.0 - overtone_mix) + sin(overtone_phase) * overtone_mix
-		sample *= volume * envelope
-		playback.push_frame(Vector2(sample, sample))
-
-	get_tree().create_timer(duration + 0.12).timeout.connect(func() -> void:
+	player.finished.connect(func() -> void:
 		if is_instance_valid(player):
 			player.queue_free()
+	)
+
+
+# safe area(물리 픽셀)를 게임 viewport 좌표의 좌/상/우/하 여백으로 환산한다.
+# X·Y 각각의 stretch 스케일(vp/win)을 써서 가로/세로 비율이 달라도 정확하고, 좌우 노치(가로 방향)도 반영한다.
+# 데스크톱/웹에서는 safe area 가 전체 창이라 네 값 모두 0 이다. static 순수함수라 회귀 테스트가 쉽다.
+static func compute_safe_area_margins(safe: Rect2i, win: Vector2i, vp: Vector2) -> Dictionary:
+	if win.x <= 0 or win.y <= 0:
+		return {"left": 0.0, "top": 0.0, "right": 0.0, "bottom": 0.0}
+	var sx: float = vp.x / float(win.x)
+	var sy: float = vp.y / float(win.y)
+	return {
+		"left": maxf(float(safe.position.x) * sx, 0.0),
+		"top": maxf(float(safe.position.y) * sy, 0.0),
+		"right": maxf(float(win.x - (safe.position.x + safe.size.x)) * sx, 0.0),
+		"bottom": maxf(float(win.y - (safe.position.y + safe.size.y)) * sy, 0.0),
+	}
+
+
+func _safe_area_margins() -> Dictionary:
+	return compute_safe_area_margins(
+		DisplayServer.get_display_safe_area(),
+		DisplayServer.window_get_size(),
+		get_viewport().get_visible_rect().size
 	)
 
 
@@ -1331,6 +1346,14 @@ func _current_settings() -> Dictionary:
 		if defaults.has(key):
 			merged[key] = current[key]
 	return merged
+
+
+func _device_default_locale() -> String:
+	# 기기 언어가 한국어면 ko, 그 외엔 en. 최초 실행 시 기본 로케일 결정에 쓴다.
+	# 헤드리스(스모크 테스트/CI)에는 UI가 없고 테스트가 한글 UI를 전제하므로 ko 로 고정한다.
+	if DisplayServer.get_name() == "headless":
+		return "ko"
+	return "ko" if OS.get_locale().begins_with("ko") else "en"
 
 
 func _current_locale_id() -> String:
