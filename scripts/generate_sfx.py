@@ -52,9 +52,12 @@ def write_wav(path, samples):
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     # 값 출처: main.gd _play_place_sound / _play_flip_sound / _play_big_flip_sound
-    write_wav(os.path.join(OUT_DIR, "place.wav"), render(360.0, 0.09, 0.15, 140.0))
-    write_wav(os.path.join(OUT_DIR, "flip.wav"), render(520.0, 0.055, 0.095, -80.0))
-    write_wav(os.path.join(OUT_DIR, "big_flip.wav"), render(270.0, 0.22, 0.15, 320.0, 0.35))
+    # place 는 고정 재생(pitch_scale=1)이라 sweep(주파수 변조)을 그대로 구워도 된다.
+    write_wav(os.path.join(OUT_DIR, "place.wav"), render(360.0, 0.09, 0.15, sweep=140.0))
+    # flip/big_flip 은 런타임에 pitch_scale 로 base frequency 를 조정한다. sweep 이 있으면
+    # pitch_scale 이 sweep 까지 함께 배속해 주파수 변조가 어긋나므로, sweep 없이 base 순수 톤으로 굽는다.
+    write_wav(os.path.join(OUT_DIR, "flip.wav"), render(520.0, 0.055, 0.095))
+    write_wav(os.path.join(OUT_DIR, "big_flip.wav"), render(270.0, 0.22, 0.15, overtone_mix=0.35))
 
 
 if __name__ == "__main__":

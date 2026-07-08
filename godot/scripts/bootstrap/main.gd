@@ -234,11 +234,11 @@ func _build_ui() -> void:
 
 	var screen := MarginContainer.new()
 	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var safe_margins: Vector2 = _safe_area_margins_px()
-	screen.add_theme_constant_override("margin_left", 12)
-	screen.add_theme_constant_override("margin_top", 10 + int(safe_margins.x))
-	screen.add_theme_constant_override("margin_right", 12)
-	screen.add_theme_constant_override("margin_bottom", 8 + int(safe_margins.y))
+	var safe: Dictionary = _safe_area_margins()
+	screen.add_theme_constant_override("margin_left", 12 + int(safe["left"]))
+	screen.add_theme_constant_override("margin_top", 10 + int(safe["top"]))
+	screen.add_theme_constant_override("margin_right", 12 + int(safe["right"]))
+	screen.add_theme_constant_override("margin_bottom", 8 + int(safe["bottom"]))
 	add_child(screen)
 
 	var root := VBoxContainer.new()
@@ -1086,13 +1086,21 @@ func _play_place_sound() -> void:
 
 
 func _play_flip_sound(index: int) -> void:
-	# 기존 합성음의 base 520 + index*22 Hz 를 pitch_scale 로 재현(파일은 520Hz 기준).
-	_play_sfx(FLIP_SFX, (520.0 + float(index) * 22.0) / 520.0)
+	_play_sfx(FLIP_SFX, flip_pitch(index))
 
 
 func _play_big_flip_sound(flip_count: int) -> void:
-	# 기존 합성음의 base 270 + flip_count*10 Hz 를 pitch_scale 로 재현(파일은 270Hz 기준).
-	_play_sfx(BIG_FLIP_SFX, (270.0 + float(flip_count) * 10.0) / 270.0)
+	_play_sfx(BIG_FLIP_SFX, big_flip_pitch(flip_count))
+
+
+# flip.wav/big_flip.wav 는 sweep 없는 순수 톤(각 520Hz·270Hz). pitch_scale 로 base frequency 를 조정해
+# 뒤집힌 순서(index)·개수(flip_count)에 따라 음이 조금씩 올라간다. static 순수함수라 회귀 테스트가 쉽다.
+static func flip_pitch(index: int) -> float:
+	return (520.0 + float(index) * 22.0) / 520.0
+
+
+static func big_flip_pitch(flip_count: int) -> float:
+	return (270.0 + float(flip_count) * 10.0) / 270.0
 
 
 func _play_sfx(stream: AudioStream, pitch: float) -> void:
@@ -1112,19 +1120,28 @@ func _play_sfx(stream: AudioStream, pitch: float) -> void:
 	)
 
 
-func _safe_area_margins_px() -> Vector2:
-	# iOS 노치/다이나믹 아일랜드/status bar(상단)·홈 인디케이터(하단) 안전영역을 게임 viewport 좌표로 환산한다.
-	# DisplayServer.get_display_safe_area() 는 물리 픽셀 기준이라 stretch 스케일(vp.y/win.y)을 곱해야 게임 좌표와 맞는다.
-	# 데스크톱/웹에서는 safe area 가 전체 창이라 (0,0)을 반환한다.
-	var safe := DisplayServer.get_display_safe_area()
-	var win := DisplayServer.window_get_size()
-	if win.y <= 0:
-		return Vector2.ZERO
-	var vp: Vector2 = get_viewport().get_visible_rect().size
-	var scale_y: float = vp.y / float(win.y)
-	var top: float = float(safe.position.y) * scale_y
-	var bottom: float = float(win.y - (safe.position.y + safe.size.y)) * scale_y
-	return Vector2(maxf(top, 0.0), maxf(bottom, 0.0))
+# safe area(물리 픽셀)를 게임 viewport 좌표의 좌/상/우/하 여백으로 환산한다.
+# X·Y 각각의 stretch 스케일(vp/win)을 써서 가로/세로 비율이 달라도 정확하고, 좌우 노치(가로 방향)도 반영한다.
+# 데스크톱/웹에서는 safe area 가 전체 창이라 네 값 모두 0 이다. static 순수함수라 회귀 테스트가 쉽다.
+static func compute_safe_area_margins(safe: Rect2i, win: Vector2i, vp: Vector2) -> Dictionary:
+	if win.x <= 0 or win.y <= 0:
+		return {"left": 0.0, "top": 0.0, "right": 0.0, "bottom": 0.0}
+	var sx: float = vp.x / float(win.x)
+	var sy: float = vp.y / float(win.y)
+	return {
+		"left": maxf(float(safe.position.x) * sx, 0.0),
+		"top": maxf(float(safe.position.y) * sy, 0.0),
+		"right": maxf(float(win.x - (safe.position.x + safe.size.x)) * sx, 0.0),
+		"bottom": maxf(float(win.y - (safe.position.y + safe.size.y)) * sy, 0.0),
+	}
+
+
+func _safe_area_margins() -> Dictionary:
+	return compute_safe_area_margins(
+		DisplayServer.get_display_safe_area(),
+		DisplayServer.window_get_size(),
+		get_viewport().get_visible_rect().size
+	)
 
 
 func _update_mode_buttons() -> void:
@@ -1333,6 +1350,9 @@ func _current_settings() -> Dictionary:
 
 func _device_default_locale() -> String:
 	# 기기 언어가 한국어면 ko, 그 외엔 en. 최초 실행 시 기본 로케일 결정에 쓴다.
+	# 헤드리스(스모크 테스트/CI)에는 UI가 없고 테스트가 한글 UI를 전제하므로 ko 로 고정한다.
+	if DisplayServer.get_name() == "headless":
+		return "ko"
 	return "ko" if OS.get_locale().begins_with("ko") else "en"
 
 

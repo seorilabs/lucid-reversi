@@ -36,7 +36,74 @@ func _ready() -> void:
 	ok = _test_ga4_config_validation() and ok
 	ok = _test_ga4_client_id_persists() and ok
 	ok = _test_analytics_adapter_headless_noop() and ok
+	ok = _test_safe_area_margins() and ok
+	ok = _test_sfx_pitch_scale() and ok
+	var sfx_sound_ok := await _test_sfx_respects_sound_setting()
+	ok = sfx_sound_ok and ok
 	get_tree().quit(0 if ok else 1)
+
+
+func _test_safe_area_margins() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	# safe area 가 창 전체(inset 없음) → 네 마진 모두 0 (데스크톱/웹).
+	var full: Dictionary = MainScript.compute_safe_area_margins(Rect2i(0, 0, 1170, 2532), Vector2i(1170, 2532), Vector2(720, 1280))
+	var zero_ok: bool = full["left"] == 0.0 and full["top"] == 0.0 and full["right"] == 0.0 and full["bottom"] == 0.0
+	# 상단 47px 노치 + 하단 34px 홈 인디케이터 → Y 스케일(vp.y/win.y) 반영, 좌우 0.
+	var sy: float = 1280.0 / 2532.0
+	var inset: Dictionary = MainScript.compute_safe_area_margins(Rect2i(0, 47, 1170, 2451), Vector2i(1170, 2532), Vector2(720, 1280))
+	var top_ok: bool = absf(inset["top"] - 47.0 * sy) < 0.01
+	var bottom_ok: bool = absf(inset["bottom"] - 34.0 * sy) < 0.01
+	var lr_ok: bool = inset["left"] == 0.0 and inset["right"] == 0.0
+	# 잘못된 창 크기 → 0 (0 나눗셈 방지).
+	var guard: Dictionary = MainScript.compute_safe_area_margins(Rect2i(0, 0, 0, 0), Vector2i(0, 0), Vector2(720, 1280))
+	var guard_ok: bool = guard["top"] == 0.0 and guard["bottom"] == 0.0
+	return (
+		_assert(zero_ok, "safe area full window gives zero margins")
+		and _assert(top_ok, "safe area top margin scaled to viewport")
+		and _assert(bottom_ok, "safe area bottom margin scaled to viewport")
+		and _assert(lr_ok, "safe area no left/right inset in portrait")
+		and _assert(guard_ok, "safe area guards zero window size")
+	)
+
+
+func _test_sfx_pitch_scale() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var flip0_ok: bool = absf(MainScript.flip_pitch(0) - 1.0) < 0.0001
+	var flip3_ok: bool = absf(MainScript.flip_pitch(3) - (586.0 / 520.0)) < 0.0001
+	var big0_ok: bool = absf(MainScript.big_flip_pitch(0) - 1.0) < 0.0001
+	var big5_ok: bool = absf(MainScript.big_flip_pitch(5) - (320.0 / 270.0)) < 0.0001
+	return (
+		_assert(flip0_ok, "flip pitch base is 1.0")
+		and _assert(flip3_ok, "flip pitch scales with index")
+		and _assert(big0_ok, "big flip pitch base is 1.0")
+		and _assert(big5_ok, "big flip pitch scales with count")
+	)
+
+
+func _test_sfx_respects_sound_setting() -> bool:
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+	# 사운드 off → _play_sfx 가 조기 종료해 AudioStreamPlayer 를 만들지 않는다.
+	# (sound on 시 실제 play 는 헤드리스 audio 에서 AudioStreamWAV 를 leak 하므로 여기서는 트리거하지 않는다.
+	#  on 경로는 _play_sfx 의 sound 게이트 이후 player 생성+play 로 코드상 자명하다.)
+	main.state["settings"] = {"sound": false}
+	var before: int = _count_audio_players(main)
+	main._play_place_sound()
+	main._play_flip_sound(2)
+	main._play_big_flip_sound(4)
+	var off_ok: bool = _count_audio_players(main) == before
+	main.free()
+	return _assert(off_ok, "sfx suppressed when sound is off")
+
+
+func _count_audio_players(node: Node) -> int:
+	var count: int = 0
+	for child in node.get_children():
+		if child is AudioStreamPlayer:
+			count += 1
+	return count
 
 
 func _test_main_scene_exists() -> bool:
