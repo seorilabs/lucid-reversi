@@ -4,6 +4,9 @@ const ReversiEngine = preload("res://scripts/reversi_engine.gd")
 const ReversiAnalytics = preload("res://scripts/analytics.gd")
 const GA4_SENDER_SCRIPT = preload("res://scripts/ga4_mp_sender.gd")
 const IOS_ADS_SCRIPT = preload("res://scripts/ios_ads.gd")
+const PLACE_SFX = preload("res://assets/audio/place.wav")
+const FLIP_SFX = preload("res://assets/audio/flip.wav")
+const BIG_FLIP_SFX = preload("res://assets/audio/big_flip.wav")
 const CLASSIC_BLACK_TEXTURE = preload("res://assets/reversi/themes/classic_black.svg")
 const CLASSIC_WHITE_TEXTURE = preload("res://assets/reversi/themes/classic_white.svg")
 const ARCTIC_BLACK_TEXTURE = preload("res://assets/reversi/themes/arctic_black.svg")
@@ -229,10 +232,11 @@ func _build_ui() -> void:
 
 	var screen := MarginContainer.new()
 	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var safe_margins: Vector2 = _safe_area_margins_px()
 	screen.add_theme_constant_override("margin_left", 12)
-	screen.add_theme_constant_override("margin_top", 10)
+	screen.add_theme_constant_override("margin_top", 10 + int(safe_margins.x))
 	screen.add_theme_constant_override("margin_right", 12)
-	screen.add_theme_constant_override("margin_bottom", 8)
+	screen.add_theme_constant_override("margin_bottom", 8 + int(safe_margins.y))
 	add_child(screen)
 
 	var root := VBoxContainer.new()
@@ -1076,57 +1080,49 @@ func _pulse_cell(x: int, y: int, color: Color) -> void:
 
 
 func _play_place_sound() -> void:
-	_play_synth_tone(360.0, 0.09, 0.15, 140.0)
+	_play_sfx(PLACE_SFX, 1.0)
 
 
 func _play_flip_sound(index: int) -> void:
-	_play_synth_tone(520.0 + float(index) * 22.0, 0.055, 0.095, -80.0)
+	# 기존 합성음의 base 520 + index*22 Hz 를 pitch_scale 로 재현(파일은 520Hz 기준).
+	_play_sfx(FLIP_SFX, (520.0 + float(index) * 22.0) / 520.0)
 
 
 func _play_big_flip_sound(flip_count: int) -> void:
-	_play_synth_tone(270.0 + float(flip_count) * 10.0, 0.22, 0.15, 320.0, 0.35)
+	# 기존 합성음의 base 270 + flip_count*10 Hz 를 pitch_scale 로 재현(파일은 270Hz 기준).
+	_play_sfx(BIG_FLIP_SFX, (270.0 + float(flip_count) * 10.0) / 270.0)
 
 
-func _play_synth_tone(base_frequency: float, duration: float, volume: float, sweep: float = 0.0, overtone_mix: float = 0.0) -> void:
+func _play_sfx(stream: AudioStream, pitch: float) -> void:
+	# AudioStreamGenerator(런타임 실시간 합성)는 iOS 실기기에서 소리가 나지 않아,
+	# 동일한 톤을 미리 구운 .wav(scripts/generate_sfx.py) 를 AudioStreamPlayer 로 재생한다.
 	if !bool(_current_settings().get("sound", true)):
 		return
-
-	var stream := AudioStreamGenerator.new()
-	stream.mix_rate = 44100
-	stream.buffer_length = duration + 0.10
-
 	var player := AudioStreamPlayer.new()
 	player.stream = stream
+	player.pitch_scale = pitch
 	player.volume_db = -5.0
 	add_child(player)
 	player.play()
-
-	var playback = player.get_stream_playback()
-	if playback == null:
-		player.queue_free()
-		return
-
-	var mix_rate: float = float(stream.mix_rate)
-	var frames: int = int(mix_rate * duration)
-	var phase: float = 0.0
-	var overtone_phase: float = 0.0
-	for i in range(frames):
-		var t: float = float(i) / mix_rate
-		var progress: float = t / max(duration, 0.001)
-		var frequency: float = base_frequency + sweep * progress
-		var envelope: float = sin(progress * PI)
-		phase += TAU * frequency / mix_rate
-		var sample: float = sin(phase)
-		if overtone_mix > 0.0:
-			overtone_phase += TAU * frequency * 1.5 / mix_rate
-			sample = sample * (1.0 - overtone_mix) + sin(overtone_phase) * overtone_mix
-		sample *= volume * envelope
-		playback.push_frame(Vector2(sample, sample))
-
-	get_tree().create_timer(duration + 0.12).timeout.connect(func() -> void:
+	player.finished.connect(func() -> void:
 		if is_instance_valid(player):
 			player.queue_free()
 	)
+
+
+func _safe_area_margins_px() -> Vector2:
+	# iOS 노치/다이나믹 아일랜드/status bar(상단)·홈 인디케이터(하단) 안전영역을 게임 viewport 좌표로 환산한다.
+	# DisplayServer.get_display_safe_area() 는 물리 픽셀 기준이라 stretch 스케일(vp.y/win.y)을 곱해야 게임 좌표와 맞는다.
+	# 데스크톱/웹에서는 safe area 가 전체 창이라 (0,0)을 반환한다.
+	var safe := DisplayServer.get_display_safe_area()
+	var win := DisplayServer.window_get_size()
+	if win.y <= 0:
+		return Vector2.ZERO
+	var vp: Vector2 = get_viewport().get_visible_rect().size
+	var scale_y: float = vp.y / float(win.y)
+	var top: float = float(safe.position.y) * scale_y
+	var bottom: float = float(win.y - (safe.position.y + safe.size.y)) * scale_y
+	return Vector2(maxf(top, 0.0), maxf(bottom, 0.0))
 
 
 func _update_mode_buttons() -> void:
