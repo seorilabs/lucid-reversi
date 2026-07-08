@@ -203,6 +203,8 @@ func _load_or_start() -> void:
 	var loaded := _load_state()
 	if loaded.is_empty():
 		state = ReversiEngine.create_new_game(player_stone, difficulty)
+		# 최초 실행: 기기 언어로 로케일 초기화(한국어 기기→ko, 그 외→en). 이후 사용자 변경은 저장돼 우선한다.
+		state["settings"] = {"locale": _device_default_locale()}
 		return
 
 	state = loaded
@@ -1327,6 +1329,11 @@ func _current_settings() -> Dictionary:
 		if defaults.has(key):
 			merged[key] = current[key]
 	return merged
+
+
+func _device_default_locale() -> String:
+	# 기기 언어가 한국어면 ko, 그 외엔 en. 최초 실행 시 기본 로케일 결정에 쓴다.
+	return "ko" if OS.get_locale().begins_with("ko") else "en"
 
 
 func _current_locale_id() -> String:
