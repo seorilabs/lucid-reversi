@@ -75,9 +75,9 @@
     "supportUrl": "확정 필요",
     "marketingUrl": "확정 필요(선택)",
     "screenshots": {
-      "iphone_6_9": "app-store/screenshots/iphone-6.9/01-board.png (1320x2868)",
-      "ipad_13": "app-store/screenshots/ipad-13/01-board.png (2064x2752)",
-      "note": "x86_64 Rosetta 시뮬레이터 빌드로 실 캡처. 화면당 1장. 하단 레터박스는 게임 720x1280 설계 탓(Apple 허용)."
+      "iphone_6_9": "app-store/screenshots/iphone-6.9/{01-board,02-arctic,03-ember}.png (각 1320x2868, 3장)",
+      "ipad_13": "app-store/screenshots/ipad-13/{01-board,02-arctic,03-ember}.png (각 2064x2752, 3장)",
+      "note": "x86_64 Rosetta 시뮬레이터(iPhone 16 Pro Max / iPad Pro 13 M4)로 최신 UI(safe area 반영·한글) 실 캡처. 각 3장: 01=기본 테마 초기 보드, 02=북극 테마 대국, 03=잉걸 테마 대국. 테마·대국 상태는 godot/tools/gen_sshot.gd(state_to_save_dict)로 만든 save 를 시뮬 앱 Documents/save_v1.json 에 주입해 세팅. 하단 레터박스는 게임 720x1280 설계(Apple 허용)."
     },
     "storeIcon": "app-store/assets/AppIcon-1024.png (1024x1024, 알파 없음)",
     "limitsValidated": {

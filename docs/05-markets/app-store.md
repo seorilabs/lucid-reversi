@@ -53,10 +53,11 @@
 ## Assets
 
 - App icon: 1024x1024 store icon(`app-store/assets/AppIcon-1024.png`, 알파 없음) + Xcode AppIcon.appiconset(iPhone+iPad 슬롯)
-- iPhone 6.9" screenshot: `app-store/screenshots/iphone-6.9/01-board.png` (1320×2868) ✅ 실 시뮬레이터 캡처
-- iPad 13" screenshot: `app-store/screenshots/ipad-13/01-board.png` (2064×2752) ✅ 실 시뮬레이터 캡처
-- 캡처 방법: x86_64(Rosetta) 시뮬레이터 빌드(Godot 엔진 simulator lib가 arm64 슬라이스 없음) → iPhone 16 Pro Max / iPad Pro 13"(M4) 부팅·실행·`simctl io screenshot`.
-- 비고: 게임이 720×1280로 설계돼 더 긴 화면에서 하단 레터박스(검은 영역) 발생 — Apple 허용. 더 꽉 찬 화면 원하면 게임 stretch/aspect 조정(별도 작업). 화면당 1장씩이라 다양화하려면 탭 입력 화면 수동 보완.
+- iPhone 6.9" screenshots: `app-store/screenshots/iphone-6.9/{01-board,02-arctic,03-ember}.png` (각 1320×2868, **3장**) ✅ 최신 UI(safe area 반영) 실 시뮬레이터 캡처
+- iPad 13" screenshots: `app-store/screenshots/ipad-13/{01-board,02-arctic,03-ember}.png` (각 2064×2752, **3장**) ✅ 최신 UI 실 시뮬레이터 캡처
+- 각 3장: 01=기본(classic) 초기 보드, 02=북극(arctic) 대국, 03=잉걸(ember) 대국. 모두 한글 로케일.
+- 캡처 방법(재현): (1) x86_64 시뮬레이터 빌드 `xcodebuild -sdk iphonesimulator ARCHS=x86_64 CODE_SIGNING_ALLOWED=NO`(Godot simulator lib가 arm64 슬라이스 없음). (2) `godot -s res://tools/gen_sshot.gd`로 테마별 save 생성(`state_to_save_dict` 형식). (3) 시뮬 앱 `Documents/save_v1.json`(=Godot `user://`)에 주입 → boot·install·launch·~20s 대기·`simctl io screenshot`. iPhone 16 Pro Max / iPad Pro 13"(M4).
+- 비고: 게임이 720×1280 설계라 더 긴 화면에서 하단 레터박스(검은 영역) 발생 — Apple 허용. 더 꽉 찬 화면 원하면 stretch/aspect 조정(별도 작업).
 
 ## Build / Upload 상태 (2026-07-07)
 
