@@ -238,13 +238,15 @@ func _test_search_score_alpha_beta_cutoff_branches() -> bool:
 		"max_cutoffs": 0,
 		"min_cutoffs": 0,
 	}
+	var alpha: int = ReversiEngine.SEARCH_MIN
+	var beta: int = ReversiEngine.SEARCH_MIN + 1
 	ReversiEngine._search_score(
 		board,
 		ReversiEngine.BLACK,
 		ReversiEngine.BLACK,
 		3,
-		ReversiEngine.SEARCH_MIN,
-		ReversiEngine.SEARCH_MIN + 1,
+		alpha,
+		beta,
 		maximizing_stats,
 	)
 	var minimizing_stats := {
@@ -252,13 +254,15 @@ func _test_search_score_alpha_beta_cutoff_branches() -> bool:
 		"max_cutoffs": 0,
 		"min_cutoffs": 0,
 	}
+	alpha = ReversiEngine.SEARCH_MAX - 1
+	beta = ReversiEngine.SEARCH_MAX
 	ReversiEngine._search_score(
 		board,
 		ReversiEngine.WHITE,
 		ReversiEngine.BLACK,
 		3,
-		ReversiEngine.SEARCH_MAX - 1,
-		ReversiEngine.SEARCH_MAX,
+		alpha,
+		beta,
 		minimizing_stats,
 	)
 	return (
