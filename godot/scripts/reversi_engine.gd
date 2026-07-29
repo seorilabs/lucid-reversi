@@ -118,7 +118,7 @@ static func get_valid_moves(board: Array, stone: int) -> Array:
 	return sort_moves(moves)
 
 
-static func choose_ai_move(state: Dictionary) -> Dictionary:
+static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> Dictionary:
 	var stone: int = int(state.get("current_turn", NONE))
 	var moves := get_valid_moves(state.get("board", []), stone)
 	if moves.is_empty():
@@ -134,7 +134,15 @@ static func choose_ai_move(state: Dictionary) -> Dictionary:
 		var board_after := clone_board(state["board"])
 		_apply_move(board_after, stone, int(move["x"]), int(move["y"]))
 		var next_turn := _next_turn_for_board(board_after, stone)
-		var score := _search_score(board_after, next_turn, stone, depth - 1, alpha, beta)
+		var score := _search_score(
+			board_after,
+			next_turn,
+			stone,
+			depth - 1,
+			alpha,
+			beta,
+			search_stats,
+		)
 		if score > best_score:
 			best_score = score
 			best_move = move
@@ -376,7 +384,16 @@ static func _next_turn_for_board(board: Array, just_played: int) -> int:
 	return NONE
 
 
-static func _search_score(board: Array, turn: int, root_stone: int, depth: int, alpha: int, beta: int) -> int:
+static func _search_score(
+	board: Array,
+	turn: int,
+	root_stone: int,
+	depth: int,
+	alpha: int,
+	beta: int,
+	search_stats: Dictionary = {},
+) -> int:
+	_record_search_stat(search_stats, "nodes")
 	if depth <= 0 or turn == NONE:
 		return _evaluate_board(board, root_stone)
 
@@ -385,7 +402,15 @@ static func _search_score(board: Array, turn: int, root_stone: int, depth: int, 
 		var other := opponent(turn)
 		if get_valid_moves(board, other).is_empty():
 			return _evaluate_board(board, root_stone)
-		return _search_score(board, other, root_stone, depth - 1, alpha, beta)
+		return _search_score(
+			board,
+			other,
+			root_stone,
+			depth - 1,
+			alpha,
+			beta,
+			search_stats,
+		)
 
 	var maximizing := turn == root_stone
 	var best := SEARCH_MIN if maximizing else SEARCH_MAX
@@ -393,16 +418,26 @@ static func _search_score(board: Array, turn: int, root_stone: int, depth: int, 
 		var next_board := clone_board(board)
 		_apply_move(next_board, turn, int(move["x"]), int(move["y"]))
 		var next_turn := _next_turn_for_board(next_board, turn)
-		var score := _search_score(next_board, next_turn, root_stone, depth - 1, alpha, beta)
+		var score := _search_score(
+			next_board,
+			next_turn,
+			root_stone,
+			depth - 1,
+			alpha,
+			beta,
+			search_stats,
+		)
 		if maximizing:
 			best = max(best, score)
 			alpha = max(alpha, best)
 			if best >= beta:
+				_record_search_stat(search_stats, "max_cutoffs")
 				break
 		else:
 			best = min(best, score)
 			beta = min(beta, best)
 			if best <= alpha:
+				_record_search_stat(search_stats, "min_cutoffs")
 				break
 	return best
 
@@ -467,6 +502,13 @@ static func _order_search_moves(moves: Array) -> Array:
 		else:
 			inner.append(move)
 	return corners + edges + inner
+
+
+static func _record_search_stat(search_stats: Dictionary, key: String) -> void:
+	# 빈 Dictionary는 일반 게임 경로다. 테스트가 키를 미리 넣은 경우에만 계측한다.
+	if search_stats.is_empty():
+		return
+	search_stats[key] = int(search_stats.get(key, 0)) + 1
 
 
 static func _weighted_cell(board: Array, point: Vector2i, stone: int, value: int) -> int:

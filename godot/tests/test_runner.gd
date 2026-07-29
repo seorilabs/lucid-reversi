@@ -22,6 +22,8 @@ func _ready() -> void:
 	ok = _test_game_over_full_board() and ok
 	ok = _test_codec_round_trip() and ok
 	ok = _test_save_round_trip() and ok
+	ok = _test_search_score_alpha_beta_cutoff_branches() and ok
+	ok = _test_choose_ai_move_alpha_beta_and_tie_order() and ok
 	ok = _test_alpha_beta_matches_full_search() and ok
 	ok = _test_mobility_evaluation_boundaries() and ok
 	var i18n_ok := await _test_i18n_defaults_and_locale_switch()
@@ -227,6 +229,80 @@ func _test_alpha_beta_matches_full_search() -> bool:
 			"alpha-beta best move matches full search for %s" % fixture["difficulty"],
 		) and all_match
 	return all_match
+
+
+func _test_search_score_alpha_beta_cutoff_branches() -> bool:
+	var board: Array = ReversiEngine.create_new_game()["board"]
+	var maximizing_stats := {
+		"nodes": 0,
+		"max_cutoffs": 0,
+		"min_cutoffs": 0,
+	}
+	ReversiEngine._search_score(
+		board,
+		ReversiEngine.BLACK,
+		ReversiEngine.BLACK,
+		3,
+		ReversiEngine.SEARCH_MIN,
+		ReversiEngine.SEARCH_MIN + 1,
+		maximizing_stats,
+	)
+	var minimizing_stats := {
+		"nodes": 0,
+		"max_cutoffs": 0,
+		"min_cutoffs": 0,
+	}
+	ReversiEngine._search_score(
+		board,
+		ReversiEngine.WHITE,
+		ReversiEngine.BLACK,
+		3,
+		ReversiEngine.SEARCH_MAX - 1,
+		ReversiEngine.SEARCH_MAX,
+		minimizing_stats,
+	)
+	return (
+		_assert(
+			int(maximizing_stats["max_cutoffs"]) > 0,
+			"_search_score maximizing branch cuts off when best >= beta",
+		)
+		and _assert(
+			int(minimizing_stats["min_cutoffs"]) > 0,
+			"_search_score minimizing branch cuts off when best <= alpha",
+		)
+	)
+
+
+func _test_choose_ai_move_alpha_beta_and_tie_order() -> bool:
+	var hard_state := ReversiEngine.create_new_game(
+		ReversiEngine.BLACK,
+		"HARD",
+	)
+	var search_stats := {
+		"nodes": 0,
+		"max_cutoffs": 0,
+		"min_cutoffs": 0,
+	}
+	var hard_move := ReversiEngine.choose_ai_move(hard_state, search_stats)
+	var easy_state := ReversiEngine.create_new_game(
+		ReversiEngine.BLACK,
+		"EASY",
+	)
+	var easy_move := ReversiEngine.choose_ai_move(easy_state)
+	var first_sorted_move: Dictionary = easy_state["valid_moves"][0]
+	return (
+		_assert(
+			!hard_move.is_empty()
+				and int(search_stats["nodes"]) > 0
+				and int(search_stats["max_cutoffs"]) + int(search_stats["min_cutoffs"]) > 0,
+			"choose_ai_move executes alpha-beta search with a cutoff",
+		)
+		and _assert(
+			int(easy_move["x"]) == int(first_sorted_move["x"])
+				and int(easy_move["y"]) == int(first_sorted_move["y"]),
+			"choose_ai_move keeps the first sort_moves entry on a symmetric tie",
+		)
+	)
 
 
 func _choose_ai_move_full_search(state: Dictionary) -> Dictionary:
