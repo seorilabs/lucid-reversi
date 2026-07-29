@@ -5,6 +5,9 @@ const NONE := 0
 const BLACK := 1
 const WHITE := 2
 const VALID := 3
+const SEARCH_MIN := -9223372036854775807
+const SEARCH_MAX := 9223372036854775807
+const MOBILITY_WEIGHT := BOARD_SIZE
 
 const DIFFICULTY_DEPTH := {
 	"EASY": 1,
@@ -115,23 +118,35 @@ static func get_valid_moves(board: Array, stone: int) -> Array:
 	return sort_moves(moves)
 
 
-static func choose_ai_move(state: Dictionary) -> Dictionary:
+static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> Dictionary:
 	var stone: int = int(state.get("current_turn", NONE))
 	var moves := get_valid_moves(state.get("board", []), stone)
 	if moves.is_empty():
 		return {}
 
 	var depth := int(DIFFICULTY_DEPTH.get(str(state.get("difficulty", "MEDIUM")), 3))
-	var best_score := -9223372036854775807
+	var best_score := SEARCH_MIN
 	var best_move: Dictionary = {}
+	var alpha := SEARCH_MIN
+	var beta := SEARCH_MAX
+	# 루트는 sort_moves 순서를 유지해 동점일 때 기존 best move를 보존한다.
 	for move in moves:
 		var board_after := clone_board(state["board"])
 		_apply_move(board_after, stone, int(move["x"]), int(move["y"]))
 		var next_turn := _next_turn_for_board(board_after, stone)
-		var score := _search_score(board_after, next_turn, stone, depth - 1)
+		var score := _search_score(
+			board_after,
+			next_turn,
+			stone,
+			depth - 1,
+			alpha,
+			beta,
+			search_stats,
+		)
 		if score > best_score:
 			best_score = score
 			best_move = move
+		alpha = max(alpha, best_score)
 	return best_move
 
 
@@ -369,7 +384,16 @@ static func _next_turn_for_board(board: Array, just_played: int) -> int:
 	return NONE
 
 
-static func _search_score(board: Array, turn: int, root_stone: int, depth: int) -> int:
+static func _search_score(
+	board: Array,
+	turn: int,
+	root_stone: int,
+	depth: int,
+	alpha: int,
+	beta: int,
+	search_stats: Dictionary = {},
+) -> int:
+	_record_search_stat(search_stats, "nodes")
 	if depth <= 0 or turn == NONE:
 		return _evaluate_board(board, root_stone)
 
@@ -378,19 +402,43 @@ static func _search_score(board: Array, turn: int, root_stone: int, depth: int) 
 		var other := opponent(turn)
 		if get_valid_moves(board, other).is_empty():
 			return _evaluate_board(board, root_stone)
-		return _search_score(board, other, root_stone, depth - 1)
+		return _search_score(
+			board,
+			other,
+			root_stone,
+			depth - 1,
+			alpha,
+			beta,
+			search_stats,
+		)
 
 	var maximizing := turn == root_stone
-	var best := -9223372036854775807 if maximizing else 9223372036854775807
-	for move in moves:
+	var best := SEARCH_MIN if maximizing else SEARCH_MAX
+	for move in _order_search_moves(moves):
 		var next_board := clone_board(board)
 		_apply_move(next_board, turn, int(move["x"]), int(move["y"]))
 		var next_turn := _next_turn_for_board(next_board, turn)
-		var score := _search_score(next_board, next_turn, root_stone, depth - 1)
+		var score := _search_score(
+			next_board,
+			next_turn,
+			root_stone,
+			depth - 1,
+			alpha,
+			beta,
+			search_stats,
+		)
 		if maximizing:
 			best = max(best, score)
+			alpha = max(alpha, best)
+			if best >= beta:
+				_record_search_stat(search_stats, "max_cutoffs")
+				break
 		else:
 			best = min(best, score)
+			beta = min(beta, best)
+			if best <= alpha:
+				_record_search_stat(search_stats, "min_cutoffs")
+				break
 	return best
 
 
@@ -399,6 +447,8 @@ static func _evaluate_board(board: Array, stone: int) -> int:
 	var score := int(counts["black"]) - int(counts["white"])
 	if stone == WHITE:
 		score *= -1
+
+	score += _mobility_score(board, stone)
 
 	var corner_value := BOARD_SIZE * 3
 	var edge_value := BOARD_SIZE * 2
@@ -427,6 +477,38 @@ static func _evaluate_board(board: Array, stone: int) -> int:
 		score += _weighted_cell(board, point, stone, corner_path_value)
 
 	return score
+
+
+static func _mobility_score(board: Array, stone: int) -> int:
+	var own_moves := get_valid_moves(board, stone).size()
+	var opponent_moves := get_valid_moves(board, opponent(stone)).size()
+	return (own_moves - opponent_moves) * MOBILITY_WEIGHT
+
+
+static func _order_search_moves(moves: Array) -> Array:
+	# 모서리와 가장자리를 먼저 탐색하되 각 버킷 안에서는 sort_moves 순서를 유지한다.
+	var corners: Array = []
+	var edges: Array = []
+	var inner: Array = []
+	for move in moves:
+		var x := int(move["x"])
+		var y := int(move["y"])
+		var is_edge := x == 0 or x == BOARD_SIZE - 1 or y == 0 or y == BOARD_SIZE - 1
+		var is_corner := (x == 0 or x == BOARD_SIZE - 1) and (y == 0 or y == BOARD_SIZE - 1)
+		if is_corner:
+			corners.append(move)
+		elif is_edge:
+			edges.append(move)
+		else:
+			inner.append(move)
+	return corners + edges + inner
+
+
+static func _record_search_stat(search_stats: Dictionary, key: String) -> void:
+	# 빈 Dictionary는 일반 게임 경로다. 테스트가 키를 미리 넣은 경우에만 계측한다.
+	if search_stats.is_empty():
+		return
+	search_stats[key] = int(search_stats.get(key, 0)) + 1
 
 
 static func _weighted_cell(board: Array, point: Vector2i, stone: int, value: int) -> int:

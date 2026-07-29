@@ -22,6 +22,10 @@ func _ready() -> void:
 	ok = _test_game_over_full_board() and ok
 	ok = _test_codec_round_trip() and ok
 	ok = _test_save_round_trip() and ok
+	ok = _test_search_score_alpha_beta_cutoff_branches() and ok
+	ok = _test_choose_ai_move_alpha_beta_and_tie_order() and ok
+	ok = _test_alpha_beta_matches_full_search() and ok
+	ok = _test_mobility_evaluation_boundaries() and ok
 	var i18n_ok := await _test_i18n_defaults_and_locale_switch()
 	ok = i18n_ok and ok
 	var settings_menu_ok := await _test_settings_menu_keeps_playfield_focused()
@@ -189,6 +193,221 @@ func _test_save_round_trip() -> bool:
 		and _assert(int(restored["player_stone"]) == ReversiEngine.WHITE, "save player stone")
 		and _assert(str(restored["difficulty"]) == "HARD", "save difficulty")
 		and _assert(restored["move_history"].size() == 1, "save move history")
+	)
+
+
+func _test_alpha_beta_matches_full_search() -> bool:
+	var fixtures := [
+		{"difficulty": "EASY", "plies": 0},
+		{"difficulty": "MEDIUM", "plies": 6},
+		{"difficulty": "HARD", "plies": 12},
+	]
+	var all_match := true
+	for fixture in fixtures:
+		var state := ReversiEngine.create_new_game(
+			ReversiEngine.BLACK,
+			str(fixture["difficulty"]),
+		)
+		for _ply in range(int(fixture["plies"])):
+			if bool(state["game_over"]):
+				break
+			var valid_moves: Array = state["valid_moves"]
+			if valid_moves.is_empty():
+				break
+			var move: Dictionary = valid_moves[0]
+			ReversiEngine.play_move(state, int(move["x"]), int(move["y"]))
+
+		var alpha_beta_move := ReversiEngine.choose_ai_move(state)
+		var full_search_move := _choose_ai_move_full_search(state)
+		var fixture_matches := (
+			!alpha_beta_move.is_empty()
+			and int(alpha_beta_move["x"]) == int(full_search_move["x"])
+			and int(alpha_beta_move["y"]) == int(full_search_move["y"])
+		)
+		all_match = _assert(
+			fixture_matches,
+			"alpha-beta best move matches full search for %s" % fixture["difficulty"],
+		) and all_match
+	return all_match
+
+
+func _test_search_score_alpha_beta_cutoff_branches() -> bool:
+	var board: Array = ReversiEngine.create_new_game()["board"]
+	var maximizing_stats := {
+		"nodes": 0,
+		"max_cutoffs": 0,
+		"min_cutoffs": 0,
+	}
+	var alpha: int = ReversiEngine.SEARCH_MIN
+	var beta: int = ReversiEngine.SEARCH_MIN + 1
+	ReversiEngine._search_score(
+		board,
+		ReversiEngine.BLACK,
+		ReversiEngine.BLACK,
+		3,
+		alpha,
+		beta,
+		maximizing_stats,
+	)
+	var minimizing_stats := {
+		"nodes": 0,
+		"max_cutoffs": 0,
+		"min_cutoffs": 0,
+	}
+	alpha = ReversiEngine.SEARCH_MAX - 1
+	beta = ReversiEngine.SEARCH_MAX
+	ReversiEngine._search_score(
+		board,
+		ReversiEngine.WHITE,
+		ReversiEngine.BLACK,
+		3,
+		alpha,
+		beta,
+		minimizing_stats,
+	)
+	return (
+		_assert(
+			int(maximizing_stats["max_cutoffs"]) > 0,
+			"_search_score maximizing branch cuts off when best >= beta",
+		)
+		and _assert(
+			int(minimizing_stats["min_cutoffs"]) > 0,
+			"_search_score minimizing branch cuts off when best <= alpha",
+		)
+	)
+
+
+func _test_choose_ai_move_alpha_beta_and_tie_order() -> bool:
+	var hard_state := ReversiEngine.create_new_game(
+		ReversiEngine.BLACK,
+		"HARD",
+	)
+	var search_stats := {
+		"nodes": 0,
+		"max_cutoffs": 0,
+		"min_cutoffs": 0,
+	}
+	var hard_move := ReversiEngine.choose_ai_move(hard_state, search_stats)
+	var easy_state := ReversiEngine.create_new_game(
+		ReversiEngine.BLACK,
+		"EASY",
+	)
+	var easy_move := ReversiEngine.choose_ai_move(easy_state)
+	var first_sorted_move: Dictionary = easy_state["valid_moves"][0]
+	return (
+		_assert(
+			!hard_move.is_empty()
+				and int(search_stats["nodes"]) > 0
+				and int(search_stats["max_cutoffs"]) + int(search_stats["min_cutoffs"]) > 0,
+			"choose_ai_move executes alpha-beta search with a cutoff",
+		)
+		and _assert(
+			int(easy_move["x"]) == int(first_sorted_move["x"])
+				and int(easy_move["y"]) == int(first_sorted_move["y"]),
+			"choose_ai_move keeps the first sort_moves entry on a symmetric tie",
+		)
+	)
+
+
+func _choose_ai_move_full_search(state: Dictionary) -> Dictionary:
+	var stone := int(state["current_turn"])
+	var moves := ReversiEngine.get_valid_moves(state["board"], stone)
+	var depth := int(ReversiEngine.DIFFICULTY_DEPTH.get(str(state["difficulty"]), 3))
+	var best_score := ReversiEngine.SEARCH_MIN
+	var best_move: Dictionary = {}
+	for move in moves:
+		var board_after := ReversiEngine.clone_board(state["board"])
+		ReversiEngine._apply_move(
+			board_after,
+			stone,
+			int(move["x"]),
+			int(move["y"]),
+		)
+		var next_turn := _full_search_next_turn(board_after, stone)
+		var score := _full_search_score(board_after, next_turn, stone, depth - 1)
+		if score > best_score:
+			best_score = score
+			best_move = move
+	return best_move
+
+
+func _full_search_score(board: Array, turn: int, root_stone: int, depth: int) -> int:
+	if depth <= 0 or turn == ReversiEngine.NONE:
+		return ReversiEngine._evaluate_board(board, root_stone)
+
+	var moves := ReversiEngine.get_valid_moves(board, turn)
+	if moves.is_empty():
+		var other := ReversiEngine.opponent(turn)
+		if ReversiEngine.get_valid_moves(board, other).is_empty():
+			return ReversiEngine._evaluate_board(board, root_stone)
+		return _full_search_score(board, other, root_stone, depth - 1)
+
+	var maximizing := turn == root_stone
+	var best := ReversiEngine.SEARCH_MIN if maximizing else ReversiEngine.SEARCH_MAX
+	for move in moves:
+		var next_board := ReversiEngine.clone_board(board)
+		ReversiEngine._apply_move(
+			next_board,
+			turn,
+			int(move["x"]),
+			int(move["y"]),
+		)
+		var next_turn := _full_search_next_turn(next_board, turn)
+		var score := _full_search_score(next_board, next_turn, root_stone, depth - 1)
+		best = max(best, score) if maximizing else min(best, score)
+	return best
+
+
+func _full_search_next_turn(board: Array, just_played: int) -> int:
+	var next := ReversiEngine.opponent(just_played)
+	if !ReversiEngine.get_valid_moves(board, next).is_empty():
+		return next
+	if !ReversiEngine.get_valid_moves(board, just_played).is_empty():
+		return just_played
+	return ReversiEngine.NONE
+
+
+func _test_mobility_evaluation_boundaries() -> bool:
+	var empty_board: Array = []
+	var full_board: Array = []
+	for _x in range(ReversiEngine.BOARD_SIZE):
+		var empty_row: Array = []
+		var full_row: Array = []
+		for _y in range(ReversiEngine.BOARD_SIZE):
+			empty_row.append(ReversiEngine.NONE)
+			full_row.append(ReversiEngine.BLACK)
+		empty_board.append(empty_row)
+		full_board.append(full_row)
+
+	var mobility_state := ReversiEngine.create_new_game()
+	ReversiEngine.play_move(mobility_state, 2, 3)
+	var mobility_board: Array = mobility_state["board"]
+	var mobility_difference := (
+		ReversiEngine.get_valid_moves(mobility_board, ReversiEngine.BLACK).size()
+		- ReversiEngine.get_valid_moves(mobility_board, ReversiEngine.WHITE).size()
+	)
+	var black_full_score := ReversiEngine._evaluate_board(
+		full_board,
+		ReversiEngine.BLACK,
+	)
+	var white_full_score := ReversiEngine._evaluate_board(
+		full_board,
+		ReversiEngine.WHITE,
+	)
+	return (
+		_assert(
+			ReversiEngine._mobility_score(mobility_board, ReversiEngine.BLACK)
+				== mobility_difference * ReversiEngine.MOBILITY_WEIGHT,
+			"evaluation mobility term uses valid-move difference",
+		)
+		and _assert(
+			ReversiEngine._evaluate_board(empty_board, ReversiEngine.BLACK) == 0,
+			"empty-board evaluation stays finite at zero",
+		)
+		and _assert(
+			black_full_score == -white_full_score and absi(black_full_score) < 10000,
+			"terminal-board evaluation stays finite and symmetric",
+		)
 	)
 
 
