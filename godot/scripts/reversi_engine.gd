@@ -25,6 +25,7 @@ const DIRECTIONS := [
 static func default_settings() -> Dictionary:
 	return {
 		"sound": true,
+		"haptic": true,
 		"locale": "ko",
 		"theme": "classic",
 		"stone_theme": "classic",

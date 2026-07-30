@@ -57,6 +57,7 @@ const TEXT := {
 		"settings": "설정",
 		"close": "닫기",
 		"sound": "소리",
+		"haptic": "진동",
 		"difficulty_setting": "난이도",
 		"board_theme_title": "보드",
 		"stone_theme_title": "돌",
@@ -106,6 +107,7 @@ const TEXT := {
 		"settings": "SET",
 		"close": "CLOSE",
 		"sound": "SOUND",
+		"haptic": "HAPTIC",
 		"difficulty_setting": "LEVEL",
 		"board_theme_title": "BOARD",
 		"stone_theme_title": "STONE",
@@ -157,6 +159,7 @@ var input_locked := false
 var _interstitial_shown_this_game := false
 var analytics: ReversiAnalytics
 var _ios_ads: Node
+var _haptic_probe: Callable
 
 var cell_buttons: Array = []
 var cell_piece_views: Array = []
@@ -173,6 +176,7 @@ var move_count_label: Label
 var settings_button: Button
 var settings_overlay: ColorRect
 var settings_panel: PanelContainer
+var haptic_toggle: CheckButton
 var gameplay_strip: PanelContainer
 var black_button: Button
 var white_button: Button
@@ -707,6 +711,8 @@ func _build_settings_overlay() -> void:
 	))
 
 	box.add_child(_make_toggle_button(_t("sound"), "sound"))
+	haptic_toggle = _make_toggle_button(_t("haptic"), "haptic")
+	box.add_child(haptic_toggle)
 
 	var theme_labels: Array = []
 	for theme_id in THEME_IDS:
@@ -1147,14 +1153,17 @@ func _pulse_cell(x: int, y: int, color: Color) -> void:
 
 
 func _play_place_sound() -> void:
+	_request_haptic("place")
 	_play_sfx(PLACE_SFX, 1.0)
 
 
 func _play_flip_sound(index: int) -> void:
+	_request_haptic("flip")
 	_play_sfx(FLIP_SFX, flip_pitch(index))
 
 
 func _play_big_flip_sound(flip_count: int) -> void:
+	_request_haptic("big_flip")
 	_play_sfx(BIG_FLIP_SFX, big_flip_pitch(flip_count))
 
 
@@ -1194,6 +1203,37 @@ static func big_flip_sound_delay(origin: Dictionary, flipped: Array) -> float:
 		var flipped_cell: Dictionary = flipped_value
 		first_wave_delay = minf(first_wave_delay, flip_wave_delay(origin, flipped_cell))
 	return first_wave_delay + FLIP_HALF_DURATION
+
+
+static func haptic_profile(kind: String) -> Dictionary:
+	match kind:
+		"place":
+			return {"duration_ms": 18, "amplitude": 0.35}
+		"flip":
+			return {"duration_ms": 26, "amplitude": 0.48}
+		"big_flip":
+			return {"duration_ms": 55, "amplitude": 0.82}
+		"game_over":
+			return {"duration_ms": 80, "amplitude": 0.72}
+		_:
+			return {}
+
+
+func _request_haptic(kind: String) -> bool:
+	if !bool(_current_settings().get("haptic", true)):
+		return false
+	var profile := haptic_profile(kind)
+	if profile.is_empty():
+		return false
+	var duration_ms := int(profile["duration_ms"])
+	var amplitude := float(profile["amplitude"])
+	if _haptic_probe.is_valid():
+		_haptic_probe.call(kind, duration_ms, amplitude)
+		return true
+	if !OS.has_feature("android") and !OS.has_feature("ios") and !OS.has_feature("web"):
+		return false
+	Input.vibrate_handheld(duration_ms, amplitude)
+	return true
 
 
 func _play_sfx(stream: AudioStream, pitch: float) -> void:
@@ -1322,6 +1362,7 @@ func _update_result_overlay(persist_stats: bool = true) -> void:
 	if not _interstitial_shown_this_game:
 		_interstitial_shown_this_game = true
 		ReversiEngine.record_game_result(state, result_kind)
+		_request_haptic("game_over")
 		if persist_stats:
 			_save_state()
 		if analytics != null:
