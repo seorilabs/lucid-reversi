@@ -55,6 +55,8 @@ func _ready() -> void:
 	ok = settings_persistence_ok and ok
 	var accessibility_ok := await _test_accessibility_settings_and_reduced_motion()
 	ok = accessibility_ok and ok
+	var new_game_confirmation_ok := await _test_new_game_confirmation_guard()
+	ok = new_game_confirmation_ok and ok
 	var theme_ok := await _test_visual_theme_switches_are_independent()
 	ok = theme_ok and ok
 	var ui_ok := await _test_ui_hints_return_after_animation()
@@ -1162,6 +1164,106 @@ func _test_accessibility_settings_and_reduced_motion() -> bool:
 		and _assert(legal_moves_state_ok, "reduced motion renders final legal moves")
 		and _assert(board_state_ok, "reduced motion renders the final board")
 		and _assert(rendered_english_labels_ok, "accessibility controls render English labels")
+	)
+
+
+func _test_new_game_confirmation_guard() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var save_path := "user://save_confirmation_%s.json" % str(OS.get_process_id())
+	_rm_user(save_path)
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+	main._save_path = save_path
+	main.ai_move_pending = false
+	main.input_locked = false
+	main.player_stone = ReversiEngine.BLACK
+	main.state = ReversiEngine.create_new_game(ReversiEngine.BLACK, "MEDIUM")
+	var move_result := ReversiEngine.play_move(main.state, 2, 3)
+	main._render()
+	await get_tree().process_frame
+
+	var before_board := ReversiEngine.clone_board(main.state["board"])
+	var before_history: Array = main.state["move_history"].duplicate(true)
+	main.new_game_button.emit_signal("pressed")
+	await get_tree().process_frame
+	var guarded_new_game_ok: bool = bool(move_result.get("ok", false)) \
+		and main.new_game_confirmation_overlay.visible \
+		and main.state["board"] == before_board \
+		and main.state["move_history"] == before_history
+	var korean_labels_ok: bool = str(MainScript.TEXT["ko"].get("confirm_new_game_title", "")) == "대국을 새로 시작할까요?" \
+		and str(MainScript.TEXT["ko"].get("confirm_new_game_body", "")) == "진행 중인 대국은 저장되지 않습니다." \
+		and main.new_game_confirmation_confirm_button.text == "확인" \
+		and main.new_game_confirmation_cancel_button.text == "취소"
+
+	main.new_game_confirmation_cancel_button.emit_signal("pressed")
+	await get_tree().process_frame
+	var cancel_preserves_ok: bool = !main.new_game_confirmation_overlay.visible \
+		and main.state["board"] == before_board \
+		and main.state["move_history"] == before_history
+
+	main.new_game_button.emit_signal("pressed")
+	main.new_game_confirmation_confirm_button.emit_signal("pressed")
+	await get_tree().process_frame
+	var confirm_starts_ok: bool = !main.new_game_confirmation_overlay.visible \
+		and main.state["move_history"].is_empty() \
+		and ReversiEngine.count_pieces(main.state["board"]) == {"black": 2, "white": 2}
+
+	main.new_game_button.emit_signal("pressed")
+	var empty_history_skips_ok: bool = !main.new_game_confirmation_overlay.visible \
+		and main.state["move_history"].is_empty()
+
+	main.state["move_history"].append({"x": 2, "y": 3, "stone": ReversiEngine.BLACK, "turn_index": 0})
+	main.state["game_over"] = true
+	main.new_game_button.emit_signal("pressed")
+	var completed_game_skips_ok: bool = !main.new_game_confirmation_overlay.visible \
+		and main.state["move_history"].is_empty() \
+		and !bool(main.state.get("game_over", true))
+
+	main.state = ReversiEngine.create_new_game(ReversiEngine.BLACK, "MEDIUM")
+	var color_move_result := ReversiEngine.play_move(main.state, 2, 3)
+	main._render()
+	before_board = ReversiEngine.clone_board(main.state["board"])
+	before_history = main.state["move_history"].duplicate(true)
+	main.white_button.emit_signal("pressed")
+	await get_tree().process_frame
+	var white_guard_ok: bool = bool(color_move_result.get("ok", false)) \
+		and main.new_game_confirmation_overlay.visible \
+		and main._pending_new_game_stone == ReversiEngine.WHITE \
+		and main.state["board"] == before_board \
+		and main.state["move_history"] == before_history
+	main.new_game_confirmation_cancel_button.emit_signal("pressed")
+	main.black_button.emit_signal("pressed")
+	await get_tree().process_frame
+	var black_guard_ok: bool = main.new_game_confirmation_overlay.visible \
+		and main._pending_new_game_stone == ReversiEngine.BLACK \
+		and main.state["board"] == before_board \
+		and main.state["move_history"] == before_history
+	main.new_game_confirmation_cancel_button.emit_signal("pressed")
+
+	main._set_locale("en", false)
+	await get_tree().process_frame
+	main.new_game_button.emit_signal("pressed")
+	await get_tree().process_frame
+	var english_labels_ok: bool = main.new_game_confirmation_overlay.visible \
+		and str(MainScript.TEXT["en"].get("confirm_new_game_title", "")) == "START A NEW GAME?" \
+		and str(MainScript.TEXT["en"].get("confirm_new_game_body", "")) == "Your current game will be discarded." \
+		and main.new_game_confirmation_confirm_button.text == "CONFIRM" \
+		and main.new_game_confirmation_cancel_button.text == "CANCEL"
+	main.new_game_confirmation_cancel_button.emit_signal("pressed")
+
+	main.queue_free()
+	_rm_user(save_path)
+	return (
+		_assert(guarded_new_game_ok, "new game button guards an active game")
+		and _assert(korean_labels_ok, "new game confirmation renders Korean text")
+		and _assert(cancel_preserves_ok, "new game confirmation cancel preserves state")
+		and _assert(confirm_starts_ok, "new game confirmation confirm starts a game")
+		and _assert(empty_history_skips_ok, "new game skips confirmation before the first move")
+		and _assert(completed_game_skips_ok, "new game skips confirmation after game over")
+		and _assert(white_guard_ok and black_guard_ok, "stone color buttons guard an active game")
+		and _assert(english_labels_ok, "new game confirmation renders English text")
 	)
 
 

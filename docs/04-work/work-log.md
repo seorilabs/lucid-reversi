@@ -4,6 +4,7 @@
 
 - Split theme, stone theme, locale, sound, haptic, and difficulty preferences into `user://prefs_v1.json`, migrated legacy save settings once, and made preferences authoritative when game saves are missing or invalid.
 - Added persistent 100/115/130% text scaling and reduced-motion controls, with immediate final-board rendering when move tweens are disabled.
+- Added a localized confirmation overlay that guards new-game and stone-color changes while a match is in progress, while keeping pre-move and completed-game restarts immediate.
 
 ## 2026-06-19
 

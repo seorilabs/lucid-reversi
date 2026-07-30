@@ -54,6 +54,10 @@ const TEXT := {
 		"medium_short": "보통",
 		"hard_short": "어려움",
 		"new_game": "새 게임",
+		"confirm_new_game_title": "대국을 새로 시작할까요?",
+		"confirm_new_game_body": "진행 중인 대국은 저장되지 않습니다.",
+		"confirm_yes": "확인",
+		"confirm_no": "취소",
 		"undo": "무르기",
 		"restart": "다시",
 		"board": "보드",
@@ -106,6 +110,10 @@ const TEXT := {
 		"medium_short": "MED",
 		"hard_short": "HARD",
 		"new_game": "NEW",
+		"confirm_new_game_title": "START A NEW GAME?",
+		"confirm_new_game_body": "Your current game will be discarded.",
+		"confirm_yes": "CONFIRM",
+		"confirm_no": "CANCEL",
 		"undo": "UNDO",
 		"restart": "RESTART",
 		"board": "BOARD",
@@ -205,6 +213,12 @@ var result_title_label: Label
 var result_score_label: Label
 var result_detail_label: Label
 var result_stats_label: Label
+var new_game_confirmation_overlay: ColorRect
+var new_game_confirmation_title_label: Label
+var new_game_confirmation_body_label: Label
+var new_game_confirmation_confirm_button: Button
+var new_game_confirmation_cancel_button: Button
+var _pending_new_game_stone: int = ReversiEngine.NONE
 var footer_primary_label: Label
 var footer_secondary_label: Label
 var black_meter: ColorRect
@@ -282,6 +296,7 @@ func _build_ui() -> void:
 	_build_play_focus_strip(root)
 	_build_result_overlay()
 	_build_settings_overlay()
+	_build_new_game_confirmation_overlay()
 
 
 func _build_top_bar(root: VBoxContainer) -> void:
@@ -563,11 +578,11 @@ func _build_play_focus_strip(root: VBoxContainer) -> void:
 	left_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	controls_row.add_child(left_spacer)
 
-	black_button = _make_segment_button(_t("black"), func() -> void: _start_new_game(ReversiEngine.BLACK))
+	black_button = _make_segment_button(_t("black"), func() -> void: _request_new_game(ReversiEngine.BLACK))
 	black_button.custom_minimum_size = Vector2(112, PLAY_BUTTON_HEIGHT)
 	controls_row.add_child(black_button)
 
-	white_button = _make_segment_button(_t("white"), func() -> void: _start_new_game(ReversiEngine.WHITE))
+	white_button = _make_segment_button(_t("white"), func() -> void: _request_new_game(ReversiEngine.WHITE))
 	white_button.custom_minimum_size = Vector2(112, PLAY_BUTTON_HEIGHT)
 	controls_row.add_child(white_button)
 
@@ -575,7 +590,7 @@ func _build_play_focus_strip(root: VBoxContainer) -> void:
 	undo_button.custom_minimum_size = Vector2(128, PLAY_BUTTON_HEIGHT)
 	controls_row.add_child(undo_button)
 
-	new_game_button = _make_action_button(_t("new_game"), func() -> void: _start_new_game(player_stone), true)
+	new_game_button = _make_action_button(_t("new_game"), func() -> void: _request_new_game(player_stone), true)
 	new_game_button.custom_minimum_size = Vector2(172, PLAY_BUTTON_HEIGHT)
 	controls_row.add_child(new_game_button)
 
@@ -772,6 +787,70 @@ func _build_settings_overlay() -> void:
 	))
 
 
+func _build_new_game_confirmation_overlay() -> void:
+	new_game_confirmation_overlay = ColorRect.new()
+	new_game_confirmation_overlay.visible = false
+	new_game_confirmation_overlay.color = Color(0.005, 0.008, 0.014, 0.78)
+	new_game_confirmation_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	new_game_confirmation_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(new_game_confirmation_overlay)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	new_game_confirmation_overlay.add_child(center)
+
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(440, 220)
+	panel.add_theme_stylebox_override("panel", _make_style(_theme_color("hud_dark"), 2, Color(1, 1, 1, 0.14), 10))
+	center.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 22)
+	margin.add_theme_constant_override("margin_top", 20)
+	margin.add_theme_constant_override("margin_right", 22)
+	margin.add_theme_constant_override("margin_bottom", 20)
+	panel.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 12)
+	margin.add_child(box)
+
+	new_game_confirmation_title_label = Label.new()
+	new_game_confirmation_title_label.text = _t("confirm_new_game_title")
+	new_game_confirmation_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	new_game_confirmation_title_label.add_theme_font_size_override("font_size", _font_size(26))
+	new_game_confirmation_title_label.add_theme_color_override("font_color", _theme_color("text_primary"))
+	_apply_text_visibility(new_game_confirmation_title_label, 2, _theme_color("text_primary"))
+	box.add_child(new_game_confirmation_title_label)
+
+	new_game_confirmation_body_label = Label.new()
+	new_game_confirmation_body_label.text = _t("confirm_new_game_body")
+	new_game_confirmation_body_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	new_game_confirmation_body_label.add_theme_font_size_override("font_size", _font_size(17))
+	new_game_confirmation_body_label.add_theme_color_override("font_color", _theme_color("text_muted"))
+	_apply_text_visibility(new_game_confirmation_body_label, 1, _theme_color("text_muted"))
+	box.add_child(new_game_confirmation_body_label)
+
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 8)
+	box.add_child(buttons)
+
+	new_game_confirmation_cancel_button = _make_action_button(
+		_t("confirm_no"),
+		func() -> void: _cancel_new_game_confirmation(),
+		false,
+	)
+	buttons.add_child(new_game_confirmation_cancel_button)
+	new_game_confirmation_confirm_button = _make_action_button(
+		_t("confirm_yes"),
+		func() -> void: _confirm_new_game(),
+		true,
+	)
+	buttons.add_child(new_game_confirmation_confirm_button)
+
+
 func _make_segment_button(text: String, action: Callable) -> Button:
 	var button := Button.new()
 	button.custom_minimum_size = Vector2(124, ACTION_BUTTON_HEIGHT)
@@ -907,6 +986,32 @@ func _settings_overlay_tap_should_close(event: InputEvent) -> bool:
 
 func _settings_panel_contains_point(position: Vector2) -> bool:
 	return settings_panel != null and settings_panel.get_global_rect().has_point(position)
+
+
+func _has_game_in_progress() -> bool:
+	return !bool(state.get("game_over", false)) and !state.get("move_history", []).is_empty()
+
+
+func _request_new_game(stone: int) -> void:
+	if !_has_game_in_progress():
+		_start_new_game(stone)
+		return
+	_pending_new_game_stone = stone
+	new_game_confirmation_overlay.visible = true
+
+
+func _cancel_new_game_confirmation() -> void:
+	_pending_new_game_stone = ReversiEngine.NONE
+	new_game_confirmation_overlay.visible = false
+	_update_mode_buttons()
+
+
+func _confirm_new_game() -> void:
+	var stone: int = _pending_new_game_stone
+	_cancel_new_game_confirmation()
+	if stone == ReversiEngine.NONE:
+		return
+	_start_new_game(stone)
 
 
 func _start_new_game(stone: int, persist: bool = true) -> void:

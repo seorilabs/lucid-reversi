@@ -19,7 +19,7 @@
 - Primary loop: 색상과 난이도를 고르고 AI와 한 판을 둔다.
 - Session length: 3-5분
 - Progression: EASY, MEDIUM, HARD 난이도를 바꿔 반복 대국하고 난이도별 로컬 승/무/패 전적을 누적한다.
-- Failure/retry model: 승패/무승부 후 즉시 새 게임을 시작한다.
+- Failure/retry model: 승패/무승부 후 즉시 새 게임을 시작한다. 진행 중인 대국에서는 새 게임이나 돌 색 변경 전에 초기화 확인을 받는다.
 - Retention surface: 최근 대국 상태와 설정을 로컬 자동 저장/자동 복원한다.
 - Localization: AppsInToss는 한국어를 기본으로 노출하고, 앱 내부 언어 선택에서 영어로 전환할 수 있다.
 
