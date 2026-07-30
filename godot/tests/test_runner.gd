@@ -48,6 +48,7 @@ func _ready() -> void:
 	ok = _test_analytics_adapter_headless_noop() and ok
 	ok = _test_safe_area_margins() and ok
 	ok = _test_sfx_pitch_scale() and ok
+	ok = _test_flip_wave_geometry() and ok
 	var sfx_sound_ok := await _test_sfx_respects_sound_setting()
 	ok = sfx_sound_ok and ok
 	get_tree().quit(0 if ok else 1)
@@ -87,6 +88,37 @@ func _test_sfx_pitch_scale() -> bool:
 		and _assert(flip3_ok, "flip pitch scales with index")
 		and _assert(big0_ok, "big flip pitch base is 1.0")
 		and _assert(big5_ok, "big flip pitch scales with count")
+	)
+
+
+func _test_flip_wave_geometry() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var origin := {"x": 2, "y": 3}
+	var flipped := [
+		{"x": 3, "y": 3},
+		{"x": 4, "y": 3},
+		{"x": 5, "y": 3},
+		{"x": 6, "y": 3},
+	]
+	var near_delay: float = MainScript.flip_wave_delay(origin, {"x": 3, "y": 3})
+	var diagonal_delay: float = MainScript.flip_wave_delay(origin, {"x": 3, "y": 4})
+	var far_delay: float = MainScript.flip_wave_delay(origin, {"x": 6, "y": 3})
+	var first_tilt: float = MainScript.flip_tilt(0)
+	var second_tilt: float = MainScript.flip_tilt(1)
+	var transition: Dictionary = MainScript.flip_transition_profile(0)
+	var front_scale: Vector2 = transition["front_scale"]
+	var back_scale: Vector2 = transition["back_scale"]
+	var highlight: Color = transition["highlight"]
+	var swap_alpha: float = transition["swap_alpha"]
+	var big_sound_delay: float = MainScript.big_flip_sound_delay(origin, flipped)
+	return (
+		_assert(near_delay > 0.0, "flip wave starts after placement origin")
+		and _assert(diagonal_delay > near_delay, "flip wave delays diagonal distance")
+		and _assert(far_delay > diagonal_delay, "flip wave expands by origin distance")
+		and _assert(first_tilt != 0.0 and second_tilt == -first_tilt, "flip alternates disc rotation tilt")
+		and _assert(front_scale.x > 0.0 and back_scale.x < 0.0 and front_scale.y > 1.0, "flip crosses the disc edge with thickness")
+		and _assert(highlight != Color.WHITE and swap_alpha > 0.0 and swap_alpha < 1.0, "flip midpoint highlights and fades the color swap")
+		and _assert(big_sound_delay > near_delay and big_sound_delay < far_delay, "big flip sound aligns with the first wave midpoint")
 	)
 
 
@@ -843,6 +875,21 @@ func _test_visual_theme_switches_are_independent() -> bool:
 	var stone_settings: Dictionary = main.state.get("settings", {})
 	var selected_stone_ok: bool = str(stone_settings.get("stone_theme", "")) == "ember"
 	var stone_buttons_ok: bool = _choice_group_has_active_id(main.stone_theme_buttons, "ember")
+	var all_stone_themes_render_ok := true
+	for theme_value in ["classic", "arctic", "ember"]:
+		var stone_theme_id := str(theme_value)
+		main._set_stone_theme(stone_theme_id, false)
+		await get_tree().process_frame
+		var black_texture: Texture2D = main._texture_for_stone(ReversiEngine.BLACK)
+		var white_texture: Texture2D = main._texture_for_stone(ReversiEngine.WHITE)
+		all_stone_themes_render_ok = (
+			all_stone_themes_render_ok
+			and black_texture != null
+			and white_texture != null
+			and black_texture != white_texture
+			and main.cell_piece_views[3][3].texture == white_texture
+			and main.cell_piece_views[3][4].texture == black_texture
+		)
 	main.queue_free()
 	return (
 		_assert(selected_theme_ok, "ui theme setting changes")
@@ -853,6 +900,7 @@ func _test_visual_theme_switches_are_independent() -> bool:
 		and _assert(board_only_texture != ember_texture, "ui stone theme switches stone texture")
 		and _assert(arctic_board_color == after_stone_color, "ui stone theme does not switch board color")
 		and _assert(stone_buttons_ok, "ui stone theme buttons track selected theme")
+		and _assert(all_stone_themes_render_ok, "ui renders black and white discs for every stone theme")
 	)
 
 
