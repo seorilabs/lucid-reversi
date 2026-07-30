@@ -78,6 +78,7 @@ const TEXT := {
 		"result_draw": "무승부",
 		"result_lose": "패배",
 		"result_detail": "흑 %d / 백 %d",
+		"stats_summary": "%s %d승 %d무 %d패",
 	},
 	"en": {
 		"app_title": "LUCID REVERSI",
@@ -126,6 +127,7 @@ const TEXT := {
 		"result_draw": "DRAW",
 		"result_lose": "LOSE",
 		"result_detail": "BLACK %d / WHITE %d",
+		"stats_summary": "%s %dW %dD %dL",
 	},
 }
 
@@ -178,6 +180,7 @@ var result_overlay: ColorRect
 var result_title_label: Label
 var result_score_label: Label
 var result_detail_label: Label
+var result_stats_label: Label
 var footer_primary_label: Label
 var footer_secondary_label: Label
 var black_meter: ColorRect
@@ -619,6 +622,13 @@ func _build_result_overlay() -> void:
 	_apply_text_visibility(result_detail_label, 1, _theme_color("text_muted"))
 	box.add_child(result_detail_label)
 
+	result_stats_label = Label.new()
+	result_stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	result_stats_label.add_theme_font_size_override("font_size", 18)
+	result_stats_label.add_theme_color_override("font_color", _theme_color("text_primary"))
+	_apply_text_visibility(result_stats_label, 1, _theme_color("text_primary"))
+	box.add_child(result_stats_label)
+
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.add_theme_constant_override("separation", 8)
@@ -863,16 +873,19 @@ func _settings_panel_contains_point(position: Vector2) -> bool:
 	return settings_panel != null and settings_panel.get_global_rect().has_point(position)
 
 
-func _start_new_game(stone: int) -> void:
+func _start_new_game(stone: int, persist: bool = true) -> void:
 	ai_move_pending = false
 	input_locked = false
 	_interstitial_shown_this_game = false
 	var current_settings := _current_settings()
+	var current_stats := ReversiEngine.normalize_stats(state.get("stats", {}))
 	player_stone = stone
 	state = ReversiEngine.create_new_game(player_stone, difficulty)
 	state["settings"] = current_settings
+	state["stats"] = current_stats
 	_sync_identity_labels()
-	_save_state()
+	if persist:
+		_save_state()
 	_render()
 	if analytics != null:
 		analytics.on_game_start(difficulty, player_stone)
@@ -1227,7 +1240,7 @@ func _update_turn_badge(current_turn: int) -> void:
 		_apply_text_visibility(turn_badge, 1, Color(0.02, 0.05, 0.03, 1.0))
 
 
-func _update_result_overlay() -> void:
+func _update_result_overlay(persist_stats: bool = true) -> void:
 	var counts := ReversiEngine.count_pieces(state.get("board", []))
 	var black_score := int(counts["black"])
 	var white_score := int(counts["white"])
@@ -1258,6 +1271,9 @@ func _update_result_overlay() -> void:
 	# (오버레이는 게임 종료 후 입력·AI턴 진입마다 재호출되므로 밖에 두면 중복 집계된다.)
 	if not _interstitial_shown_this_game:
 		_interstitial_shown_this_game = true
+		ReversiEngine.record_game_result(state, result_kind)
+		if persist_stats:
+			_save_state()
 		if analytics != null:
 			analytics.on_game_over(
 				result_kind,
@@ -1267,6 +1283,19 @@ func _update_result_overlay() -> void:
 				state.get("move_history", []).size(),
 			)
 		_request_interstitial_ad()
+	result_stats_label.text = _current_difficulty_stats_text()
+
+
+func _current_difficulty_stats_text() -> String:
+	var stats := ReversiEngine.normalize_stats(state.get("stats", {}))
+	var current_difficulty := str(state.get("difficulty", difficulty))
+	var bucket: Dictionary = stats.get(current_difficulty, {})
+	return _t("stats_summary") % [
+		_difficulty_label(current_difficulty),
+		int(bucket.get("wins", 0)),
+		int(bucket.get("draws", 0)),
+		int(bucket.get("losses", 0)),
+	]
 
 
 func _request_interstitial_ad() -> void:
