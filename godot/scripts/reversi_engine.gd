@@ -106,6 +106,63 @@ static func play_move(state: Dictionary, x: int, y: int) -> Dictionary:
 	}
 
 
+static func can_undo_last_round(state: Dictionary) -> bool:
+	var player_stone := int(state.get("player_stone", NONE))
+	if player_stone != BLACK and player_stone != WHITE:
+		return false
+
+	var history: Array = state.get("move_history", [])
+	for index in range(history.size() - 1, -1, -1):
+		var move: Dictionary = history[index]
+		if int(move.get("stone", NONE)) == player_stone:
+			return true
+	return false
+
+
+static func undo_last_round(state: Dictionary) -> Dictionary:
+	if !can_undo_last_round(state):
+		return {"ok": false, "reason": "no_player_move"}
+
+	var history: Array = state.get("move_history", [])
+	var player_stone := int(state.get("player_stone", BLACK))
+	var undo_from := -1
+	for index in range(history.size() - 1, -1, -1):
+		var move: Dictionary = history[index]
+		if int(move.get("stone", NONE)) == player_stone:
+			undo_from = index
+			break
+
+	if undo_from < 0:
+		return {"ok": false, "reason": "no_player_move"}
+
+	var restored := create_new_game(
+		player_stone,
+		str(state.get("difficulty", "MEDIUM")),
+	)
+	restored["settings"] = normalize_settings(state.get("settings", default_settings()))
+	restored["last_saved_at"] = int(state.get("last_saved_at", 0))
+
+	for index in range(undo_from):
+		var move: Dictionary = history[index]
+		if int(restored.get("current_turn", NONE)) != int(move.get("stone", NONE)):
+			return {"ok": false, "reason": "history_turn_mismatch"}
+		var replay_result := play_move(
+			restored,
+			int(move.get("x", -1)),
+			int(move.get("y", -1)),
+		)
+		if !bool(replay_result.get("ok", false)):
+			return {"ok": false, "reason": "history_replay_failed"}
+
+	var removed_moves := history.size() - undo_from
+	state.clear()
+	state.merge(restored, true)
+	return {
+		"ok": true,
+		"removed_moves": removed_moves,
+	}
+
+
 static func get_valid_moves(board: Array, stone: int) -> Array:
 	if stone != BLACK and stone != WHITE:
 		return []
@@ -201,6 +258,7 @@ static func state_to_save_dict(state: Dictionary) -> Dictionary:
 		"difficulty": str(state.get("difficulty", "MEDIUM")),
 		"board_codec": Marshalls.raw_to_base64(payload),
 		"move_history": state.get("move_history", []),
+		"pass_count": int(state.get("pass_count", 0)),
 		"settings": normalize_settings(state.get("settings", default_settings())),
 		"last_saved_at": int(state.get("last_saved_at", 0)),
 	}
@@ -225,6 +283,7 @@ static func state_from_save_dict(saved: Dictionary) -> Dictionary:
 	)
 	state["ai_stone"] = int(saved.get("ai_stone", opponent(int(state["player_stone"]))))
 	state["move_history"] = saved.get("move_history", [])
+	state["pass_count"] = int(saved.get("pass_count", 0))
 	state["settings"] = normalize_settings(saved.get("settings", default_settings()))
 	state["last_saved_at"] = int(saved.get("last_saved_at", 0))
 	return state
