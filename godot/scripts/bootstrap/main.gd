@@ -37,6 +37,8 @@ const STONE_THEME_IDS := ["classic", "arctic", "ember"]
 const STONE_THEME_LABELS := ["CLASSIC", "ARCTIC", "EMBER"]
 const LOCALE_IDS := ["ko", "en"]
 const LOCALE_LABELS := ["한국어", "EN"]
+const FONT_SCALE_IDS := ["1.0", "1.15", "1.3"]
+const FONT_SCALE_LABELS := ["100%", "115%", "130%"]
 const TEXT := {
 	"ko": {
 		"app_title": "루시드 리버시",
@@ -63,6 +65,8 @@ const TEXT := {
 		"board_theme_title": "보드",
 		"stone_theme_title": "돌",
 		"language_setting": "언어",
+		"font_scale_setting": "글자 크기",
+		"reduce_motion": "모션 줄이기",
 		"board_theme": "보드 %s",
 		"stone_theme": "돌 %s",
 		"locale": "언어 %s",
@@ -113,6 +117,8 @@ const TEXT := {
 		"board_theme_title": "BOARD",
 		"stone_theme_title": "STONE",
 		"language_setting": "LANG",
+		"font_scale_setting": "TEXT SIZE",
+		"reduce_motion": "REDUCE MOTION",
 		"board_theme": "BOARD %s",
 		"stone_theme": "STONE %s",
 		"locale": "LANG %s",
@@ -164,6 +170,7 @@ var _ios_ads: Node
 var _haptic_probe: Callable
 var _save_path := SAVE_PATH
 var _prefs_path := PREFS_PATH
+var _motion_tween_count := 0
 
 var cell_buttons: Array = []
 var cell_piece_views: Array = []
@@ -191,6 +198,8 @@ var difficulty_buttons: Array = []
 var board_theme_buttons: Array = []
 var stone_theme_buttons: Array = []
 var locale_buttons: Array = []
+var font_scale_buttons: Array = []
+var reduce_motion_toggle: CheckButton
 var result_overlay: ColorRect
 var result_title_label: Label
 var result_score_label: Label
@@ -285,7 +294,7 @@ func _build_top_bar(root: VBoxContainer) -> void:
 	var title := Label.new()
 	title.text = _t("app_title")
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_font_size_override("font_size", _font_size(26))
 	title.add_theme_color_override("font_color", _theme_color("text_primary"))
 	_apply_text_visibility(title, 2, _theme_color("text_primary"))
 	bar.add_child(title)
@@ -323,7 +332,7 @@ func _build_score_strip(root: VBoxContainer) -> void:
 	turn_badge.custom_minimum_size = Vector2(126, 58)
 	turn_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	turn_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	turn_badge.add_theme_font_size_override("font_size", 18)
+	turn_badge.add_theme_font_size_override("font_size", _font_size(18))
 	turn_badge.add_theme_color_override("font_color", Color(0.06, 0.055, 0.035, 1.0))
 	_apply_text_visibility(turn_badge, 1, Color(0.06, 0.055, 0.035, 1.0))
 	turn_badge.add_theme_stylebox_override("normal", _make_style(_theme_color("accent"), 1, Color(1, 1, 1, 0.18), 8))
@@ -367,14 +376,14 @@ func _make_compact_score_panel(name_text: String, stone: int) -> Dictionary:
 
 	var info := Label.new()
 	info.text = "%s / %s" % [name_text, _piece_label(stone)]
-	info.add_theme_font_size_override("font_size", 13)
+	info.add_theme_font_size_override("font_size", _font_size(13))
 	info.add_theme_color_override("font_color", _theme_color("text_muted"))
 	_apply_text_visibility(info, 1, _theme_color("text_muted"))
 	text_box.add_child(info)
 
 	var score := Label.new()
 	score.text = "2"
-	score.add_theme_font_size_override("font_size", 30)
+	score.add_theme_font_size_override("font_size", _font_size(30))
 	score.add_theme_color_override("font_color", _theme_color("text_primary"))
 	_apply_text_visibility(score, 2, _theme_color("text_primary"))
 	text_box.add_child(score)
@@ -396,14 +405,14 @@ func _build_status_bar(root: VBoxContainer) -> void:
 
 	status_label = Label.new()
 	status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	status_label.add_theme_font_size_override("font_size", 17)
+	status_label.add_theme_font_size_override("font_size", _font_size(17))
 	status_label.add_theme_color_override("font_color", _theme_color("text_muted"))
 	_apply_text_visibility(status_label, 1, _theme_color("text_muted"))
 	status.add_child(status_label)
 
 	move_count_label = Label.new()
 	move_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	move_count_label.add_theme_font_size_override("font_size", 16)
+	move_count_label.add_theme_font_size_override("font_size", _font_size(16))
 	move_count_label.add_theme_color_override("font_color", _theme_color("text_muted"))
 	_apply_text_visibility(move_count_label, 1, _theme_color("text_muted"))
 	status.add_child(move_count_label)
@@ -498,7 +507,7 @@ func _build_play_focus_strip(root: VBoxContainer) -> void:
 
 	footer_primary_label = Label.new()
 	footer_primary_label.custom_minimum_size = Vector2(112, 0)
-	footer_primary_label.add_theme_font_size_override("font_size", 18)
+	footer_primary_label.add_theme_font_size_override("font_size", _font_size(18))
 	footer_primary_label.add_theme_color_override("font_color", _theme_color("text_primary"))
 	_apply_text_visibility(footer_primary_label, 2, _theme_color("text_primary"))
 	row.add_child(footer_primary_label)
@@ -579,7 +588,7 @@ func _build_play_focus_strip(root: VBoxContainer) -> void:
 	footer_secondary_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	footer_secondary_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	footer_secondary_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	footer_secondary_label.add_theme_font_size_override("font_size", 16)
+	footer_secondary_label.add_theme_font_size_override("font_size", _font_size(16))
 	footer_secondary_label.add_theme_color_override("font_color", _theme_color("text_muted"))
 	_apply_text_visibility(footer_secondary_label, 1, _theme_color("text_muted"))
 	right_spacer.add_child(footer_secondary_label)
@@ -616,28 +625,28 @@ func _build_result_overlay() -> void:
 
 	result_title_label = Label.new()
 	result_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	result_title_label.add_theme_font_size_override("font_size", 36)
+	result_title_label.add_theme_font_size_override("font_size", _font_size(36))
 	result_title_label.add_theme_color_override("font_color", _theme_color("text_primary"))
 	_apply_text_visibility(result_title_label, 3, _theme_color("text_primary"))
 	box.add_child(result_title_label)
 
 	result_score_label = Label.new()
 	result_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	result_score_label.add_theme_font_size_override("font_size", 42)
+	result_score_label.add_theme_font_size_override("font_size", _font_size(42))
 	result_score_label.add_theme_color_override("font_color", _theme_color("accent"))
 	_apply_text_visibility(result_score_label, 3, _theme_color("accent"))
 	box.add_child(result_score_label)
 
 	result_detail_label = Label.new()
 	result_detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	result_detail_label.add_theme_font_size_override("font_size", 16)
+	result_detail_label.add_theme_font_size_override("font_size", _font_size(16))
 	result_detail_label.add_theme_color_override("font_color", _theme_color("text_muted"))
 	_apply_text_visibility(result_detail_label, 1, _theme_color("text_muted"))
 	box.add_child(result_detail_label)
 
 	result_stats_label = Label.new()
 	result_stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	result_stats_label.add_theme_font_size_override("font_size", 18)
+	result_stats_label.add_theme_font_size_override("font_size", _font_size(18))
 	result_stats_label.add_theme_color_override("font_color", _theme_color("text_primary"))
 	_apply_text_visibility(result_stats_label, 1, _theme_color("text_primary"))
 	box.add_child(result_stats_label)
@@ -698,7 +707,7 @@ func _build_settings_overlay() -> void:
 	var title := Label.new()
 	title.text = _t("settings")
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_font_size_override("font_size", _font_size(22))
 	title.add_theme_color_override("font_color", _theme_color("text_primary"))
 	_apply_text_visibility(title, 2, _theme_color("text_primary"))
 	header.add_child(title)
@@ -717,6 +726,17 @@ func _build_settings_overlay() -> void:
 	box.add_child(sound_toggle)
 	haptic_toggle = _make_toggle_button(_t("haptic"), "haptic")
 	box.add_child(haptic_toggle)
+	reduce_motion_toggle = _make_toggle_button(_t("reduce_motion"), "reduce_motion")
+	box.add_child(reduce_motion_toggle)
+
+	box.add_child(_make_choice_section(
+		_t("font_scale_setting"),
+		FONT_SCALE_IDS,
+		FONT_SCALE_LABELS,
+		_current_font_scale_id(),
+		Callable(self, "_set_font_scale_from_choice"),
+		font_scale_buttons
+	))
 
 	var theme_labels: Array = []
 	for theme_id in THEME_IDS:
@@ -758,7 +778,7 @@ func _make_segment_button(text: String, action: Callable) -> Button:
 	button.text = text
 	button.toggle_mode = true
 	button.focus_mode = Control.FOCUS_NONE
-	button.add_theme_font_size_override("font_size", 21)
+	button.add_theme_font_size_override("font_size", _font_size(21))
 	button.pressed.connect(action)
 	return button
 
@@ -768,7 +788,7 @@ func _make_action_button(text: String, action: Callable, primary: bool = false) 
 	button.custom_minimum_size = Vector2(128, ACTION_BUTTON_HEIGHT)
 	button.text = text
 	button.focus_mode = Control.FOCUS_NONE
-	button.add_theme_font_size_override("font_size", 20)
+	button.add_theme_font_size_override("font_size", _font_size(20))
 	var bg := _theme_color("accent") if primary else _theme_color("hud")
 	var fg := Color(0.055, 0.048, 0.025, 1.0) if primary else _theme_color("text_primary")
 	button.add_theme_stylebox_override("normal", _make_style(bg, 1, Color(1, 1, 1, 0.13), 6))
@@ -789,7 +809,7 @@ func _make_choice_section(title_text: String, option_ids: Array, option_labels: 
 
 	var title := Label.new()
 	title.text = title_text
-	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_font_size_override("font_size", _font_size(16))
 	title.add_theme_color_override("font_color", _theme_color("text_muted"))
 	_apply_text_visibility(title, 1, _theme_color("text_muted"))
 	section.add_child(title)
@@ -820,7 +840,7 @@ func _make_choice_button(text: String, active: bool) -> Button:
 	button.text = text
 	button.toggle_mode = true
 	button.focus_mode = Control.FOCUS_NONE
-	button.add_theme_font_size_override("font_size", 19)
+	button.add_theme_font_size_override("font_size", _font_size(19))
 	button.button_pressed = active
 	_apply_segment_style(button, active)
 	return button
@@ -832,7 +852,7 @@ func _make_toggle_button(text: String, key: String) -> CheckButton:
 	toggle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	toggle.text = text
 	toggle.focus_mode = Control.FOCUS_NONE
-	toggle.add_theme_font_size_override("font_size", 19)
+	toggle.add_theme_font_size_override("font_size", _font_size(19))
 	var settings: Dictionary = state.get("settings", ReversiEngine.default_settings())
 	toggle.button_pressed = bool(settings.get(key, true))
 	toggle.add_theme_stylebox_override("normal", _make_style(_theme_color("hud"), 1, Color(1, 1, 1, 0.10), 6))
@@ -1011,6 +1031,15 @@ func _animate_move_result(before_board: Array, result: Dictionary) -> void:
 	var stone := int(placed.get("stone", ReversiEngine.NONE))
 	var wait_time := 0.0
 
+	if _reduce_motion_enabled():
+		if !placed.is_empty():
+			_play_place_sound()
+		if flipped.size() >= 4:
+			_play_big_flip_sound(flipped.size())
+		elif !flipped.is_empty():
+			_play_flip_sound(0)
+		return
+
 	if !placed.is_empty():
 		var px := int(placed["x"])
 		var py := int(placed["y"])
@@ -1020,6 +1049,7 @@ func _animate_move_result(before_board: Array, result: Dictionary) -> void:
 		placed_view.texture = _texture_for_stone(stone)
 		placed_view.modulate = Color(1, 1, 1, 0.0)
 		placed_view.scale = Vector2(0.34, 0.34)
+		_motion_tween_count += 1
 		var placed_tween := create_tween()
 		placed_tween.set_parallel(true)
 		placed_tween.tween_property(placed_view, "modulate:a", 1.0, 0.13).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
@@ -1028,6 +1058,7 @@ func _animate_move_result(before_board: Array, result: Dictionary) -> void:
 		_pulse_cell(px, py, _theme_color("accent"))
 
 	if flipped.size() >= 4:
+		_motion_tween_count += 1
 		var big_sound_tween := create_tween()
 		big_sound_tween.tween_interval(big_flip_sound_delay(placed, flipped))
 		big_sound_tween.tween_callback(func() -> void: _play_big_flip_sound(flipped.size()))
@@ -1050,6 +1081,7 @@ func _animate_move_result(before_board: Array, result: Dictionary) -> void:
 		var tilt: float = transition["tilt"]
 		var highlight: Color = transition["highlight"]
 		var swap_alpha: float = transition["swap_alpha"]
+		_motion_tween_count += 1
 		var tween := create_tween()
 		tween.tween_interval(delay)
 		tween.tween_property(view, "scale", front_scale, FLIP_HALF_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
@@ -1151,6 +1183,10 @@ func _prepare_piece_view(x: int, y: int) -> void:
 
 func _pulse_cell(x: int, y: int, color: Color) -> void:
 	var button: Button = cell_buttons[x][y]
+	if _reduce_motion_enabled():
+		button.modulate = Color.WHITE
+		return
+	_motion_tween_count += 1
 	var tween := create_tween()
 	tween.tween_property(button, "modulate", color, 0.05)
 	tween.tween_property(button, "modulate", Color.WHITE, 0.16)
@@ -1295,6 +1331,7 @@ func _update_settings_choice_buttons() -> void:
 	_update_choice_buttons(board_theme_buttons, _current_theme_id())
 	_update_choice_buttons(stone_theme_buttons, _current_stone_theme_id())
 	_update_choice_buttons(locale_buttons, _current_locale_id())
+	_update_choice_buttons(font_scale_buttons, _current_font_scale_id())
 
 
 func _update_choice_buttons(button_entries: Array, selected_id: String) -> void:
@@ -1473,7 +1510,7 @@ func _advantage_text(player_score: int, ai_score: int) -> String:
 func _make_ui_theme() -> Theme:
 	var ui_theme := Theme.new()
 	ui_theme.default_font = UI_FONT
-	ui_theme.default_font_size = 17
+	ui_theme.default_font_size = _font_size(17)
 	for theme_type in ["Label", "Button", "CheckButton"]:
 		ui_theme.set_color("font_outline_color", theme_type, Color(0.0, 0.0, 0.0, 0.58))
 		ui_theme.set_constant("outline_size", theme_type, 1)
@@ -1500,6 +1537,31 @@ func _current_settings() -> Dictionary:
 		if defaults.has(key):
 			merged[key] = current[key]
 	return merged
+
+
+func _current_font_scale() -> float:
+	var configured := float(_current_settings().get("font_scale", 1.0))
+	for scale_id in FONT_SCALE_IDS:
+		var allowed := str(scale_id).to_float()
+		if is_equal_approx(configured, allowed):
+			return allowed
+	return 1.0
+
+
+func _current_font_scale_id() -> String:
+	var configured := _current_font_scale()
+	for scale_id in FONT_SCALE_IDS:
+		if is_equal_approx(configured, str(scale_id).to_float()):
+			return str(scale_id)
+	return "1.0"
+
+
+func _font_size(base_size: int) -> int:
+	return maxi(1, int(roundi(float(base_size) * _current_font_scale())))
+
+
+func _reduce_motion_enabled() -> bool:
+	return bool(_current_settings().get("reduce_motion", false))
 
 
 func _apply_preferences_to_state() -> void:
@@ -1551,6 +1613,22 @@ func _set_difficulty_from_choice(difficulty_id: String) -> void:
 	_save_preferences()
 	_render()
 	call_deferred("_maybe_play_ai_turn")
+
+
+func _set_font_scale_from_choice(scale_id: String) -> void:
+	if !FONT_SCALE_IDS.has(scale_id):
+		return
+	var keep_settings_open := settings_overlay != null and settings_overlay.visible
+	var settings := _current_settings()
+	settings["font_scale"] = scale_id.to_float()
+	state["settings"] = settings
+	if analytics != null:
+		analytics.on_settings_changed("font_scale", scale_id)
+	_save_preferences()
+	_build_ui()
+	_render()
+	if keep_settings_open:
+		_show_settings_menu()
 
 
 func _set_locale(locale_id: String, persist: bool = true) -> void:

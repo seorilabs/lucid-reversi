@@ -29,6 +29,8 @@ static func default_settings() -> Dictionary:
 		"locale": "ko",
 		"theme": "classic",
 		"stone_theme": "classic",
+		"font_scale": 1.0,
+		"reduce_motion": false,
 	}
 
 

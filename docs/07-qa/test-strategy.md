@@ -17,6 +17,8 @@
 - save DTO round trip
 - 게임 save에서 환경설정 제외 및 기존 save 설정의 prefs 마이그레이션
 - 게임 save 손상·삭제와 무관한 prefs 복원, 신규 설치 기본 prefs 생성, 설정 변경 즉시 저장
+- 글자 배율이 score/status/result 텍스트와 설정 컨트롤에 적용·영속화되고 ko/en 접근성 라벨이 존재하는지 확인
+- 모션 줄이기에서 착수·뒤집기·펄스 tween이 생성되지 않고 점수·합법수·차례·최종 보드가 즉시 갱신되는지 확인
 - 플레이어 착수와 AI 응수를 한 라운드로 되돌리는 Undo 및 저장 DTO round trip
 - 난이도별 승/무/패 통계 저장 round trip, 기존 세이브 기본값, 게임오버 1회 집계
 
@@ -37,6 +39,7 @@
 - 결과 통계 smoke는 동일 게임오버 오버레이를 반복 갱신해도 현재 난이도 전적이 1회만 증가하고 ko/en 전환과 새 게임에서 누적값이 유지되는지 확인한다.
 - 플립 smoke는 착수 원점에서의 거리 증가에 따라 연쇄 지연이 커지고, 회전 tilt 방향이 교차하는지 확인한다. 3개 돌 테마의 중간 색 전환·잔상·깜빡임은 Web 또는 실기기에서 육안 확인한다.
 - 설정 smoke는 manual load와 미구현 힌트 toggle이 노출되지 않고, 진동 toggle이 ko/en으로 노출·저장되며, 설정 패널 내부 터치는 열린 상태를 유지하고 패널 외부 터치는 닫히는지 확인한다.
+- 접근성 smoke는 100/115/130% 글자 배율과 모션 줄이기 toggle의 prefs 영속화, ko/en 라벨, tween 없는 최종 상태 렌더를 확인한다.
 - 사운드 smoke는 `sound=false` 설정에서 착수 사운드가 생성되지 않는지 확인한다. 실제 음색은 Web smoke에서 착수/뒤집힘/대량 뒤집힘 상황으로 확인한다.
 - 햅틱 smoke는 착수·일반 플립·대량 플립·게임 종료 profile이 구분되고, 게임 종료가 한 판에 1회만 요청되며, toggle OFF와 headless에서 안전하게 no-op 되는지 확인한다. 실제 진동 강도는 Android/iOS/AIT 실기기에서 확인한다.
 - Android device smoke는 `npm run build:android:smoke`로 만든 local debug APK를 연결 기기에 설치한 뒤, process/window focus, `SCREEN_ORIENTATION_PORTRAIT`, crash 로그 없음, 실제 `screencap`을 확인한다.
