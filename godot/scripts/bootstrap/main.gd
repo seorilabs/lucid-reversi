@@ -26,6 +26,9 @@ const SETTINGS_CHOICE_HEIGHT := 52
 const FLIP_HALF_DURATION := 0.11
 const FLIP_WAVE_SECONDS_PER_CELL := 0.045
 const FLIP_TILT_RADIANS := 0.11
+const FLIP_EDGE_SCALE := Vector2(0.04, 1.12)
+const FLIP_HIGHLIGHT_COLOR := Color(1.0, 0.92, 0.68, 1.0)
+const FLIP_SWAP_ALPHA := 0.55
 const DIFFICULTY_IDS := ["EASY", "MEDIUM", "HARD"]
 const THEME_IDS := ["classic", "arctic", "ember"]
 const THEME_LABELS := ["CLASSIC", "ARCTIC", "EMBER"]
@@ -1015,11 +1018,8 @@ func _animate_move_result(before_board: Array, result: Dictionary) -> void:
 		_pulse_cell(px, py, _theme_color("accent"))
 
 	if flipped.size() >= 4:
-		var first_wave_delay := INF
-		for flipped_cell in flipped:
-			first_wave_delay = minf(first_wave_delay, flip_wave_delay(placed, flipped_cell))
 		var big_sound_tween := create_tween()
-		big_sound_tween.tween_interval(first_wave_delay + FLIP_HALF_DURATION)
+		big_sound_tween.tween_interval(big_flip_sound_delay(placed, flipped))
 		big_sound_tween.tween_callback(func() -> void: _play_big_flip_sound(flipped.size()))
 
 	for index in range(flipped.size()):
@@ -1034,16 +1034,21 @@ func _animate_move_result(before_board: Array, result: Dictionary) -> void:
 		view.scale = Vector2.ONE
 		view.rotation = 0.0
 		var delay := flip_wave_delay(placed, cell)
-		var tilt := flip_tilt(index)
+		var transition := flip_transition_profile(index)
+		var front_scale: Vector2 = transition["front_scale"]
+		var back_scale: Vector2 = transition["back_scale"]
+		var tilt: float = transition["tilt"]
+		var highlight: Color = transition["highlight"]
+		var swap_alpha: float = transition["swap_alpha"]
 		var tween := create_tween()
 		tween.tween_interval(delay)
-		tween.tween_property(view, "scale", Vector2(0.04, 1.12), FLIP_HALF_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tween.tween_property(view, "scale", front_scale, FLIP_HALF_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		tween.parallel().tween_property(view, "rotation", tilt, FLIP_HALF_DURATION).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-		tween.parallel().tween_property(view, "modulate", Color(1.0, 0.92, 0.68, 1.0), FLIP_HALF_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tween.parallel().tween_property(view, "modulate", highlight, FLIP_HALF_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		tween.tween_callback(func() -> void:
 			view.texture = _texture_for_stone(stone)
-			view.scale.x = -0.04
-			view.modulate = Color(1.0, 1.0, 1.0, 0.55)
+			view.scale = back_scale
+			view.modulate = Color(1.0, 1.0, 1.0, swap_alpha)
 			if flipped.size() < 4:
 				_play_flip_sound(index)
 		)
@@ -1171,6 +1176,24 @@ static func flip_wave_delay(origin: Dictionary, cell: Dictionary) -> float:
 
 static func flip_tilt(index: int) -> float:
 	return FLIP_TILT_RADIANS if index % 2 == 0 else -FLIP_TILT_RADIANS
+
+
+static func flip_transition_profile(index: int) -> Dictionary:
+	return {
+		"front_scale": FLIP_EDGE_SCALE,
+		"back_scale": Vector2(-FLIP_EDGE_SCALE.x, FLIP_EDGE_SCALE.y),
+		"tilt": flip_tilt(index),
+		"highlight": FLIP_HIGHLIGHT_COLOR,
+		"swap_alpha": FLIP_SWAP_ALPHA,
+	}
+
+
+static func big_flip_sound_delay(origin: Dictionary, flipped: Array) -> float:
+	var first_wave_delay := INF
+	for flipped_value in flipped:
+		var flipped_cell: Dictionary = flipped_value
+		first_wave_delay = minf(first_wave_delay, flip_wave_delay(origin, flipped_cell))
+	return first_wave_delay + FLIP_HALF_DURATION
 
 
 func _play_sfx(stream: AudioStream, pitch: float) -> void:

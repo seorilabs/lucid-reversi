@@ -94,16 +94,31 @@ func _test_sfx_pitch_scale() -> bool:
 func _test_flip_wave_geometry() -> bool:
 	var MainScript = load("res://scripts/bootstrap/main.gd")
 	var origin := {"x": 2, "y": 3}
+	var flipped := [
+		{"x": 3, "y": 3},
+		{"x": 4, "y": 3},
+		{"x": 5, "y": 3},
+		{"x": 6, "y": 3},
+	]
 	var near_delay: float = MainScript.flip_wave_delay(origin, {"x": 3, "y": 3})
 	var diagonal_delay: float = MainScript.flip_wave_delay(origin, {"x": 3, "y": 4})
 	var far_delay: float = MainScript.flip_wave_delay(origin, {"x": 6, "y": 3})
 	var first_tilt: float = MainScript.flip_tilt(0)
 	var second_tilt: float = MainScript.flip_tilt(1)
+	var transition: Dictionary = MainScript.flip_transition_profile(0)
+	var front_scale: Vector2 = transition["front_scale"]
+	var back_scale: Vector2 = transition["back_scale"]
+	var highlight: Color = transition["highlight"]
+	var swap_alpha: float = transition["swap_alpha"]
+	var big_sound_delay: float = MainScript.big_flip_sound_delay(origin, flipped)
 	return (
 		_assert(near_delay > 0.0, "flip wave starts after placement origin")
 		and _assert(diagonal_delay > near_delay, "flip wave delays diagonal distance")
 		and _assert(far_delay > diagonal_delay, "flip wave expands by origin distance")
 		and _assert(first_tilt != 0.0 and second_tilt == -first_tilt, "flip alternates disc rotation tilt")
+		and _assert(front_scale.x > 0.0 and back_scale.x < 0.0 and front_scale.y > 1.0, "flip crosses the disc edge with thickness")
+		and _assert(highlight != Color.WHITE and swap_alpha > 0.0 and swap_alpha < 1.0, "flip midpoint highlights and fades the color swap")
+		and _assert(big_sound_delay > near_delay and big_sound_delay < far_delay, "big flip sound aligns with the first wave midpoint")
 	)
 
 
