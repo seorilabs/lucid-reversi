@@ -40,6 +40,28 @@ static func normalize_settings(raw_settings: Dictionary) -> Dictionary:
 	return normalized
 
 
+static func default_stats() -> Dictionary:
+	return {
+		"EASY": {"wins": 0, "draws": 0, "losses": 0},
+		"MEDIUM": {"wins": 0, "draws": 0, "losses": 0},
+		"HARD": {"wins": 0, "draws": 0, "losses": 0},
+	}
+
+
+static func normalize_stats(raw_stats: Dictionary) -> Dictionary:
+	var normalized := default_stats()
+	for difficulty in normalized.keys():
+		var raw_bucket_value = raw_stats.get(difficulty, {})
+		if typeof(raw_bucket_value) != TYPE_DICTIONARY:
+			continue
+		var raw_bucket: Dictionary = raw_bucket_value
+		var bucket: Dictionary = normalized[difficulty]
+		for counter in bucket.keys():
+			bucket[counter] = maxi(0, int(raw_bucket.get(counter, 0)))
+		normalized[difficulty] = bucket
+	return normalized
+
+
 static func create_new_game(player_stone: int = BLACK, difficulty: String = "MEDIUM") -> Dictionary:
 	var board := _initial_board()
 	var state := {
@@ -52,6 +74,7 @@ static func create_new_game(player_stone: int = BLACK, difficulty: String = "MED
 		"valid_moves": get_valid_moves(board, BLACK),
 		"move_history": [],
 		"settings": default_settings(),
+		"stats": default_stats(),
 		"last_move": {},
 		"pass_count": 0,
 		"game_over": false,
@@ -73,6 +96,7 @@ static func create_state_from_board(board: Array, current_turn: int = BLACK, pla
 		"valid_moves": get_valid_moves(board, current_turn),
 		"move_history": [],
 		"settings": default_settings(),
+		"stats": default_stats(),
 		"last_move": {},
 		"pass_count": 0,
 		"game_over": false,
@@ -140,6 +164,7 @@ static func undo_last_round(state: Dictionary) -> Dictionary:
 		str(state.get("difficulty", "MEDIUM")),
 	)
 	restored["settings"] = normalize_settings(state.get("settings", default_settings()))
+	restored["stats"] = normalize_stats(state.get("stats", {}))
 	restored["last_saved_at"] = int(state.get("last_saved_at", 0))
 
 	for index in range(undo_from):
@@ -161,6 +186,30 @@ static func undo_last_round(state: Dictionary) -> Dictionary:
 		"ok": true,
 		"removed_moves": removed_moves,
 	}
+
+
+static func record_game_result(state: Dictionary, result_kind: String) -> bool:
+	var counter := ""
+	match result_kind:
+		"win":
+			counter = "wins"
+		"draw":
+			counter = "draws"
+		"lose":
+			counter = "losses"
+		_:
+			return false
+
+	var difficulty := str(state.get("difficulty", "MEDIUM"))
+	if !DIFFICULTY_DEPTH.has(difficulty):
+		return false
+
+	var stats := normalize_stats(state.get("stats", {}))
+	var bucket: Dictionary = stats[difficulty]
+	bucket[counter] = int(bucket.get(counter, 0)) + 1
+	stats[difficulty] = bucket
+	state["stats"] = stats
+	return true
 
 
 static func get_valid_moves(board: Array, stone: int) -> Array:
@@ -260,6 +309,7 @@ static func state_to_save_dict(state: Dictionary) -> Dictionary:
 		"move_history": state.get("move_history", []),
 		"pass_count": int(state.get("pass_count", 0)),
 		"settings": normalize_settings(state.get("settings", default_settings())),
+		"stats": normalize_stats(state.get("stats", {})),
 		"last_saved_at": int(state.get("last_saved_at", 0)),
 	}
 
@@ -285,6 +335,7 @@ static func state_from_save_dict(saved: Dictionary) -> Dictionary:
 	state["move_history"] = saved.get("move_history", [])
 	state["pass_count"] = int(saved.get("pass_count", 0))
 	state["settings"] = normalize_settings(saved.get("settings", default_settings()))
+	state["stats"] = normalize_stats(saved.get("stats", {}))
 	state["last_saved_at"] = int(saved.get("last_saved_at", 0))
 	return state
 

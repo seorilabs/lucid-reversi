@@ -22,6 +22,7 @@ func _ready() -> void:
 	ok = _test_game_over_full_board() and ok
 	ok = _test_codec_round_trip() and ok
 	ok = _test_save_round_trip() and ok
+	ok = _test_difficulty_stats_save_round_trip() and ok
 	ok = _test_undo_round_trip() and ok
 	ok = _test_search_score_alpha_beta_cutoff_branches() and ok
 	ok = _test_choose_ai_move_alpha_beta_and_tie_order() and ok
@@ -37,6 +38,8 @@ func _ready() -> void:
 	ok = ui_ok and ok
 	var undo_ui_ok := await _test_undo_button_states()
 	ok = undo_ui_ok and ok
+	var stats_ui_ok := await _test_result_stats_once_and_i18n()
+	ok = stats_ui_ok and ok
 	ok = _test_ga4_disabled_in_headless() and ok
 	ok = _test_ga4_build_event() and ok
 	ok = _test_ga4_batching() and ok
@@ -198,6 +201,36 @@ func _test_save_round_trip() -> bool:
 		and _assert(str(restored["difficulty"]) == "HARD", "save difficulty")
 		and _assert(restored["move_history"].size() == 1, "save move history")
 		and _assert(int(restored["pass_count"]) == 2, "save pass count")
+	)
+
+
+func _test_difficulty_stats_save_round_trip() -> bool:
+	var state := ReversiEngine.create_new_game(ReversiEngine.BLACK, "EASY")
+	var win_ok := ReversiEngine.record_game_result(state, "win")
+	state["difficulty"] = "MEDIUM"
+	var draw_ok := ReversiEngine.record_game_result(state, "draw")
+	state["difficulty"] = "HARD"
+	var loss_ok := ReversiEngine.record_game_result(state, "lose")
+	var saved := ReversiEngine.state_to_save_dict(state)
+	var restored := ReversiEngine.state_from_save_dict(saved)
+	var restored_stats: Dictionary = restored.get("stats", {})
+	var easy: Dictionary = restored_stats.get("EASY", {})
+	var medium: Dictionary = restored_stats.get("MEDIUM", {})
+	var hard: Dictionary = restored_stats.get("HARD", {})
+
+	var legacy_saved := saved.duplicate(true)
+	legacy_saved.erase("stats")
+	var legacy_restored := ReversiEngine.state_from_save_dict(legacy_saved)
+	var legacy_stats: Dictionary = legacy_restored.get("stats", {})
+	var legacy_easy: Dictionary = legacy_stats.get("EASY", {})
+	var invalid_ok := !ReversiEngine.record_game_result(state, "unknown")
+	return (
+		_assert(win_ok and draw_ok and loss_ok, "stats accepts win draw and loss")
+		and _assert(int(easy.get("wins", 0)) == 1, "stats saves EASY win")
+		and _assert(int(medium.get("draws", 0)) == 1, "stats saves MEDIUM draw")
+		and _assert(int(hard.get("losses", 0)) == 1, "stats saves HARD loss")
+		and _assert(int(legacy_easy.get("wins", -1)) == 0, "stats defaults legacy save counters")
+		and _assert(invalid_ok, "stats rejects unknown result")
 	)
 
 
@@ -571,6 +604,61 @@ func _test_undo_button_states() -> bool:
 		and _assert(game_over_disabled_ok, "ui disables undo after game over")
 		and _assert(undo_board_ok, "ui undo restores the previous board")
 		and _assert(disabled_after_undo_ok, "ui disables undo after history is exhausted")
+	)
+
+
+func _test_result_stats_once_and_i18n() -> bool:
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+
+	var full_board: Array = []
+	for _x in range(ReversiEngine.BOARD_SIZE):
+		var row: Array = []
+		for _y in range(ReversiEngine.BOARD_SIZE):
+			row.append(ReversiEngine.BLACK)
+		full_board.append(row)
+
+	main.player_stone = ReversiEngine.BLACK
+	main.difficulty = "EASY"
+	main.state = ReversiEngine.create_state_from_board(
+		full_board,
+		ReversiEngine.BLACK,
+		ReversiEngine.BLACK,
+		"EASY",
+	)
+	var settings: Dictionary = main.state.get("settings", {})
+	settings["locale"] = "ko"
+	settings["sound"] = false
+	main.state["settings"] = settings
+	main._interstitial_shown_this_game = false
+
+	main._update_result_overlay(false)
+	main._update_result_overlay(false)
+	var stats: Dictionary = main.state.get("stats", {})
+	var easy: Dictionary = stats.get("EASY", {})
+	var once_ok: bool = int(easy.get("wins", 0)) == 1
+	var korean_text_ok: bool = main.result_stats_label.text == "쉬움 1승 0무 0패"
+
+	main._set_locale("en", false)
+	await get_tree().process_frame
+	var english_text_ok: bool = main.result_stats_label.text == "EASY 1W 0D 0L"
+	var localized_stats: Dictionary = main.state.get("stats", {})
+	var localized_easy: Dictionary = localized_stats.get("EASY", {})
+	var no_locale_duplicate_ok: bool = int(localized_easy.get("wins", 0)) == 1
+
+	main._start_new_game(ReversiEngine.BLACK, false)
+	var preserved_stats: Dictionary = main.state.get("stats", {})
+	var preserved_easy: Dictionary = preserved_stats.get("EASY", {})
+	var restart_preserves_ok: bool = int(preserved_easy.get("wins", 0)) == 1
+	main.queue_free()
+	return (
+		_assert(once_ok, "ui records a completed game exactly once")
+		and _assert(korean_text_ok, "ui shows Korean difficulty stats")
+		and _assert(english_text_ok, "ui shows English difficulty stats")
+		and _assert(no_locale_duplicate_ok, "ui locale rebuild does not duplicate stats")
+		and _assert(restart_preserves_ok, "ui new game preserves cumulative stats")
 	)
 
 
