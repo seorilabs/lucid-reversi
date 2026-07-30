@@ -15,6 +15,8 @@
 - full-board game over and winner
 - 18-byte board codec fixture and round trip
 - save DTO round trip
+- 게임 save에서 환경설정 제외 및 기존 save 설정의 prefs 마이그레이션
+- 게임 save 손상·삭제와 무관한 prefs 복원, 신규 설치 기본 prefs 생성, 설정 변경 즉시 저장
 - 플레이어 착수와 AI 응수를 한 라운드로 되돌리는 Undo 및 저장 DTO round trip
 - 난이도별 승/무/패 통계 저장 round trip, 기존 세이브 기본값, 게임오버 1회 집계
 
