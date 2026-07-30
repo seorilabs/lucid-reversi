@@ -23,6 +23,9 @@ const BOARD_FRAME_SIZE := CELL_SIZE * ReversiEngine.BOARD_SIZE + CELL_GAP * (Rev
 const PLAY_BUTTON_HEIGHT := 58
 const ACTION_BUTTON_HEIGHT := 52
 const SETTINGS_CHOICE_HEIGHT := 52
+const FLIP_HALF_DURATION := 0.11
+const FLIP_WAVE_SECONDS_PER_CELL := 0.045
+const FLIP_TILT_RADIANS := 0.11
 const DIFFICULTY_IDS := ["EASY", "MEDIUM", "HARD"]
 const THEME_IDS := ["classic", "arctic", "ember"]
 const THEME_LABELS := ["CLASSIC", "ARCTIC", "EMBER"]
@@ -1012,7 +1015,12 @@ func _animate_move_result(before_board: Array, result: Dictionary) -> void:
 		_pulse_cell(px, py, _theme_color("accent"))
 
 	if flipped.size() >= 4:
-		_play_big_flip_sound(flipped.size())
+		var first_wave_delay := INF
+		for flipped_cell in flipped:
+			first_wave_delay = minf(first_wave_delay, flip_wave_delay(placed, flipped_cell))
+		var big_sound_tween := create_tween()
+		big_sound_tween.tween_interval(first_wave_delay + FLIP_HALF_DURATION)
+		big_sound_tween.tween_callback(func() -> void: _play_big_flip_sound(flipped.size()))
 
 	for index in range(flipped.size()):
 		var cell: Dictionary = flipped[index]
@@ -1024,17 +1032,25 @@ func _animate_move_result(before_board: Array, result: Dictionary) -> void:
 		view.texture = _texture_for_stone(before_stone)
 		view.modulate = Color.WHITE
 		view.scale = Vector2.ONE
-		var delay := 0.03 * index
+		view.rotation = 0.0
+		var delay := flip_wave_delay(placed, cell)
+		var tilt := flip_tilt(index)
 		var tween := create_tween()
 		tween.tween_interval(delay)
-		tween.tween_property(view, "scale:x", 0.05, 0.105).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tween.tween_property(view, "scale", Vector2(0.04, 1.12), FLIP_HALF_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tween.parallel().tween_property(view, "rotation", tilt, FLIP_HALF_DURATION).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tween.parallel().tween_property(view, "modulate", Color(1.0, 0.92, 0.68, 1.0), FLIP_HALF_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		tween.tween_callback(func() -> void:
 			view.texture = _texture_for_stone(stone)
+			view.scale.x = -0.04
+			view.modulate = Color(1.0, 1.0, 1.0, 0.55)
 			if flipped.size() < 4:
 				_play_flip_sound(index)
 		)
-		tween.tween_property(view, "scale:x", 1.0, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		wait_time = max(wait_time, delay + 0.25)
+		tween.tween_property(view, "scale", Vector2.ONE, FLIP_HALF_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.parallel().tween_property(view, "rotation", 0.0, FLIP_HALF_DURATION).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tween.parallel().tween_property(view, "modulate", Color.WHITE, FLIP_HALF_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		wait_time = max(wait_time, delay + FLIP_HALF_DURATION * 2.0 + 0.02)
 
 	if wait_time > 0.0:
 		await get_tree().create_timer(wait_time).timeout
@@ -1105,6 +1121,7 @@ func _render_cell(x: int, y: int, piece: int, is_valid: bool, is_last: bool) -> 
 		piece_view.texture = null
 		piece_view.modulate = Color.TRANSPARENT
 		piece_view.scale = Vector2.ONE
+	piece_view.rotation = 0.0
 
 	button.add_theme_stylebox_override("normal", _make_style(base, border_width, border_color, 2))
 	button.add_theme_stylebox_override("hover", _make_style(base.lightened(0.07), max(border_width, 2), _theme_color("accent") if is_valid else border_color, 2))
@@ -1144,6 +1161,16 @@ static func flip_pitch(index: int) -> float:
 
 static func big_flip_pitch(flip_count: int) -> float:
 	return (270.0 + float(flip_count) * 10.0) / 270.0
+
+
+static func flip_wave_delay(origin: Dictionary, cell: Dictionary) -> float:
+	var dx := float(int(cell.get("x", 0)) - int(origin.get("x", 0)))
+	var dy := float(int(cell.get("y", 0)) - int(origin.get("y", 0)))
+	return Vector2(dx, dy).length() * FLIP_WAVE_SECONDS_PER_CELL
+
+
+static func flip_tilt(index: int) -> float:
+	return FLIP_TILT_RADIANS if index % 2 == 0 else -FLIP_TILT_RADIANS
 
 
 func _play_sfx(stream: AudioStream, pitch: float) -> void:
