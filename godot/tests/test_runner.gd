@@ -22,6 +22,7 @@ func _ready() -> void:
 	ok = _test_game_over_full_board() and ok
 	ok = _test_codec_round_trip() and ok
 	ok = _test_save_round_trip() and ok
+	ok = _test_undo_round_trip() and ok
 	ok = _test_search_score_alpha_beta_cutoff_branches() and ok
 	ok = _test_choose_ai_move_alpha_beta_and_tie_order() and ok
 	ok = _test_alpha_beta_matches_full_search() and ok
@@ -34,6 +35,8 @@ func _ready() -> void:
 	ok = theme_ok and ok
 	var ui_ok := await _test_ui_hints_return_after_animation()
 	ok = ui_ok and ok
+	var undo_ui_ok := await _test_undo_button_states()
+	ok = undo_ui_ok and ok
 	ok = _test_ga4_disabled_in_headless() and ok
 	ok = _test_ga4_build_event() and ok
 	ok = _test_ga4_batching() and ok
@@ -186,6 +189,7 @@ func _test_codec_round_trip() -> bool:
 func _test_save_round_trip() -> bool:
 	var state := ReversiEngine.create_new_game(ReversiEngine.WHITE, "HARD")
 	ReversiEngine.play_move(state, 2, 3)
+	state["pass_count"] = 2
 	var saved := ReversiEngine.state_to_save_dict(state)
 	var restored := ReversiEngine.state_from_save_dict(saved)
 	return (
@@ -193,6 +197,49 @@ func _test_save_round_trip() -> bool:
 		and _assert(int(restored["player_stone"]) == ReversiEngine.WHITE, "save player stone")
 		and _assert(str(restored["difficulty"]) == "HARD", "save difficulty")
 		and _assert(restored["move_history"].size() == 1, "save move history")
+		and _assert(int(restored["pass_count"]) == 2, "save pass count")
+	)
+
+
+func _test_undo_round_trip() -> bool:
+	var state := ReversiEngine.create_new_game(ReversiEngine.BLACK, "MEDIUM")
+	var before_payload := ReversiEngine.encode_board_payload(
+		state["board"],
+		int(state["current_turn"]),
+		state["valid_moves"],
+	)
+	var before_counts := ReversiEngine.count_pieces(state["board"])
+	var before_valid_moves: Array = state["valid_moves"].duplicate(true)
+	var player_result := ReversiEngine.play_move(state, 2, 3)
+	var ai_move := ReversiEngine.choose_ai_move(state)
+	var ai_result := ReversiEngine.play_move(state, int(ai_move.get("x", -1)), int(ai_move.get("y", -1)))
+	var undo_result := ReversiEngine.undo_last_round(state)
+	var after_payload := ReversiEngine.encode_board_payload(
+		state["board"],
+		int(state["current_turn"]),
+		state["valid_moves"],
+	)
+	var after_counts := ReversiEngine.count_pieces(state["board"])
+	var restored := ReversiEngine.state_from_save_dict(ReversiEngine.state_to_save_dict(state))
+	var restored_payload := ReversiEngine.encode_board_payload(
+		restored["board"],
+		int(restored["current_turn"]),
+		restored["valid_moves"],
+	)
+	var empty_state := ReversiEngine.create_new_game()
+	var empty_undo := ReversiEngine.undo_last_round(empty_state)
+	return (
+		_assert(bool(player_result.get("ok", false)), "undo setup player move accepted")
+		and _assert(bool(ai_result.get("ok", false)), "undo setup ai move accepted")
+		and _assert(bool(undo_result.get("ok", false)), "undo round accepted")
+		and _assert(int(undo_result.get("removed_moves", 0)) == 2, "undo removes player and ai moves")
+		and _assert(after_payload == before_payload, "undo restores board and current turn")
+		and _assert(after_counts == before_counts, "undo restores scores")
+		and _assert(_moves_equal(state["valid_moves"], before_valid_moves), "undo restores valid moves")
+		and _assert(int(state["pass_count"]) == 0, "undo restores pass count")
+		and _assert(state["move_history"].is_empty(), "undo trims move history")
+		and _assert(restored_payload == before_payload, "undo state survives save round trip")
+		and _assert(!bool(empty_undo.get("ok", true)), "undo rejects empty history")
 	)
 
 
@@ -453,6 +500,77 @@ func _test_ui_hints_return_after_animation() -> bool:
 		and _assert(expected_hints > 0, "ui has valid player moves after ai")
 		and _assert(visible_hints == expected_hints, "ui valid hints return after animation")
 		and _assert(ghost_stones == 0, "ui valid hints do not draw ghost stones")
+	)
+
+
+func _test_undo_button_states() -> bool:
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+
+	main.ai_move_pending = false
+	main.input_locked = false
+	main.player_stone = ReversiEngine.BLACK
+	main.difficulty = "MEDIUM"
+	main.state = ReversiEngine.create_new_game(ReversiEngine.BLACK, "MEDIUM")
+	var settings: Dictionary = main.state.get("settings", {})
+	settings["sound"] = false
+	main.state["settings"] = settings
+	main._render()
+	await get_tree().process_frame
+
+	var initial_board := ReversiEngine.clone_board(main.state["board"])
+	var korean_label_ok: bool = main.undo_button.text == "무르기"
+	var touch_size_ok: bool = main.undo_button.custom_minimum_size.y >= 56.0
+	var empty_disabled_ok: bool = main.undo_button.disabled
+
+	main._set_locale("en", false)
+	await get_tree().process_frame
+	var english_label_ok: bool = main.undo_button.text == "UNDO"
+	main._set_locale("ko", false)
+	await get_tree().process_frame
+
+	var player_result := ReversiEngine.play_move(main.state, 2, 3)
+	var ai_move := ReversiEngine.choose_ai_move(main.state)
+	var ai_result := ReversiEngine.play_move(
+		main.state,
+		int(ai_move.get("x", -1)),
+		int(ai_move.get("y", -1)),
+	)
+	main._render()
+	var available_after_round_ok: bool = !main.undo_button.disabled
+
+	main.input_locked = true
+	main._render()
+	var locked_disabled_ok: bool = main.undo_button.disabled
+	main.input_locked = false
+	main.ai_move_pending = true
+	main._render()
+	var pending_disabled_ok: bool = main.undo_button.disabled
+	main.ai_move_pending = false
+	main.state["game_over"] = true
+	var game_over_disabled_ok: bool = !main._can_undo()
+	main.state["game_over"] = false
+	main._render()
+
+	main._on_undo_pressed(false)
+	var undo_board_ok: bool = main.state["board"] == initial_board
+	var disabled_after_undo_ok: bool = main.undo_button.disabled
+	main.queue_free()
+	return (
+		_assert(korean_label_ok, "ui exposes Korean undo label")
+		and _assert(english_label_ok, "ui exposes English undo label")
+		and _assert(touch_size_ok, "ui undo button keeps mobile touch height")
+		and _assert(empty_disabled_ok, "ui disables undo with empty history")
+		and _assert(bool(player_result.get("ok", false)), "ui undo setup player move accepted")
+		and _assert(bool(ai_result.get("ok", false)), "ui undo setup ai move accepted")
+		and _assert(available_after_round_ok, "ui enables undo after player and ai round")
+		and _assert(locked_disabled_ok, "ui disables undo while input is locked")
+		and _assert(pending_disabled_ok, "ui disables undo while ai move is pending")
+		and _assert(game_over_disabled_ok, "ui disables undo after game over")
+		and _assert(undo_board_ok, "ui undo restores the previous board")
+		and _assert(disabled_after_undo_ok, "ui disables undo after history is exhausted")
 	)
 
 

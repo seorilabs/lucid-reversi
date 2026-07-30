@@ -45,6 +45,7 @@ const TEXT := {
 		"medium_short": "보통",
 		"hard_short": "어려움",
 		"new_game": "새 게임",
+		"undo": "무르기",
 		"restart": "다시",
 		"board": "보드",
 		"settings": "설정",
@@ -92,6 +93,7 @@ const TEXT := {
 		"medium_short": "MED",
 		"hard_short": "HARD",
 		"new_game": "NEW",
+		"undo": "UNDO",
 		"restart": "RESTART",
 		"board": "BOARD",
 		"settings": "SET",
@@ -166,6 +168,7 @@ var settings_panel: PanelContainer
 var gameplay_strip: PanelContainer
 var black_button: Button
 var white_button: Button
+var undo_button: Button
 var new_game_button: Button
 var difficulty_buttons: Array = []
 var board_theme_buttons: Array = []
@@ -543,6 +546,10 @@ func _build_play_focus_strip(root: VBoxContainer) -> void:
 	white_button.custom_minimum_size = Vector2(112, PLAY_BUTTON_HEIGHT)
 	controls_row.add_child(white_button)
 
+	undo_button = _make_action_button(_t("undo"), func() -> void: _on_undo_pressed())
+	undo_button.custom_minimum_size = Vector2(128, PLAY_BUTTON_HEIGHT)
+	controls_row.add_child(undo_button)
+
 	new_game_button = _make_action_button(_t("new_game"), func() -> void: _start_new_game(player_stone), true)
 	new_game_button.custom_minimum_size = Vector2(172, PLAY_BUTTON_HEIGHT)
 	controls_row.add_child(new_game_button)
@@ -881,6 +888,27 @@ func _sync_identity_labels() -> void:
 	ai_stone_view.texture = _texture_for_stone(ReversiEngine.opponent(player_stone))
 
 
+func _on_undo_pressed(persist: bool = true) -> void:
+	if !_can_undo():
+		return
+	var result := ReversiEngine.undo_last_round(state)
+	if !bool(result.get("ok", false)):
+		return
+	if persist:
+		_save_state()
+	_render()
+
+
+func _can_undo() -> bool:
+	if state.is_empty() or input_locked or ai_move_pending:
+		return false
+	if bool(state.get("game_over", false)):
+		return false
+	if int(state.get("current_turn", ReversiEngine.NONE)) != player_stone:
+		return false
+	return ReversiEngine.can_undo_last_round(state)
+
+
 func _on_cell_pressed(x: int, y: int) -> void:
 	if input_locked:
 		return
@@ -1020,6 +1048,8 @@ func _render() -> void:
 	_update_mode_buttons()
 	_update_settings_choice_buttons()
 	_update_turn_badge(current_turn)
+	if undo_button != null:
+		undo_button.disabled = !_can_undo()
 
 	var board: Array = state.get("board", [])
 	var valid_moves: Array = state.get("valid_moves", [])

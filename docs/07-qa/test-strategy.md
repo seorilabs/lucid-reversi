@@ -15,6 +15,7 @@
 - full-board game over and winner
 - 18-byte board codec fixture and round trip
 - save DTO round trip
+- 플레이어 착수와 AI 응수를 한 라운드로 되돌리는 Undo 및 저장 DTO round trip
 
 ## Architecture
 
@@ -29,6 +30,7 @@
 - smoke scene은 `res://tests/test_runner.tscn`을 실행한다.
 - UI smoke는 설정 메뉴가 기본적으로 숨겨져 있고, 보드 바로 아래 기세 strip이 compact/full-width이며, 새 게임/흑백 전환은 playfield에 있고 난이도/테마 같은 설정 controls는 메뉴를 열 때만 보이는지 확인한다.
 - 모바일 터치 smoke는 주요 플레이 버튼이 56px 이상 높이로 노출되고, 설정 메뉴 안의 난이도/보드/돌/언어 선택이 작은 select box가 아니라 큰 세그먼트 버튼으로 보이는지 확인한다.
+- Undo smoke는 빈 이력·입력 잠금·AI 응수 대기 중 버튼 비활성화와 플레이어+AI 라운드 복원 후 이력 소진 상태를 확인한다.
 - 설정 smoke는 manual load, 힌트 toggle, 미구현 진동 toggle이 노출되지 않고, 설정 패널 내부 터치는 열린 상태를 유지하며 패널 외부 터치는 닫히는지 확인한다.
 - 사운드 smoke는 `sound=false` 설정에서 착수 사운드가 생성되지 않는지 확인한다. 실제 음색은 Web smoke에서 착수/뒤집힘/대량 뒤집힘 상황으로 확인한다.
 - Android device smoke는 `npm run build:android:smoke`로 만든 local debug APK를 연결 기기에 설치한 뒤, process/window focus, `SCREEN_ORIENTATION_PORTRAIT`, crash 로그 없음, 실제 `screencap`을 확인한다.
