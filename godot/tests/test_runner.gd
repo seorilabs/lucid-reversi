@@ -13,6 +13,24 @@ class _AnalyticsProbe:
 		sent.append({"name": event_name, "params": params})
 
 
+class _HapticProbe:
+	extends RefCounted
+	var events: Array = []
+	func request(kind: String, duration_ms: int, amplitude: float) -> void:
+		events.append({
+			"kind": kind,
+			"duration_ms": duration_ms,
+			"amplitude": amplitude,
+		})
+
+	func count(kind: String) -> int:
+		var total := 0
+		for event in events:
+			if str(event.get("kind", "")) == kind:
+				total += 1
+		return total
+
+
 func _ready() -> void:
 	var ok := true
 	ok = _test_main_scene_exists() and ok
@@ -51,6 +69,8 @@ func _ready() -> void:
 	ok = _test_flip_wave_geometry() and ok
 	var sfx_sound_ok := await _test_sfx_respects_sound_setting()
 	ok = sfx_sound_ok and ok
+	var haptic_ok := await _test_haptic_feedback()
+	ok = haptic_ok and ok
 	get_tree().quit(0 if ok else 1)
 
 
@@ -140,6 +160,75 @@ func _test_sfx_respects_sound_setting() -> bool:
 	return _assert(off_ok, "sfx suppressed when sound is off")
 
 
+func _test_haptic_feedback() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var place_profile: Dictionary = MainScript.haptic_profile("place")
+	var flip_profile: Dictionary = MainScript.haptic_profile("flip")
+	var big_profile: Dictionary = MainScript.haptic_profile("big_flip")
+	var game_over_profile: Dictionary = MainScript.haptic_profile("game_over")
+	var profiles_distinct := (
+		int(place_profile["duration_ms"]) < int(flip_profile["duration_ms"])
+		and int(flip_profile["duration_ms"]) < int(big_profile["duration_ms"])
+		and int(big_profile["duration_ms"]) < int(game_over_profile["duration_ms"])
+		and float(place_profile["amplitude"]) < float(flip_profile["amplitude"])
+		and float(flip_profile["amplitude"]) < float(big_profile["amplitude"])
+	)
+
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+	var probe := _HapticProbe.new()
+	main._haptic_probe = Callable(probe, "request")
+	var settings := ReversiEngine.default_settings()
+	settings["sound"] = false
+	settings["haptic"] = true
+	main.state["settings"] = settings
+
+	main._play_place_sound()
+	main._play_flip_sound(0)
+	main._play_big_flip_sound(4)
+
+	var full_board: Array = []
+	for _x in range(ReversiEngine.BOARD_SIZE):
+		var row: Array = []
+		for _y in range(ReversiEngine.BOARD_SIZE):
+			row.append(ReversiEngine.BLACK)
+		full_board.append(row)
+	main.state = ReversiEngine.create_state_from_board(full_board, ReversiEngine.BLACK)
+	main.state["settings"] = settings
+	main._interstitial_shown_this_game = false
+	main._update_result_overlay(false)
+	main._update_result_overlay(false)
+
+	var trigger_counts_ok := (
+		probe.count("place") == 1
+		and probe.count("flip") == 1
+		and probe.count("big_flip") == 1
+		and probe.count("game_over") == 1
+	)
+	var before_disabled := probe.events.size()
+	settings["haptic"] = false
+	main.state["settings"] = settings
+	main._play_place_sound()
+	main._play_flip_sound(0)
+	main._play_big_flip_sound(4)
+	main._request_haptic("game_over")
+	var disabled_ok := probe.events.size() == before_disabled
+
+	settings["haptic"] = true
+	main.state["settings"] = settings
+	main._haptic_probe = Callable()
+	var headless_noop_ok: bool = !main._request_haptic("place")
+	main.queue_free()
+	return (
+		_assert(profiles_distinct, "haptic profiles distinguish place flip big flip and game over")
+		and _assert(trigger_counts_ok, "haptic triggers each move cue and game over once")
+		and _assert(disabled_ok, "haptic toggle suppresses every haptic cue")
+		and _assert(headless_noop_ok, "haptic safely no-ops in headless")
+	)
+
+
 func _count_audio_players(node: Node) -> int:
 	var count: int = 0
 	for child in node.get_children():
@@ -225,14 +314,24 @@ func _test_save_round_trip() -> bool:
 	var state := ReversiEngine.create_new_game(ReversiEngine.WHITE, "HARD")
 	ReversiEngine.play_move(state, 2, 3)
 	state["pass_count"] = 2
+	var settings: Dictionary = state.get("settings", {})
+	settings["haptic"] = false
+	state["settings"] = settings
 	var saved := ReversiEngine.state_to_save_dict(state)
 	var restored := ReversiEngine.state_from_save_dict(saved)
+	var legacy_saved := saved.duplicate(true)
+	var legacy_settings: Dictionary = legacy_saved.get("settings", {})
+	legacy_settings.erase("haptic")
+	legacy_saved["settings"] = legacy_settings
+	var legacy_restored := ReversiEngine.state_from_save_dict(legacy_saved)
 	return (
 		_assert(!restored.is_empty(), "save restores")
 		and _assert(int(restored["player_stone"]) == ReversiEngine.WHITE, "save player stone")
 		and _assert(str(restored["difficulty"]) == "HARD", "save difficulty")
 		and _assert(restored["move_history"].size() == 1, "save move history")
 		and _assert(int(restored["pass_count"]) == 2, "save pass count")
+		and _assert(!bool(restored.get("settings", {}).get("haptic", true)), "save restores disabled haptic")
+		and _assert(bool(legacy_restored.get("settings", {}).get("haptic", false)), "legacy save defaults haptic on")
 	)
 
 
@@ -714,6 +813,7 @@ func _test_i18n_defaults_and_locale_switch() -> bool:
 
 	var korean_default_ok: bool = main._current_locale_id() == "ko"
 	var korean_label_ok: bool = main.black_button.text == "흑" and main._t("new_game") == "새 게임"
+	var korean_haptic_label_ok: bool = main.haptic_toggle.text == "진동"
 	var font_ok: bool = main.theme != null and main.theme.default_font != null
 	var font_path_ok: bool = font_ok and str(main.theme.default_font.resource_path).ends_with("DoHyeon-Regular.ttf")
 	var text_visibility_ok: bool = main.status_label.get_theme_constant("outline_size") >= 1 \
@@ -725,17 +825,20 @@ func _test_i18n_defaults_and_locale_switch() -> bool:
 	var locale_settings: Dictionary = main.state.get("settings", {})
 	var english_setting_ok: bool = str(locale_settings.get("locale", "")) == "en"
 	var english_label_ok: bool = main.black_button.text == "BLACK" and main._t("new_game") == "NEW"
+	var english_haptic_label_ok: bool = main.haptic_toggle.text == "HAPTIC"
 	var locale_buttons_ok: bool = _choice_group_has_active_id(main.locale_buttons, "en")
 	main.queue_free()
 	return (
 		_assert(default_locale_ok, "i18n default locale is Korean")
 		and _assert(korean_default_ok, "ui starts in Korean locale")
 		and _assert(korean_label_ok, "ui renders Korean labels")
+		and _assert(korean_haptic_label_ok, "ui renders Korean haptic label")
 		and _assert(font_ok, "ui uses bundled font")
 		and _assert(font_path_ok, "ui uses Do Hyeon bundled font")
 		and _assert(text_visibility_ok, "ui text has visibility outline")
 		and _assert(english_setting_ok, "ui locale setting changes")
 		and _assert(english_label_ok, "ui renders English labels")
+		and _assert(english_haptic_label_ok, "ui renders English haptic label")
 		and _assert(locale_buttons_ok, "ui locale buttons track selected locale")
 	)
 
@@ -779,11 +882,12 @@ func _test_settings_menu_keeps_playfield_focused() -> bool:
 	var no_select_box_ok: bool = !_visible_option_button_exists(main)
 	var load_removed_ok: bool = main._t("load") == "load"
 	var default_hint_setting_removed_ok: bool = !ReversiEngine.default_settings().has("highlight")
-	var default_vibration_setting_removed_ok: bool = !ReversiEngine.default_settings().has("vibration")
+	var default_haptic_setting_ok: bool = bool(ReversiEngine.default_settings().get("haptic", false))
 	var sound_setting: Dictionary = main.state.get("settings", {})
 	sound_setting["sound"] = false
 	sound_setting["vibration"] = true
 	main.state["settings"] = sound_setting
+	main.haptic_toggle.button_pressed = true
 	var audio_players_before := _audio_player_count(main)
 	main._play_place_sound()
 	var sound_disabled_ok: bool = _audio_player_count(main) == audio_players_before
@@ -796,8 +900,14 @@ func _test_settings_menu_keeps_playfield_focused() -> bool:
 		and _choice_group_first_button_visible(main.board_theme_buttons)
 	var hint_toggle_removed_ok: bool = !_visible_button_text_exists(main.settings_overlay, "힌트") \
 		and !_visible_button_text_exists(main.settings_overlay, "HINT")
-	var vibration_toggle_removed_ok: bool = !_visible_button_text_exists(main.settings_overlay, "진동") \
-		and !_visible_button_text_exists(main.settings_overlay, "VIBE")
+	var haptic_toggle_visible_ok: bool = main.haptic_toggle != null \
+		and main.haptic_toggle.is_visible_in_tree() \
+		and main.haptic_toggle.text == "진동" \
+		and main.haptic_toggle.button_pressed
+	main.haptic_toggle.button_pressed = false
+	await get_tree().process_frame
+	var haptic_toggle_saves_ok: bool = !bool(main.state.get("settings", {}).get("haptic", true))
+	main.haptic_toggle.button_pressed = true
 
 	var panel_rect: Rect2 = main.settings_panel.get_global_rect()
 	var inside_event := _make_left_click(panel_rect.get_center())
@@ -826,12 +936,13 @@ func _test_settings_menu_keeps_playfield_focused() -> bool:
 		and _assert(no_select_box_ok, "ui removes mobile-unfriendly select boxes")
 		and _assert(load_removed_ok, "ui removes redundant load action")
 		and _assert(default_hint_setting_removed_ok, "ui removes hint setting default")
-		and _assert(default_vibration_setting_removed_ok, "ui removes unsupported vibration setting default")
+		and _assert(default_haptic_setting_ok, "ui defaults haptic setting on")
 		and _assert(sound_disabled_ok, "ui sound setting suppresses move sound")
 		and _assert(unsupported_setting_pruned_ok, "ui prunes unsupported saved vibration setting")
 		and _assert(menu_open_ok, "ui settings menu reveals settings controls")
 		and _assert(hint_toggle_removed_ok, "ui settings menu omits hint toggle")
-		and _assert(vibration_toggle_removed_ok, "ui settings menu omits unsupported vibration toggle")
+		and _assert(haptic_toggle_visible_ok, "ui settings menu exposes Korean haptic toggle")
+		and _assert(haptic_toggle_saves_ok, "ui haptic toggle updates saved settings")
 		and _assert(inside_tap_keeps_open_ok, "ui settings panel tap keeps menu open")
 		and _assert(outside_tap_closes_ok, "ui settings background tap closes menu")
 		and _assert(menu_close_ok, "ui settings menu closes")
