@@ -1,5 +1,9 @@
 # Work Log
 
+## 2026-07-31
+
+- Split theme, stone theme, locale, sound, haptic, and difficulty preferences into `user://prefs_v1.json`, migrated legacy save settings once, and made preferences authoritative when game saves are missing or invalid.
+
 ## 2026-06-19
 
 - Set AppsInToss as the first launch target. Added Korean-default `ko`/`en` UI localization, bundled a Korean font for Godot Web/AIT, and split release checks into full-market and AppsInToss-first paths.

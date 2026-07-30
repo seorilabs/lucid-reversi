@@ -41,6 +41,36 @@ static func normalize_settings(raw_settings: Dictionary) -> Dictionary:
 	return normalized
 
 
+static func default_preferences(default_locale: String = "ko") -> Dictionary:
+	var settings := default_settings()
+	settings["locale"] = default_locale
+	return {
+		"version": 1,
+		"difficulty": "MEDIUM",
+		"settings": settings,
+	}
+
+
+static func normalize_preferences(raw_preferences: Dictionary, default_locale: String = "ko") -> Dictionary:
+	var normalized := default_preferences(default_locale)
+	var difficulty := str(raw_preferences.get("difficulty", "MEDIUM"))
+	if DIFFICULTY_DEPTH.has(difficulty):
+		normalized["difficulty"] = difficulty
+	var raw_settings_value = raw_preferences.get("settings", {})
+	if typeof(raw_settings_value) == TYPE_DICTIONARY:
+		normalized["settings"] = normalize_settings(raw_settings_value)
+	return normalized
+
+
+static func preferences_from_legacy_save(saved: Dictionary, default_locale: String = "ko") -> Dictionary:
+	if !saved.has("settings") and !saved.has("difficulty"):
+		return {}
+	return normalize_preferences({
+		"difficulty": saved.get("difficulty", "MEDIUM"),
+		"settings": saved.get("settings", {}),
+	}, default_locale)
+
+
 static func default_stats() -> Dictionary:
 	return {
 		"EASY": {"wins": 0, "draws": 0, "losses": 0},
@@ -305,11 +335,9 @@ static func state_to_save_dict(state: Dictionary) -> Dictionary:
 		"current_turn": int(state["current_turn"]),
 		"player_stone": int(state.get("player_stone", BLACK)),
 		"ai_stone": int(state.get("ai_stone", WHITE)),
-		"difficulty": str(state.get("difficulty", "MEDIUM")),
 		"board_codec": Marshalls.raw_to_base64(payload),
 		"move_history": state.get("move_history", []),
 		"pass_count": int(state.get("pass_count", 0)),
-		"settings": normalize_settings(state.get("settings", default_settings())),
 		"stats": normalize_stats(state.get("stats", {})),
 		"last_saved_at": int(state.get("last_saved_at", 0)),
 	}

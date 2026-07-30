@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart LR
-  Engine["godot/scripts/reversi_engine.gd\nrules, AI, codec, save DTO"] --> UI["godot/scripts/bootstrap/main.gd\nboard UI, input, local save"]
+  Engine["godot/scripts/reversi_engine.gd\nrules, AI, codec, save and prefs DTO"] --> UI["godot/scripts/bootstrap/main.gd\nboard UI, input, local storage"]
   Engine --> Smoke["godot/tests/test_runner.gd\nrule and codec smoke"]
   UI --> Market["future market adapters\nAdMob, AppsInToss, Firebase optional"]
   Docs["docs/ source of truth"] --> Market
@@ -21,7 +21,7 @@ flowchart LR
 - 패스와 게임오버 판정
 - 난이도별 AI 선택
 - 18-byte 보드 codec
-- save/load DTO 변환
+- 게임 save와 사용자 prefs DTO 변환
 
 금지:
 
@@ -38,7 +38,8 @@ flowchart LR
 
 - 화면 구성
 - 보드 입력
-- 로컬 파일 저장소 `user://save_v1.json`
+- 대국 저장소 `user://save_v1.json`
+- 게임 세이브와 분리된 사용자 환경설정 저장소 `user://prefs_v1.json`
 - 설정 toggle
 - AI 턴 호출
 

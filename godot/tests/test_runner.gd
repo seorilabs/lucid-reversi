@@ -40,6 +40,7 @@ func _ready() -> void:
 	ok = _test_game_over_full_board() and ok
 	ok = _test_codec_round_trip() and ok
 	ok = _test_save_round_trip() and ok
+	ok = _test_preferences_storage_lifecycle() and ok
 	ok = _test_difficulty_stats_save_round_trip() and ok
 	ok = _test_undo_round_trip() and ok
 	ok = _test_search_score_alpha_beta_cutoff_branches() and ok
@@ -50,6 +51,8 @@ func _ready() -> void:
 	ok = i18n_ok and ok
 	var settings_menu_ok := await _test_settings_menu_keeps_playfield_focused()
 	ok = settings_menu_ok and ok
+	var settings_persistence_ok := await _test_settings_persist_immediately()
+	ok = settings_persistence_ok and ok
 	var theme_ok := await _test_visual_theme_switches_are_independent()
 	ok = theme_ok and ok
 	var ui_ok := await _test_ui_hints_return_after_animation()
@@ -320,18 +323,106 @@ func _test_save_round_trip() -> bool:
 	var saved := ReversiEngine.state_to_save_dict(state)
 	var restored := ReversiEngine.state_from_save_dict(saved)
 	var legacy_saved := saved.duplicate(true)
-	var legacy_settings: Dictionary = legacy_saved.get("settings", {})
-	legacy_settings.erase("haptic")
-	legacy_saved["settings"] = legacy_settings
+	legacy_saved["difficulty"] = "HARD"
+	legacy_saved["settings"] = settings
 	var legacy_restored := ReversiEngine.state_from_save_dict(legacy_saved)
+	var migrated_preferences := ReversiEngine.preferences_from_legacy_save(legacy_saved)
 	return (
 		_assert(!restored.is_empty(), "save restores")
 		and _assert(int(restored["player_stone"]) == ReversiEngine.WHITE, "save player stone")
-		and _assert(str(restored["difficulty"]) == "HARD", "save difficulty")
 		and _assert(restored["move_history"].size() == 1, "save move history")
 		and _assert(int(restored["pass_count"]) == 2, "save pass count")
-		and _assert(!bool(restored.get("settings", {}).get("haptic", true)), "save restores disabled haptic")
-		and _assert(bool(legacy_restored.get("settings", {}).get("haptic", false)), "legacy save defaults haptic on")
+		and _assert(!saved.has("difficulty") and !saved.has("settings"), "game save excludes preferences")
+		and _assert(str(legacy_restored["difficulty"]) == "HARD", "legacy save restores difficulty")
+		and _assert(!bool(legacy_restored.get("settings", {}).get("haptic", true)), "legacy save restores settings")
+		and _assert(str(migrated_preferences.get("difficulty", "")) == "HARD", "legacy save migrates difficulty")
+		and _assert(!bool(migrated_preferences.get("settings", {}).get("haptic", true)), "legacy save migrates settings")
+	)
+
+
+func _test_preferences_storage_lifecycle() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var suffix := str(OS.get_process_id())
+	var prefs_path := "user://prefs_lifecycle_%s.json" % suffix
+	var save_path := "user://save_lifecycle_%s.json" % suffix
+	var fresh_prefs_path := "user://prefs_fresh_%s.json" % suffix
+	var fresh_save_path := "user://save_fresh_%s.json" % suffix
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	_rm_user(fresh_prefs_path)
+	_rm_user(fresh_save_path)
+
+	var legacy_state := ReversiEngine.create_new_game(ReversiEngine.WHITE, "HARD")
+	var legacy_settings := ReversiEngine.default_settings()
+	legacy_settings["theme"] = "arctic"
+	legacy_settings["stone_theme"] = "ember"
+	legacy_settings["locale"] = "en"
+	legacy_settings["sound"] = false
+	legacy_state["settings"] = legacy_settings
+	var legacy_payload := ReversiEngine.state_to_save_dict(legacy_state)
+	legacy_payload["difficulty"] = "HARD"
+	legacy_payload["settings"] = legacy_settings
+	var save_file := FileAccess.open(save_path, FileAccess.WRITE)
+	save_file.store_string(JSON.stringify(legacy_payload))
+	save_file.close()
+
+	var migrated_main = MainScript.new()
+	migrated_main._prefs_path = prefs_path
+	migrated_main._save_path = save_path
+	var migrated: Dictionary = migrated_main._load_or_create_preferences()
+	migrated_main.preferences = migrated
+	migrated_main._load_or_start()
+	var migration_ok := FileAccess.file_exists(prefs_path) \
+		and str(migrated.get("difficulty", "")) == "HARD" \
+		and str(migrated.get("settings", {}).get("theme", "")) == "arctic" \
+		and str(migrated.get("settings", {}).get("stone_theme", "")) == "ember" \
+		and str(migrated.get("settings", {}).get("locale", "")) == "en" \
+		and !bool(migrated.get("settings", {}).get("sound", true)) \
+		and str(migrated_main.state.get("difficulty", "")) == "HARD"
+	migrated_main.free()
+
+	var corrupt_save := FileAccess.open(save_path, FileAccess.WRITE)
+	corrupt_save.store_string("{broken")
+	corrupt_save.close()
+	var restored_main = MainScript.new()
+	restored_main._prefs_path = prefs_path
+	restored_main._save_path = save_path
+	var after_corruption: Dictionary = restored_main._load_or_create_preferences()
+	restored_main.preferences = after_corruption
+	restored_main._load_or_start()
+	var corrupt_state_ok := str(restored_main.state.get("difficulty", "")) == "HARD" \
+		and str(restored_main.state.get("settings", {}).get("theme", "")) == "arctic"
+	_rm_user(save_path)
+	var after_deletion: Dictionary = restored_main._load_or_create_preferences()
+	restored_main.preferences = after_deletion
+	restored_main._load_or_start()
+	var independent_ok := str(after_corruption.get("difficulty", "")) == "HARD" \
+		and str(after_corruption.get("settings", {}).get("theme", "")) == "arctic" \
+		and str(after_deletion.get("settings", {}).get("locale", "")) == "en" \
+		and corrupt_state_ok \
+		and str(restored_main.state.get("settings", {}).get("locale", "")) == "en"
+	restored_main.free()
+
+	var fresh_main = MainScript.new()
+	fresh_main._prefs_path = fresh_prefs_path
+	fresh_main._save_path = fresh_save_path
+	var fresh: Dictionary = fresh_main._load_or_create_preferences()
+	fresh_main.preferences = fresh
+	fresh_main._load_or_start()
+	var fresh_ok := FileAccess.file_exists(fresh_prefs_path) \
+		and str(fresh.get("difficulty", "")) == "MEDIUM" \
+		and str(fresh.get("settings", {}).get("locale", "")) == "ko" \
+		and str(fresh_main.state.get("settings", {}).get("locale", "")) == "ko"
+	fresh_main.free()
+
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	_rm_user(fresh_prefs_path)
+	_rm_user(fresh_save_path)
+	return (
+		_assert(migration_ok, "preferences migrate once from legacy game save")
+		and _assert(independent_ok, "preferences survive corrupt or deleted game save")
+		and _assert(fresh_ok, "preferences initialize without a game save")
 	)
 
 
@@ -947,6 +1038,38 @@ func _test_settings_menu_keeps_playfield_focused() -> bool:
 		and _assert(outside_tap_closes_ok, "ui settings background tap closes menu")
 		and _assert(menu_close_ok, "ui settings menu closes")
 	)
+
+
+func _test_settings_persist_immediately() -> bool:
+	var prefs_path := "user://prefs_immediate_%s.json" % str(OS.get_process_id())
+	_rm_user(prefs_path)
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+	main._prefs_path = prefs_path
+
+	main._set_theme("arctic")
+	await get_tree().process_frame
+	main._set_stone_theme("ember")
+	await get_tree().process_frame
+	main._set_locale("en")
+	await get_tree().process_frame
+	main._set_difficulty_from_choice("HARD")
+	await get_tree().process_frame
+	main.sound_toggle.button_pressed = false
+	await get_tree().process_frame
+
+	var stored: Dictionary = main._load_preferences()
+	var stored_settings: Dictionary = stored.get("settings", {})
+	var stored_ok := str(stored.get("difficulty", "")) == "HARD" \
+		and str(stored_settings.get("theme", "")) == "arctic" \
+		and str(stored_settings.get("stone_theme", "")) == "ember" \
+		and str(stored_settings.get("locale", "")) == "en" \
+		and !bool(stored_settings.get("sound", true))
+	main.queue_free()
+	_rm_user(prefs_path)
+	return _assert(stored_ok, "every user setting writes preferences immediately")
 
 
 func _test_visual_theme_switches_are_independent() -> bool:

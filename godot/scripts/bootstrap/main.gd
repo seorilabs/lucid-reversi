@@ -16,6 +16,7 @@ const EMBER_WHITE_TEXTURE = preload("res://assets/reversi/themes/ember_white.svg
 const UI_FONT = preload("res://assets/fonts/DoHyeon-Regular.ttf")
 
 const SAVE_PATH := "user://save_v1.json"
+const PREFS_PATH := "user://prefs_v1.json"
 const CELL_SIZE := 84
 const CELL_GAP := 2
 const BOARD_PADDING := 4
@@ -151,6 +152,7 @@ const DANGER := Color(0.96, 0.31, 0.35, 1.0)
 const SUCCESS := Color(0.28, 0.88, 0.54, 1.0)
 
 var state: Dictionary
+var preferences: Dictionary = {}
 var player_stone := ReversiEngine.BLACK
 var difficulty := "MEDIUM"
 var ai_move_pending := false
@@ -160,6 +162,8 @@ var _interstitial_shown_this_game := false
 var analytics: ReversiAnalytics
 var _ios_ads: Node
 var _haptic_probe: Callable
+var _save_path := SAVE_PATH
+var _prefs_path := PREFS_PATH
 
 var cell_buttons: Array = []
 var cell_piece_views: Array = []
@@ -176,6 +180,7 @@ var move_count_label: Label
 var settings_button: Button
 var settings_overlay: ColorRect
 var settings_panel: PanelContainer
+var sound_toggle: CheckButton
 var haptic_toggle: CheckButton
 var gameplay_strip: PanelContainer
 var black_button: Button
@@ -209,6 +214,7 @@ func _ready() -> void:
 	_ios_ads = IOS_ADS_SCRIPT.new()
 	_ios_ads.add_to_group("persistent_services")
 	add_child(_ios_ads)
+	preferences = _load_or_create_preferences()
 	_load_or_start()
 	_build_ui()
 	_render()
@@ -219,17 +225,14 @@ func _load_or_start() -> void:
 	var loaded := _load_state()
 	if loaded.is_empty():
 		state = ReversiEngine.create_new_game(player_stone, difficulty)
-		# 최초 실행: 기기 언어로 로케일 초기화(한국어 기기→ko, 그 외→en). 이후 사용자 변경은 저장돼 우선한다.
-		state["settings"] = {"locale": _device_default_locale()}
-		return
-
-	state = loaded
-	player_stone = int(state.get("player_stone", ReversiEngine.BLACK))
-	difficulty = str(state.get("difficulty", "MEDIUM"))
-	# 이미 종료된 게임을 복원한 경우: 그 game_over 는 지난 세션에서 이미 집계됐으므로
-	# 이번 실행에서 광고·analytics on_game_over 를 다시 트리거하지 않는다(오버레이 표시만).
-	if bool(state.get("game_over", false)):
-		_interstitial_shown_this_game = true
+	else:
+		state = loaded
+		player_stone = int(state.get("player_stone", ReversiEngine.BLACK))
+		# 이미 종료된 게임을 복원한 경우: 그 game_over 는 지난 세션에서 이미 집계됐으므로
+		# 이번 실행에서 광고·analytics on_game_over 를 다시 트리거하지 않는다(오버레이 표시만).
+		if bool(state.get("game_over", false)):
+			_interstitial_shown_this_game = true
+	_apply_preferences_to_state()
 
 
 func _build_ui() -> void:
@@ -710,7 +713,8 @@ func _build_settings_overlay() -> void:
 		difficulty_buttons
 	))
 
-	box.add_child(_make_toggle_button(_t("sound"), "sound"))
+	sound_toggle = _make_toggle_button(_t("sound"), "sound")
+	box.add_child(sound_toggle)
 	haptic_toggle = _make_toggle_button(_t("haptic"), "haptic")
 	box.add_child(haptic_toggle)
 
@@ -840,7 +844,7 @@ func _make_toggle_button(text: String, key: String) -> CheckButton:
 		var current_settings: Dictionary = state.get("settings", ReversiEngine.default_settings())
 		current_settings[key] = enabled
 		state["settings"] = current_settings
-		_save_state()
+		_save_preferences()
 	)
 	return toggle
 
@@ -1498,6 +1502,22 @@ func _current_settings() -> Dictionary:
 	return merged
 
 
+func _apply_preferences_to_state() -> void:
+	preferences = ReversiEngine.normalize_preferences(preferences, _device_default_locale())
+	difficulty = str(preferences.get("difficulty", "MEDIUM"))
+	state["difficulty"] = difficulty
+	var preferred_settings: Dictionary = preferences.get("settings", ReversiEngine.default_settings())
+	state["settings"] = preferred_settings.duplicate(true)
+
+
+func _sync_preferences_from_state() -> void:
+	preferences = ReversiEngine.normalize_preferences({
+		"version": 1,
+		"difficulty": difficulty,
+		"settings": _current_settings(),
+	}, _device_default_locale())
+
+
 func _device_default_locale() -> String:
 	# 기기 언어가 한국어면 ko, 그 외엔 en. 최초 실행 시 기본 로케일 결정에 쓴다.
 	# 헤드리스(스모크 테스트/CI)에는 UI가 없고 테스트가 한글 UI를 전제하므로 ko 로 고정한다.
@@ -1528,7 +1548,7 @@ func _set_difficulty_from_choice(difficulty_id: String) -> void:
 	state["difficulty"] = difficulty
 	if analytics != null:
 		analytics.on_settings_changed("difficulty", difficulty)
-	_save_state()
+	_save_preferences()
 	_render()
 	call_deferred("_maybe_play_ai_turn")
 
@@ -1543,7 +1563,7 @@ func _set_locale(locale_id: String, persist: bool = true) -> void:
 	if persist:
 		if analytics != null:
 			analytics.on_settings_changed("locale", locale_id)
-		_save_state()
+		_save_preferences()
 	_build_ui()
 	_render()
 	if keep_settings_open:
@@ -1632,7 +1652,7 @@ func _set_theme(theme_id: String, persist: bool = true) -> void:
 	if persist:
 		if analytics != null:
 			analytics.on_settings_changed("theme", theme_id)
-		_save_state()
+		_save_preferences()
 	_build_ui()
 	_render()
 	if keep_settings_open:
@@ -1649,7 +1669,7 @@ func _set_stone_theme(theme_id: String, persist: bool = true) -> void:
 	if persist:
 		if analytics != null:
 			analytics.on_settings_changed("stone_theme", theme_id)
-		_save_state()
+		_save_preferences()
 	_build_ui()
 	_render()
 	if keep_settings_open:
@@ -1786,7 +1806,7 @@ func _make_style(bg: Color, border_width: int = 0, border_color: Color = Color.T
 
 func _save_state() -> void:
 	state["last_saved_at"] = int(Time.get_unix_time_from_system())
-	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var file := FileAccess.open(_save_path, FileAccess.WRITE)
 	if file == null:
 		push_warning("Could not open save file for writing.")
 		return
@@ -1794,18 +1814,60 @@ func _save_state() -> void:
 
 
 func _load_state() -> Dictionary:
-	if !FileAccess.file_exists(SAVE_PATH):
-		return {}
-
-	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if file == null:
-		return {}
-
-	var parsed = JSON.parse_string(file.get_as_text())
-	if typeof(parsed) != TYPE_DICTIONARY:
+	var parsed := _read_json_dictionary(_save_path)
+	if parsed.is_empty():
 		return {}
 
 	var restored := ReversiEngine.state_from_save_dict(parsed)
 	if restored.is_empty():
 		return {}
 	return restored
+
+
+func _save_preferences() -> void:
+	_sync_preferences_from_state()
+	_write_preferences()
+
+
+func _write_preferences() -> void:
+	var file := FileAccess.open(_prefs_path, FileAccess.WRITE)
+	if file == null:
+		push_warning("Could not open preferences file for writing.")
+		return
+	file.store_string(JSON.stringify(preferences))
+
+
+func _load_preferences() -> Dictionary:
+	var parsed := _read_json_dictionary(_prefs_path)
+	if parsed.is_empty() or int(parsed.get("version", 0)) != 1:
+		return {}
+	return ReversiEngine.normalize_preferences(parsed, _device_default_locale())
+
+
+func _load_legacy_preferences() -> Dictionary:
+	var parsed := _read_json_dictionary(_save_path)
+	return ReversiEngine.preferences_from_legacy_save(parsed, _device_default_locale())
+
+
+func _read_json_dictionary(path: String) -> Dictionary:
+	if !FileAccess.file_exists(path):
+		return {}
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return {}
+	var parser := JSON.new()
+	if parser.parse(file.get_as_text()) != OK or typeof(parser.data) != TYPE_DICTIONARY:
+		return {}
+	return parser.data
+
+
+func _load_or_create_preferences() -> Dictionary:
+	var loaded := _load_preferences()
+	if !loaded.is_empty():
+		return loaded
+	var initial := _load_legacy_preferences()
+	if initial.is_empty():
+		initial = ReversiEngine.default_preferences(_device_default_locale())
+	preferences = initial
+	_write_preferences()
+	return preferences
