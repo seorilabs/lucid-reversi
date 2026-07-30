@@ -53,6 +53,8 @@ func _ready() -> void:
 	ok = settings_menu_ok and ok
 	var settings_persistence_ok := await _test_settings_persist_immediately()
 	ok = settings_persistence_ok and ok
+	var accessibility_ok := await _test_accessibility_settings_and_reduced_motion()
+	ok = accessibility_ok and ok
 	var theme_ok := await _test_visual_theme_switches_are_independent()
 	ok = theme_ok and ok
 	var ui_ok := await _test_ui_hints_return_after_animation()
@@ -1070,6 +1072,97 @@ func _test_settings_persist_immediately() -> bool:
 	main.queue_free()
 	_rm_user(prefs_path)
 	return _assert(stored_ok, "every user setting writes preferences immediately")
+
+
+func _test_accessibility_settings_and_reduced_motion() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var prefs_path := "user://prefs_accessibility_%s.json" % str(OS.get_process_id())
+	_rm_user(prefs_path)
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+	main._prefs_path = prefs_path
+	main.state = ReversiEngine.create_new_game(ReversiEngine.BLACK, "MEDIUM")
+	main._build_ui()
+	main._render()
+	await get_tree().process_frame
+
+	var default_settings := ReversiEngine.default_settings()
+	var defaults_ok := is_equal_approx(float(default_settings.get("font_scale", 0.0)), 1.0) \
+		and !bool(default_settings.get("reduce_motion", true))
+	var korean_labels_ok := str(MainScript.TEXT["ko"].get("font_scale_setting", "")) == "글자 크기" \
+		and str(MainScript.TEXT["ko"].get("reduce_motion", "")) == "모션 줄이기"
+	var english_labels_ok := str(MainScript.TEXT["en"].get("font_scale_setting", "")) == "TEXT SIZE" \
+		and str(MainScript.TEXT["en"].get("reduce_motion", "")) == "REDUCE MOTION"
+	var base_score_size: int = main.player_score_label.get_theme_font_size("font_size")
+	var base_status_size: int = main.status_label.get_theme_font_size("font_size")
+	var base_result_size: int = main.result_title_label.get_theme_font_size("font_size")
+
+	main._set_font_scale_from_choice("1.3")
+	await get_tree().process_frame
+	var scaled_text_ok: bool = main.player_score_label.get_theme_font_size("font_size") > base_score_size \
+		and main.status_label.get_theme_font_size("font_size") > base_status_size \
+		and main.result_title_label.get_theme_font_size("font_size") > base_result_size
+	var scale_control_ok: bool = main.font_scale_buttons.size() == 3 \
+		and _choice_group_has_active_id(main.font_scale_buttons, "1.3")
+
+	main.reduce_motion_toggle.button_pressed = true
+	await get_tree().process_frame
+	var stored: Dictionary = main._load_preferences()
+	var stored_settings: Dictionary = stored.get("settings", {})
+	var persistence_ok := is_equal_approx(float(stored_settings.get("font_scale", 0.0)), 1.3) \
+		and bool(stored_settings.get("reduce_motion", false))
+
+	var motion_settings: Dictionary = main.state.get("settings", {})
+	motion_settings["sound"] = false
+	main.state["settings"] = motion_settings
+	var before_board := ReversiEngine.clone_board(main.state["board"])
+	var move_result := ReversiEngine.play_move(main.state, 2, 3)
+	main._motion_tween_count = 0
+	await main._render_with_animation(before_board, move_result)
+	main._pulse_cell(0, 0, Color.RED)
+	var counts := ReversiEngine.count_pieces(main.state["board"])
+	var reduced_motion_ok: bool = main._motion_tween_count == 0 \
+		and !main.input_locked \
+		and main.cell_buttons[0][0].modulate == Color.WHITE
+	var score_state_ok: bool = int(counts.get("black", 0)) == 4 \
+		and int(counts.get("white", 0)) == 1 \
+		and main.player_score_label.text == "4" \
+		and main.ai_score_label.text == "1"
+	var turn_state_ok: bool = main.turn_badge.text == main._t("turn_ai")
+	var expected_legal_moves := ReversiEngine.get_valid_moves(
+		main.state["board"],
+		int(main.state["current_turn"]),
+	)
+	var legal_moves_state_ok: bool = main.state.get("valid_moves", []) == expected_legal_moves \
+		and main.footer_secondary_label.text == main._t("focus_valid") % expected_legal_moves.size() \
+		and _visible_hint_count(main) == 0
+	var board_state_ok: bool = main.cell_piece_views[2][3].texture == main._texture_for_stone(ReversiEngine.BLACK) \
+		and main.cell_piece_views[3][3].texture == main._texture_for_stone(ReversiEngine.BLACK)
+
+	main._set_locale("en", false)
+	await get_tree().process_frame
+	var large_scale_entry: Dictionary = main.font_scale_buttons[2]
+	var large_scale_button := large_scale_entry.get("button") as Button
+	var rendered_english_labels_ok: bool = main.reduce_motion_toggle.text == "REDUCE MOTION" \
+		and large_scale_button != null \
+		and large_scale_button.text == "130%"
+	main.queue_free()
+	_rm_user(prefs_path)
+	return (
+		_assert(defaults_ok, "accessibility settings have safe defaults")
+		and _assert(korean_labels_ok and english_labels_ok, "accessibility labels exist in Korean and English")
+		and _assert(scaled_text_ok, "font scale enlarges score status and result text")
+		and _assert(scale_control_ok, "font scale control tracks the selected scale")
+		and _assert(persistence_ok, "accessibility settings persist in preferences")
+		and _assert(reduced_motion_ok, "reduced motion skips move and pulse tweens")
+		and _assert(score_state_ok, "reduced motion renders the final score")
+		and _assert(turn_state_ok, "reduced motion renders the final turn badge")
+		and _assert(legal_moves_state_ok, "reduced motion renders final legal moves")
+		and _assert(board_state_ok, "reduced motion renders the final board")
+		and _assert(rendered_english_labels_ok, "accessibility controls render English labels")
+	)
 
 
 func _test_visual_theme_switches_are_independent() -> bool:
