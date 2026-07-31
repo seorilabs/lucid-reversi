@@ -31,6 +31,13 @@ class _HapticProbe:
 		return total
 
 
+class _InterstitialProbe:
+	extends RefCounted
+	var requests := 0
+	func request() -> void:
+		requests += 1
+
+
 func _ready() -> void:
 	var ok := true
 	ok = _test_main_scene_exists() and ok
@@ -65,6 +72,8 @@ func _ready() -> void:
 	ok = undo_ui_ok and ok
 	var stats_ui_ok := await _test_result_stats_once_and_i18n()
 	ok = stats_ui_ok and ok
+	var interstitial_restore_ok := await _test_interstitial_restore_guard()
+	ok = interstitial_restore_ok and ok
 	ok = _test_ga4_disabled_in_headless() and ok
 	ok = _test_ga4_build_event() and ok
 	ok = _test_ga4_batching() and ok
@@ -885,6 +894,71 @@ func _test_result_stats_once_and_i18n() -> bool:
 		and _assert(english_text_ok, "ui shows English difficulty stats")
 		and _assert(no_locale_duplicate_ok, "ui locale rebuild does not duplicate stats")
 		and _assert(restart_preserves_ok, "ui new game preserves cumulative stats")
+	)
+
+
+func _test_interstitial_restore_guard() -> bool:
+	var suffix := str(OS.get_process_id())
+	var save_path := "user://save_interstitial_%s.json" % suffix
+	var prefs_path := "user://prefs_interstitial_%s.json" % suffix
+	_rm_user(save_path)
+	_rm_user(prefs_path)
+
+	var full_board: Array = []
+	for _x in range(ReversiEngine.BOARD_SIZE):
+		var row: Array = []
+		for _y in range(ReversiEngine.BOARD_SIZE):
+			row.append(ReversiEngine.BLACK)
+		full_board.append(row)
+	var completed_state := ReversiEngine.create_state_from_board(
+		full_board,
+		ReversiEngine.BLACK,
+		ReversiEngine.BLACK,
+		"EASY",
+	)
+	var save_file := FileAccess.open(save_path, FileAccess.WRITE)
+	save_file.store_string(JSON.stringify(ReversiEngine.state_to_save_dict(completed_state)))
+	save_file.close()
+
+	var probe := _InterstitialProbe.new()
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	main._save_path = save_path
+	main._prefs_path = prefs_path
+	main._interstitial_probe = Callable(probe, "request")
+	add_child(main)
+	await get_tree().process_frame
+
+	var restored_game_suppresses_ok: bool = bool(main.state.get("game_over", false)) \
+		and main.result_overlay.visible \
+		and main._interstitial_shown_this_game \
+		and probe.requests == 0
+	main.result_overlay.visible = false
+	main._on_cell_pressed(0, 0)
+	var reopened_overlay_suppresses_ok: bool = main.result_overlay.visible \
+		and probe.requests == 0
+
+	main._start_new_game(ReversiEngine.BLACK, false)
+	var new_game_resets_ok: bool = !main._interstitial_shown_this_game
+	main.state = ReversiEngine.create_state_from_board(
+		full_board,
+		ReversiEngine.BLACK,
+		ReversiEngine.BLACK,
+		"EASY",
+	)
+	main._update_result_overlay(false)
+	main._update_result_overlay(false)
+	var next_game_requests_once_ok: bool = main._interstitial_shown_this_game \
+		and probe.requests == 1
+
+	main.queue_free()
+	_rm_user(save_path)
+	_rm_user(prefs_path)
+	return (
+		_assert(restored_game_suppresses_ok, "restored completed game suppresses interstitial request")
+		and _assert(reopened_overlay_suppresses_ok, "reopened result overlay suppresses duplicate interstitial request")
+		and _assert(new_game_resets_ok, "new game resets interstitial guard")
+		and _assert(next_game_requests_once_ok, "next completed game requests interstitial exactly once")
 	)
 
 
