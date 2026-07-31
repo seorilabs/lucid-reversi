@@ -2,6 +2,7 @@
 
 ## 2026-07-31
 
+- Fixed the status bar to show PASS only for the latest pass transition, then return to the current-turn label after the next normal move.
 - Added a complete Japanese locale, Japanese-device first-install selection, persisted language choice, Korean missing-key fallback, and bundled M PLUS Rounded 1c glyph fallback.
 - Added a default-on, persisted legal-move marker toggle inside settings, keeping invalid-move feedback and the playfield HUD unchanged.
 - Added a once-per-game result-card entrance and winning-stone pulse inside the existing overlay, with static win/draw/loss rendering when reduced motion is enabled.

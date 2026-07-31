@@ -289,22 +289,39 @@ func _test_first_move_flip() -> bool:
 
 
 func _test_pass_turn_fixture() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
 	var board := _board_from_strings([
-		"BBBWWWBB",
-		"BWBBBWWB",
-		"BBWWBWWB",
-		"BBWBBBBB",
-		"WBWWWWWW",
-		"WBBW.WBW",
-		"WBWWWWBW",
-		".B.WBBBW",
+		"WWBBBBW.",
+		".WWBBBBW",
+		"BWWWBBWW",
+		".WWWBWWW",
+		"BWBWWBWB",
+		"BWBWWWWB",
+		"BWWBBWWB",
+		".WWWWWWW",
 	])
 	var state := ReversiEngine.create_state_from_board(board, ReversiEngine.BLACK)
-	var result := ReversiEngine.play_move(state, 7, 0)
+	var result := ReversiEngine.play_move(state, 0, 7)
+	var pass_keeps_turn_ok: bool = int(state["current_turn"]) == ReversiEngine.BLACK
+	var pass_count_ok: bool = int(state["pass_count"]) == 1
+	var pass_flag_ok: bool = bool(state.get("last_turn_was_pass", false))
+	var main = MainScript.new()
+	main.state = state
+	main.player_stone = ReversiEngine.BLACK
+	var pass_status_ok: bool = main._status_text() == "패스"
+	var follow_up_result := ReversiEngine.play_move(state, 1, 0)
+	var normal_turn_ok: bool = bool(follow_up_result.get("ok", false)) \
+		and !bool(state.get("last_turn_was_pass", true)) \
+		and int(state.get("current_turn", ReversiEngine.NONE)) == ReversiEngine.WHITE \
+		and main._status_text() == "AI 차례"
+	main.free()
 	return (
 		_assert(bool(result["ok"]), "pass fixture move accepted")
-		and _assert(int(state["current_turn"]) == ReversiEngine.BLACK, "pass keeps turn on BLACK")
-		and _assert(int(state["pass_count"]) == 1, "pass increments pass_count")
+		and _assert(pass_keeps_turn_ok, "pass keeps turn on BLACK")
+		and _assert(pass_count_ok, "pass increments pass_count")
+		and _assert(pass_flag_ok, "pass marks only the latest turn transition")
+		and _assert(pass_status_ok, "ui shows pass for the pass transition")
+		and _assert(normal_turn_ok, "normal move clears pass status")
 	)
 
 
@@ -455,14 +472,17 @@ func _test_codec_round_trip() -> bool:
 
 func _test_save_round_trip() -> bool:
 	var state := ReversiEngine.create_new_game(ReversiEngine.WHITE, "HARD", 8, 13579)
+	var fresh_pass_flag_ok := !bool(state.get("last_turn_was_pass", true))
 	ReversiEngine.play_move(state, 2, 3)
 	state["pass_count"] = 2
+	state["last_turn_was_pass"] = true
 	var settings: Dictionary = state.get("settings", {})
 	settings["haptic"] = false
 	state["settings"] = settings
 	var saved := ReversiEngine.state_to_save_dict(state)
 	var restored := ReversiEngine.state_from_save_dict(saved)
 	var legacy_saved := saved.duplicate(true)
+	legacy_saved.erase("last_turn_was_pass")
 	legacy_saved["difficulty"] = "HARD"
 	legacy_saved["settings"] = settings
 	var legacy_restored := ReversiEngine.state_from_save_dict(legacy_saved)
@@ -476,6 +496,12 @@ func _test_save_round_trip() -> bool:
 		and _assert(int(restored["player_stone"]) == ReversiEngine.WHITE, "save player stone")
 		and _assert(restored["move_history"].size() == 1, "save move history")
 		and _assert(int(restored["pass_count"]) == 2, "save pass count")
+		and _assert(fresh_pass_flag_ok, "new game defaults pass transition to false")
+		and _assert(bool(restored.get("last_turn_was_pass", false)), "save restores pass transition")
+		and _assert(
+			!bool(legacy_restored.get("last_turn_was_pass", true)),
+			"legacy save defaults pass transition to false",
+		)
 		and _assert(int(restored["game_seed"]) == 13579, "save game seed")
 		and _assert(
 			int(seedless_legacy_restored.get("game_seed", -1))

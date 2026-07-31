@@ -12,6 +12,7 @@
 - initial BLACK valid moves
 - first BLACK move flip and score
 - opponent pass handling
+- 패스 직후 상태 표시와 다음 정상 착수 뒤 현재 차례 표시 복귀, 누적 `pass_count` 유지, 기존 save 기본값
 - full-board game over and winner
 - 6x6/8x8/10x10 초기 합법수·뒤집기·평가와 board-size 설정 정규화
 - 크기 태그 가변 board codec의 10x10 round trip과 기존 18-byte 8x8 fixture 복원
