@@ -18,7 +18,7 @@
 - 보드 좌표의 A-H/1-8 매핑, 셀 중심 정렬, 입력 무시, UI 폰트·테마별 muted 대비, 테마·언어 재구성, 6x6/10x10 확장
 - 크기 태그 가변 board codec의 10x10 round trip과 기존 18-byte 8x8 fixture 복원
 - save DTO round trip
-- 고정 seed별 MEDIUM/HARD 동점 최선 수 분산, 동일 seed save/restore 재현, EASY 첫 정렬 수와 최선 평가 유지
+- 고정 seed별 EASY/MEDIUM/HARD 동점 최선 수 분산, 동일 seed save/restore 재현, 모든 난이도의 최선 평가 유지
 - 빈칸 8개 HARD 종반의 유일한 확정 승 수, 종국 돌 차이 평가, 강제 패스, EASY 비적용, 5초 실행 예산
 - 개시·중반·종반 돌 개수 가중 전환, mobility 결정론, 적게 뒤집고 착수 가능수가 높은 MEDIUM/HARD 선택, EASY 1-ply 유지
 - 게임 save에서 환경설정 제외 및 기존 save 설정의 prefs 마이그레이션

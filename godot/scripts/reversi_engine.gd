@@ -369,9 +369,10 @@ static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> 
 		search_stats["exact_search"] = use_exact_search
 	if best_moves.is_empty():
 		return {}
-	if str(state.get("difficulty", "MEDIUM")) == "EASY" or best_moves.size() == 1:
+	if best_moves.size() == 1:
 		return best_moves[0]
 
+	# 모든 난이도에서 최적 점수는 유지하되, 대국 seed로 동점 최선 수만 분산한다.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = _ai_tie_seed(state, stone)
 	return best_moves[rng.randi_range(0, best_moves.size() - 1)]

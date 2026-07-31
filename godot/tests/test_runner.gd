@@ -834,12 +834,17 @@ func _test_choose_ai_move_alpha_beta_and_seeded_ties() -> bool:
 		)
 		var easy_move := ReversiEngine.choose_ai_move(easy_state)
 		easy_choices["%d,%d" % [easy_move["x"], easy_move["y"]]] = true
-	var first_sorted_move: Dictionary = ReversiEngine.create_new_game(
+	var easy_reproducible_state := ReversiEngine.create_new_game(
 		ReversiEngine.BLACK,
 		"EASY",
 		8,
-		11,
-	)["valid_moves"][0]
+		515151,
+	)
+	var easy_reproducible_move := ReversiEngine.choose_ai_move(easy_reproducible_state)
+	var easy_restored_state := ReversiEngine.state_from_save_dict(
+		ReversiEngine.state_to_save_dict(easy_reproducible_state)
+	)
+	var easy_restored_move := ReversiEngine.choose_ai_move(easy_restored_state)
 	return (
 		_assert(
 			!hard_move.is_empty()
@@ -862,9 +867,14 @@ func _test_choose_ai_move_alpha_beta_and_seeded_ties() -> bool:
 			"saved game seed reproduces the same tied choice",
 		)
 		and _assert(
-			easy_choices.size() == 1
-				and easy_choices.has("%d,%d" % [first_sorted_move["x"], first_sorted_move["y"]]),
-			"EASY keeps the first sorted move for every game seed",
+			easy_choices.size() > 1,
+			"fixed game seeds vary tied EASY opening choices",
+		)
+		and _assert(
+			int(easy_reproducible_move["x"]) == int(easy_restored_move["x"])
+				and int(easy_reproducible_move["y"]) == int(easy_restored_move["y"])
+				and int(easy_restored_state.get("game_seed", -1)) == 515151,
+			"saved EASY game seed reproduces the same tied choice",
 		)
 	)
 
