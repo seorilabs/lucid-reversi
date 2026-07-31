@@ -176,6 +176,7 @@ var _interstitial_shown_this_game := false
 var analytics: ReversiAnalytics
 var _ios_ads: Node
 var _haptic_probe: Callable
+var _interstitial_probe: Callable
 var _save_path := SAVE_PATH
 var _prefs_path := PREFS_PATH
 var _motion_tween_count := 0
@@ -1541,6 +1542,8 @@ func _request_interstitial_ad() -> void:
 	#   AppsInToss 보안 정책상 JavaScriptBridge.eval(외부 코드 문자열 실행)은 금지되므로 eval을 쓰지 않는다.
 	# - App Store(iOS): AdMob 어댑터(ios_ads.gd)로 전면광고 표시. 비맞춤형·IDFA 미사용.
 	# - Google Play(Android): 현재 광고 미탑재(릴리스 빌드 인프라만) → no-op.
+	if _interstitial_probe.is_valid():
+		_interstitial_probe.call()
 	if OS.has_feature("web"):
 		var bridge: JavaScriptObject = JavaScriptBridge.get_interface("__aitBridge")
 		if bridge != null:
