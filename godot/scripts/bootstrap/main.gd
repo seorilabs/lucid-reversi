@@ -18,6 +18,8 @@ const JAPANESE_FONT = preload("res://assets/fonts/MPLUSRounded1c-Regular.ttf")
 
 const SAVE_PATH := "user://save_v1.json"
 const PREFS_PATH := "user://prefs_v1.json"
+const SUPPORT_EMAIL := "cs@seorilabs.com"
+const PRIVACY_POLICY_URL := ""
 const CELL_SIZE := 84
 const CELL_GAP := 2
 const BOARD_PADDING := 4
@@ -73,6 +75,10 @@ const TEXT := {
 		"board_theme_title": "보드",
 		"stone_theme_title": "돌",
 		"language_setting": "언어",
+		"about_title": "정보",
+		"about_app_version": "%s · 버전 %s",
+		"support_email": "지원 이메일 · %s",
+		"privacy_policy": "개인정보 처리방침",
 		"font_scale_setting": "글자 크기",
 		"reduce_motion": "모션 줄이기",
 		"show_moves": "착수 표시",
@@ -131,6 +137,10 @@ const TEXT := {
 		"board_theme_title": "BOARD",
 		"stone_theme_title": "STONE",
 		"language_setting": "LANG",
+		"about_title": "ABOUT",
+		"about_app_version": "%s · VERSION %s",
+		"support_email": "SUPPORT · %s",
+		"privacy_policy": "PRIVACY POLICY",
 		"font_scale_setting": "TEXT SIZE",
 		"reduce_motion": "REDUCE MOTION",
 		"show_moves": "MOVES",
@@ -189,6 +199,10 @@ const TEXT := {
 		"board_theme_title": "盤面",
 		"stone_theme_title": "石",
 		"language_setting": "言語",
+		"about_title": "情報",
+		"about_app_version": "%s · バージョン %s",
+		"support_email": "サポート · %s",
+		"privacy_policy": "プライバシーポリシー",
 		"font_scale_setting": "文字サイズ",
 		"reduce_motion": "動きを減らす",
 		"show_moves": "着手表示",
@@ -297,6 +311,7 @@ var footer_primary_label: Label
 var footer_secondary_label: Label
 var black_meter: ColorRect
 var white_meter: ColorRect
+var _shell_open_override := Callable()
 
 
 func _ready() -> void:
@@ -888,14 +903,17 @@ func _build_settings_overlay() -> void:
 		stone_theme_buttons
 	))
 
-	box.add_child(_make_choice_section(
+	var language_section := _make_choice_section(
 		_t("language_setting"),
 		LOCALE_IDS,
 		LOCALE_LABELS,
 		_current_locale_id(),
 		Callable(self, "_set_locale"),
 		locale_buttons
-	))
+	)
+	language_section.name = "LanguageSection"
+	box.add_child(language_section)
+	box.add_child(_make_about_section(PRIVACY_POLICY_URL))
 
 
 func _build_new_game_confirmation_overlay() -> void:
@@ -990,6 +1008,57 @@ func _make_action_button(text: String, action: Callable, primary: bool = false) 
 	_apply_text_visibility(button, 1, fg)
 	button.pressed.connect(action)
 	return button
+
+
+func _make_about_section(privacy_policy_url: String) -> VBoxContainer:
+	var section := VBoxContainer.new()
+	section.name = "AboutSection"
+	section.add_theme_constant_override("separation", 5)
+
+	var title := Label.new()
+	title.name = "AboutTitle"
+	title.text = _t("about_title")
+	title.add_theme_font_size_override("font_size", _font_size(16))
+	title.add_theme_color_override("font_color", _theme_color("text_muted"))
+	_apply_text_visibility(title, 1, _theme_color("text_muted"))
+	section.add_child(title)
+
+	var app_version := Label.new()
+	app_version.name = "AboutAppVersion"
+	app_version.text = _t("about_app_version") % [
+		_t("app_title"),
+		str(ProjectSettings.get_setting("application/config/version", "")),
+	]
+	app_version.add_theme_font_size_override("font_size", _font_size(16))
+	app_version.add_theme_color_override("font_color", _theme_color("text_primary"))
+	_apply_text_visibility(app_version, 1, _theme_color("text_primary"))
+	section.add_child(app_version)
+
+	var support_button := _make_action_button(
+		_t("support_email") % SUPPORT_EMAIL,
+		func() -> void: _open_external_uri("mailto:%s" % SUPPORT_EMAIL),
+	)
+	support_button.name = "SupportEmailButton"
+	section.add_child(support_button)
+
+	var normalized_privacy_url := privacy_policy_url.strip_edges()
+	if !normalized_privacy_url.is_empty():
+		var privacy_button := _make_action_button(
+			_t("privacy_policy"),
+			func() -> void: _open_external_uri(normalized_privacy_url),
+		)
+		privacy_button.name = "PrivacyPolicyButton"
+		section.add_child(privacy_button)
+	return section
+
+
+func _open_external_uri(uri: String) -> void:
+	if uri.is_empty():
+		return
+	if _shell_open_override.is_valid():
+		_shell_open_override.call(uri)
+		return
+	OS.shell_open(uri)
 
 
 func _make_choice_section(title_text: String, option_ids: Array, option_labels: Array, selected_id: String, action: Callable, button_store: Array) -> VBoxContainer:
