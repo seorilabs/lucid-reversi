@@ -94,6 +94,8 @@ func _ready() -> void:
 	ok = board_size_ui_ok and ok
 	var board_coordinates_ok := await _test_board_coordinate_labels()
 	ok = board_coordinates_ok and ok
+	var adaptive_layout_ok := await _test_adaptive_vertical_layout()
+	ok = adaptive_layout_ok and ok
 	var accessibility_ok := await _test_accessibility_settings_and_reduced_motion()
 	ok = accessibility_ok and ok
 	var high_contrast_ok := await _test_high_contrast_accessibility()
@@ -2795,6 +2797,52 @@ func _test_board_coordinate_labels() -> bool:
 		and _assert(locale_rebuild_ok, "board coordinates rebuild after a locale change")
 		and _assert(six_size_ok, "board coordinates adapt to the 6x6 board")
 		and _assert(ten_size_ok, "board coordinates adapt to the 10x10 board")
+	)
+
+
+func _test_adaptive_vertical_layout() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var baseline_window := Vector2i(720, 1280)
+	var tall_window := Vector2i(1320, 2868)
+	var narrow_tall_window := Vector2i(640, 1280)
+	var baseline_canvas: Vector2 = MainScript.expanded_canvas_size(baseline_window)
+	var tall_canvas: Vector2 = MainScript.expanded_canvas_size(tall_window)
+	var narrow_canvas: Vector2 = MainScript.expanded_canvas_size(narrow_tall_window)
+	var baseline_math_ok: bool = baseline_canvas == Vector2(720, 1280) \
+		and MainScript.adaptive_vertical_surplus(baseline_window) == 0
+	var tall_surplus: int = MainScript.adaptive_vertical_surplus(tall_window)
+	var tall_math_ok: bool = tall_canvas.y > baseline_canvas.y \
+		and tall_surplus == 284
+	var board_width: int = MainScript.board_frame_size_for_board(8)
+	var narrow_width_ok: bool = board_width <= int(narrow_canvas.x) - 24
+
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+	var root := main.find_child("GameRoot", true, false) as VBoxContainer
+	var board_frame := main.find_child("BoardFrame", true, false) as PanelContainer
+	main._update_adaptive_vertical_spacing(baseline_window)
+	await get_tree().process_frame
+	var baseline_y: float = main.gameplay_strip.position.y
+	var baseline_layout_ok: bool = main.adaptive_play_focus_slot.get_theme_constant("margin_top") == 0 \
+		and root != null \
+		and root.get_child_count() == 6 \
+		and main.adaptive_play_focus_slot.get_child_count() == 1 \
+		and main.adaptive_play_focus_slot.get_child(0) == main.gameplay_strip
+	main._update_adaptive_vertical_spacing(tall_window)
+	await get_tree().process_frame
+	var tall_shift_ok: bool = main.adaptive_play_focus_slot.get_theme_constant("margin_top") == tall_surplus \
+		and is_equal_approx(main.gameplay_strip.position.y - baseline_y, float(tall_surplus))
+	var board_fit_ok: bool = board_frame != null \
+		and int(board_frame.custom_minimum_size.x) == board_width \
+		and board_frame.size_flags_horizontal == Control.SIZE_SHRINK_CENTER
+	main._update_adaptive_vertical_spacing(baseline_window)
+	main.queue_free()
+	return (
+		_assert(baseline_math_ok and baseline_layout_ok, "adaptive layout preserves the 720 by 1280 baseline")
+		and _assert(tall_math_ok and tall_shift_ok, "adaptive layout moves play controls through tall-screen surplus")
+		and _assert(narrow_width_ok and board_fit_ok, "adaptive layout keeps the board inside narrow screens")
 	)
 
 

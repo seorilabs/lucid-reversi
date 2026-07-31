@@ -20,6 +20,7 @@ const SAVE_PATH := "user://save_v1.json"
 const PREFS_PATH := "user://prefs_v1.json"
 const SUPPORT_EMAIL := "cs@seorilabs.com"
 const PRIVACY_POLICY_URL := ""
+const DESIGN_VIEWPORT_SIZE := Vector2(720, 1280)
 const CELL_SIZE := 84
 const CELL_GAP := 2
 const BOARD_PADDING := 4
@@ -390,6 +391,7 @@ var move_list_rows: Array = []
 var sound_toggle: CheckButton
 var haptic_toggle: CheckButton
 var gameplay_strip: PanelContainer
+var adaptive_play_focus_slot: MarginContainer
 var black_button: Button
 var white_button: Button
 var undo_button: Button
@@ -444,6 +446,9 @@ func _ready() -> void:
 	preferences = _load_or_create_preferences()
 	_load_or_start()
 	_build_ui()
+	var viewport_resize := Callable(self, "_update_adaptive_vertical_spacing")
+	if !get_viewport().size_changed.is_connected(viewport_resize):
+		get_viewport().size_changed.connect(viewport_resize)
 	_render()
 	call_deferred("_show_first_game_how_to_play")
 	call_deferred("_maybe_play_ai_turn")
@@ -517,6 +522,36 @@ func _build_ui() -> void:
 	_build_how_to_play_overlay()
 	_build_move_list_overlay()
 	_build_new_game_confirmation_overlay()
+	_update_adaptive_vertical_spacing()
+
+
+static func expanded_canvas_size(window_size: Vector2i) -> Vector2:
+	if window_size.x <= 0 or window_size.y <= 0:
+		return DESIGN_VIEWPORT_SIZE
+	var scale := minf(
+		float(window_size.x) / DESIGN_VIEWPORT_SIZE.x,
+		float(window_size.y) / DESIGN_VIEWPORT_SIZE.y,
+	)
+	if scale <= 0.0:
+		return DESIGN_VIEWPORT_SIZE
+	return Vector2(window_size) / scale
+
+
+static func adaptive_vertical_surplus(window_size: Vector2i) -> int:
+	var canvas_size := expanded_canvas_size(window_size)
+	return maxi(0, roundi(canvas_size.y - DESIGN_VIEWPORT_SIZE.y))
+
+
+func _update_adaptive_vertical_spacing(window_size: Vector2i = Vector2i.ZERO) -> void:
+	if adaptive_play_focus_slot == null:
+		return
+	var measured_size := window_size
+	if measured_size == Vector2i.ZERO:
+		measured_size = DisplayServer.window_get_size()
+	adaptive_play_focus_slot.add_theme_constant_override(
+		"margin_top",
+		adaptive_vertical_surplus(measured_size),
+	)
 
 
 func _build_top_bar(root: VBoxContainer) -> void:
@@ -665,6 +700,7 @@ func _build_board(root: VBoxContainer) -> void:
 	var piece_margin := maxi(5, int(round(float(cell_size) / 12.0)))
 	var hint_margin := maxi(16, int(round(float(cell_size) / 3.0)))
 	var board_frame := PanelContainer.new()
+	board_frame.name = "BoardFrame"
 	var board_frame_size := board_frame_size_for_board(board_size)
 	board_frame.custom_minimum_size = Vector2(board_frame_size, board_frame_size)
 	board_frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -912,11 +948,17 @@ func _make_board_coordinate_label(text: String, minimum_size: Vector2) -> Label:
 
 
 func _build_play_focus_strip(root: VBoxContainer) -> void:
+	adaptive_play_focus_slot = MarginContainer.new()
+	adaptive_play_focus_slot.name = "AdaptivePlayFocusSlot"
+	adaptive_play_focus_slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	adaptive_play_focus_slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	root.add_child(adaptive_play_focus_slot)
+
 	gameplay_strip = PanelContainer.new()
 	gameplay_strip.custom_minimum_size = Vector2(0, 48)
 	gameplay_strip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	gameplay_strip.add_theme_stylebox_override("panel", _make_style(_theme_color("hud_dark"), 1, Color(1, 1, 1, 0.08), 8))
-	root.add_child(gameplay_strip)
+	adaptive_play_focus_slot.add_child(gameplay_strip)
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 12)

@@ -56,7 +56,7 @@
 - iPhone 6.9" screenshot: `app-store/screenshots/iphone-6.9/01-board.png` (1320×2868) ✅ 실 시뮬레이터 캡처
 - iPad 13" screenshot: `app-store/screenshots/ipad-13/01-board.png` (2064×2752) ✅ 실 시뮬레이터 캡처
 - 캡처 방법: x86_64(Rosetta) 시뮬레이터 빌드(Godot 엔진 simulator lib가 arm64 슬라이스 없음) → iPhone 16 Pro Max / iPad Pro 13"(M4) 부팅·실행·`simctl io screenshot`.
-- 비고: 게임이 720×1280로 설계돼 더 긴 화면에서 하단 레터박스(검은 영역) 발생 — Apple 허용. 더 꽉 찬 화면 원하면 게임 stretch/aspect 조정(별도 작업). 화면당 1장씩이라 다양화하려면 탭 입력 화면 수동 보완.
+- 비고: 720×1280 기준 배치는 유지하며, 더 긴 화면에서는 늘어난 논리 높이를 플레이 컨트롤 위 여백으로 흡수해 하단 데드 스페이스 증가를 막는다. 화면당 1장씩이라 다양화하려면 탭 입력 화면 수동 보완.
 
 ## Build / Upload 상태 (2026-07-07)
 
