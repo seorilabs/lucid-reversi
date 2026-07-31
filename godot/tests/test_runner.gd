@@ -76,6 +76,8 @@ func _ready() -> void:
 	ok = settings_persistence_ok and ok
 	var board_size_ui_ok := await _test_board_size_ui()
 	ok = board_size_ui_ok and ok
+	var board_coordinates_ok := await _test_board_coordinate_labels()
+	ok = board_coordinates_ok and ok
 	var accessibility_ok := await _test_accessibility_settings_and_reduced_motion()
 	ok = accessibility_ok and ok
 	var new_game_confirmation_ok := await _test_new_game_confirmation_guard()
@@ -2194,6 +2196,99 @@ func _test_board_size_ui() -> bool:
 		and _assert(six_ok, "ui board size selection starts and renders a 6x6 game")
 		and _assert(ten_ok, "ui board size selection persists and renders a 10x10 game")
 		and _assert(hidden_with_menu_ok, "ui hides board size controls with settings")
+	)
+
+
+func _test_board_coordinate_labels() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var suffix := str(OS.get_process_id())
+	var prefs_path := "user://prefs_board_coordinates_%s.json" % suffix
+	var save_path := "user://save_board_coordinates_%s.json" % suffix
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	main._prefs_path = prefs_path
+	main._save_path = save_path
+	add_child(main)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var default_mapping_ok: bool = main.board_column_labels.size() == 8 \
+		and main.board_row_labels.size() == 8 \
+		and (main.board_column_labels[0] as Label).text == "A" \
+		and (main.board_column_labels[7] as Label).text == "H" \
+		and (main.board_row_labels[0] as Label).text == "1" \
+		and (main.board_row_labels[7] as Label).text == "8"
+	var aligned_ok := true
+	var input_safe_ok := true
+	for index in range(8):
+		var column_label := main.board_column_labels[index] as Label
+		var row_label := main.board_row_labels[index] as Label
+		var column_cell := main.cell_buttons[0][index] as Button
+		var row_cell := main.cell_buttons[index][0] as Button
+		aligned_ok = aligned_ok \
+			and absf(column_label.get_global_rect().get_center().x \
+				- column_cell.get_global_rect().get_center().x) < 0.5 \
+			and absf(row_label.get_global_rect().get_center().y \
+				- row_cell.get_global_rect().get_center().y) < 0.5
+		input_safe_ok = input_safe_ok \
+			and column_label.mouse_filter == Control.MOUSE_FILTER_IGNORE \
+			and row_label.mouse_filter == Control.MOUSE_FILTER_IGNORE \
+			and !column_cell.is_ancestor_of(column_label) \
+			and !row_cell.is_ancestor_of(row_label)
+
+	var first_label_id := (main.board_column_labels[0] as Label).get_instance_id()
+	var theme_readability_ok := true
+	for theme_id in ["classic", "arctic", "ember"]:
+		main._set_theme(theme_id, false)
+		await get_tree().process_frame
+		var label := main.board_column_labels[0] as Label
+		var text_color: Color = label.get_theme_color("font_color")
+		var frame_color: Color = main._theme_color("board_frame")
+		theme_readability_ok = theme_readability_ok \
+			and main.board_column_labels.size() == 8 \
+			and main.board_row_labels.size() == 8 \
+			and label.get_theme_font("font") == MainScript.UI_FONT \
+			and text_color == main._theme_color("text_muted") \
+			and text_color.get_luminance() - frame_color.get_luminance() > 0.45
+	var theme_rebuild_ok: bool = (main.board_column_labels[0] as Label).get_instance_id() \
+		!= first_label_id
+	var before_locale_id := (main.board_column_labels[0] as Label).get_instance_id()
+	main._set_locale("en", false)
+	await get_tree().process_frame
+	var locale_rebuild_ok: bool = (main.board_column_labels[0] as Label).get_instance_id() \
+		!= before_locale_id \
+		and (main.board_column_labels[0] as Label).text == "A" \
+		and (main.board_column_labels[7] as Label).text == "H"
+
+	main._set_board_size_from_choice("6")
+	await get_tree().process_frame
+	var six_size_ok: bool = main.board_column_labels.size() == 6 \
+		and main.board_row_labels.size() == 6 \
+		and (main.board_column_labels[5] as Label).text == "F" \
+		and (main.board_row_labels[5] as Label).text == "6"
+	main._set_board_size_from_choice("10")
+	await get_tree().process_frame
+	var ten_size_ok: bool = main.board_column_labels.size() == 10 \
+		and main.board_row_labels.size() == 10 \
+		and (main.board_column_labels[9] as Label).text == "J" \
+		and (main.board_row_labels[9] as Label).text == "10"
+
+	main.queue_free()
+	await get_tree().process_frame
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	return (
+		_assert(default_mapping_ok, "board coordinates map A-H and 1-8 from the top-left")
+		and _assert(aligned_ok, "board coordinates align with cell centers")
+		and _assert(input_safe_ok, "board coordinates ignore input outside cell buttons")
+		and _assert(theme_readability_ok, "board coordinates use the UI font and readable muted theme colors")
+		and _assert(theme_rebuild_ok, "board coordinates rebuild after every board theme change")
+		and _assert(locale_rebuild_ok, "board coordinates rebuild after a locale change")
+		and _assert(six_size_ok, "board coordinates adapt to the 6x6 board")
+		and _assert(ten_size_ok, "board coordinates adapt to the 10x10 board")
 	)
 
 
