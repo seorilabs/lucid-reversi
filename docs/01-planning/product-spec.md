@@ -30,6 +30,7 @@
 - Non-gameplay controls live in the top-right settings menu: 난이도, 보드 크기, 사운드, 진동, 착수 표시, 보드/돌 테마, 언어, 글자 크기, 모션 줄이기, 플레이 방법, 정보. 플레이 방법은 착수·뒤집기·패스·종료/승패를 설명하는 4단계 스크롤 시트이며, 단계 이동 때 실제 보드 셀을 강조한다. 최초 대국에서 자동 표시하고 완료·건너뛰기·닫기를 한 뒤에는 다시 자동 표시하지 않으며 설정에서 언제든 다시 열 수 있다. 정보 섹션은 앱 이름·export와 동기화된 버전·지원 이메일을 표시하고, 개인정보 처리방침 URL이 확정되어 주입된 경우에만 링크를 노출한다. Mobile settings use large segmented buttons instead of select boxes, and tapping outside the settings panel closes it.
 - In-play fun feedback should stay close to the board: a single theme-derived board surface with thin grid lines, last-move highlight, default-on legal move markers, midpoint color-swap disc flip with a placement-origin wave, placement sound, flip sound, big-flip sound, and a full-width advantage meter. Classic uses the traditional green Othello surface while Arctic and Ember derive their own surface/grid pair.
 - 보드 상단과 왼쪽에는 셀 중심에 맞춘 열 문자와 행 숫자 좌표를 표시한다. 기본 8x8은 좌상단 A1부터 우하단 H8이며 6x6/10x10 보드에서는 A-F/1-6, A-J/1-10으로 확장한다. 좌표는 셀 버튼 밖에서 입력을 무시한다.
+- 대국 중 상태 바의 기보 진입점은 누적 수와 마지막 착수 좌표를 표시한다. 기보 패널은 수순을 시간순으로 번호·흑백 돌·표준 좌표와 함께 보여 주고, 긴 대국에서는 세로 스크롤하며 결과 오버레이에서도 다시 열 수 있다. 새 게임을 시작하면 기보와 열린 패널 상태를 초기화한다.
 - 한 수 무르기는 보드 하단 컨트롤에서 플레이어 착수와 이어진 AI 응수를 되돌리며, 게임 종료 뒤에도 결과 오버레이를 닫고 대국을 재개할 수 있다.
 - 게임 종료는 기존 전체 화면 결과 오버레이에서 카드 등장과 승자 돌 1회 펄스로 강조한다. 모션 줄이기에서는 정적 최종 결과만 즉시 표시한다.
 - Avoid bottom control decks that compete with the board or make the game feel like a settings dashboard.
