@@ -101,6 +101,8 @@ func _ready() -> void:
 	ok = new_game_confirmation_ok and ok
 	var theme_ok := await _test_visual_theme_switches_are_independent()
 	ok = theme_ok and ok
+	var forest_theme_ok := await _test_forest_board_theme()
+	ok = forest_theme_ok and ok
 	var ui_ok := await _test_ui_hints_return_after_animation()
 	ok = ui_ok and ok
 	var show_moves_ok := await _test_show_moves_setting()
@@ -1929,7 +1931,7 @@ func _test_settings_menu_keeps_playfield_focused() -> bool:
 		and main.new_game_button.custom_minimum_size.y >= 56.0
 	var settings_controls_hidden_ok: bool = main.difficulty_buttons.size() == 3 \
 		and main.board_size_buttons.size() == 3 \
-		and main.board_theme_buttons.size() == 3 \
+		and main.board_theme_buttons.size() == MainScript.THEME_IDS.size() \
 		and !_choice_group_first_button_visible(main.difficulty_buttons) \
 		and !_choice_group_first_button_visible(main.board_size_buttons) \
 		and !_choice_group_first_button_visible(main.board_theme_buttons)
@@ -3056,7 +3058,7 @@ func _test_visual_theme_switches_are_independent() -> bool:
 	var selected_stone_ok: bool = str(stone_settings.get("stone_theme", "")) == "ember"
 	var stone_buttons_ok: bool = _choice_group_has_active_id(main.stone_theme_buttons, "ember")
 	var all_stone_themes_render_ok := true
-	for theme_value in ["classic", "arctic", "ember"]:
+	for theme_value in MainScript.STONE_THEME_IDS:
 		var stone_theme_id := str(theme_value)
 		main._set_stone_theme(stone_theme_id, false)
 		await get_tree().process_frame
@@ -3073,7 +3075,7 @@ func _test_visual_theme_switches_are_independent() -> bool:
 	var theme_surface_colors: Array[Color] = []
 	var all_board_themes_use_grid_ok := true
 	var all_board_themes_use_depth_ok := true
-	for theme_value in ["classic", "arctic", "ember"]:
+	for theme_value in MainScript.THEME_IDS:
 		var board_theme_id := str(theme_value)
 		main._set_theme(board_theme_id, false)
 		await get_tree().process_frame
@@ -3132,9 +3134,98 @@ func _test_visual_theme_switches_are_independent() -> bool:
 		and _assert(all_stone_themes_render_ok, "ui renders black and white discs for every stone theme")
 		and _assert(all_board_themes_use_grid_ok, "ui derives surface and grid colors for every board theme")
 		and _assert(all_board_themes_use_depth_ok, "ui derives depth and guide colors for every board theme")
-		and _assert(theme_surface_colors.size() == 3, "ui keeps board theme surfaces visually distinct")
+		and _assert(theme_surface_colors.size() == MainScript.THEME_IDS.size(), "ui keeps board theme surfaces visually distinct")
 		and _assert(locale_rebuild_ok, "ui rebuilds board depth and guide points after locale changes")
 		and _assert(last_move_ok, "ui keeps the last-move border on the grid board")
+	)
+
+
+func _test_forest_board_theme() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var suffix := str(OS.get_process_id())
+	var prefs_path := "user://prefs_forest_theme_%s.json" % suffix
+	var save_path := "user://save_forest_theme_%s.json" % suffix
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	main._prefs_path = prefs_path
+	main._save_path = save_path
+	add_child(main)
+	await get_tree().process_frame
+	var classic_surface: Color = main._theme_config("classic")["board_surface"]
+	var stone_before: Texture2D = main._texture_for_stone(ReversiEngine.BLACK)
+	main._show_settings_menu()
+	await get_tree().process_frame
+	var korean_button_ok: bool = main.board_theme_buttons.size() == 4
+	for entry_value in main.board_theme_buttons:
+		var entry: Dictionary = entry_value
+		if str(entry.get("id", "")) == "forest":
+			var button := entry.get("button") as Button
+			korean_button_ok = korean_button_ok and button != null and button.text == "숲"
+
+	main._set_theme("forest")
+	await get_tree().process_frame
+	var forest_config: Dictionary = main._theme_config("forest")
+	var required_keys := [
+		"bg", "hud", "hud_dark", "board_frame", "board_frame_border",
+		"board_dark", "board_light", "board_surface", "board_grid", "meter_bg",
+		"text_primary", "text_muted", "accent", "danger", "success",
+		"hint", "hint_border", "board_highlight", "board_shadow", "board_guide",
+	]
+	var key_set_ok: bool = true
+	for key in required_keys:
+		key_set_ok = forest_config.has(key) and key_set_ok
+	var forest_surface: Color = forest_config["board_surface"]
+	var forest_dark: Color = forest_config["board_dark"]
+	var forest_light: Color = forest_config["board_light"]
+	var green_palette_ok: bool = forest_surface != classic_surface \
+		and forest_surface.g > forest_surface.r \
+		and forest_surface.g > forest_surface.b \
+		and forest_dark.g > forest_dark.r \
+		and forest_light.g > forest_light.r
+	var rendered_style := main.cell_buttons[0][0].get_theme_stylebox("normal") as StyleBoxFlat
+	var rendered_ok: bool = rendered_style != null \
+		and rendered_style.bg_color == forest_surface \
+		and _choice_group_has_active_id(main.board_theme_buttons, "forest")
+	var independence_ok: bool = main._texture_for_stone(ReversiEngine.BLACK) == stone_before
+	var contrast_ok: bool = absf(Color(forest_config["hint"]).get_luminance() - forest_surface.get_luminance()) >= 0.35 \
+		and absf(Color(forest_config["accent"]).get_luminance() - forest_surface.get_luminance()) >= 0.35
+	var stored: Dictionary = main._load_preferences()
+	var persisted_ok: bool = str(stored.get("settings", {}).get("theme", "")) == "forest"
+
+	main._set_locale("en", false)
+	await get_tree().process_frame
+	var english_button_ok: bool = main.board_theme_buttons.size() == 4
+	for entry_value in main.board_theme_buttons:
+		var entry: Dictionary = entry_value
+		if str(entry.get("id", "")) == "forest":
+			var button := entry.get("button") as Button
+			english_button_ok = english_button_ok and button != null and button.text == "FOREST"
+	main.queue_free()
+	await get_tree().process_frame
+
+	var restored = main_scene.instantiate()
+	restored._prefs_path = prefs_path
+	restored._save_path = save_path
+	add_child(restored)
+	await get_tree().process_frame
+	var restored_ok: bool = restored._current_theme_id() == "forest" \
+		and _choice_group_has_active_id(restored.board_theme_buttons, "forest") \
+		and restored._texture_for_stone(ReversiEngine.BLACK) == stone_before
+	restored.queue_free()
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	return (
+		_assert(korean_button_ok and english_button_ok, "forest is the fourth localized board theme choice")
+		and _assert(key_set_ok, "forest theme exposes the complete board palette contract")
+		and _assert(green_palette_ok, "forest theme provides a distinct green felt palette")
+		and _assert(rendered_ok, "forest selection renders and marks the board theme active")
+		and _assert(independence_ok, "forest board theme preserves the selected stone texture")
+		and _assert(contrast_ok, "forest hint and last-move accent contrast with the felt surface")
+		and _assert(persisted_ok, "forest theme persists immediately")
+		and _assert(restored_ok, "forest theme restores without changing stone textures")
 	)
 
 
