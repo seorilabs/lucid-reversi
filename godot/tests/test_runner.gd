@@ -52,7 +52,7 @@ func _ready() -> void:
 	ok = _test_difficulty_stats_save_round_trip() and ok
 	ok = _test_undo_round_trip() and ok
 	ok = _test_search_score_alpha_beta_cutoff_branches() and ok
-	ok = _test_choose_ai_move_alpha_beta_and_tie_order() and ok
+	ok = _test_choose_ai_move_alpha_beta_and_seeded_ties() and ok
 	ok = _test_alpha_beta_matches_full_search() and ok
 	ok = _test_mobility_evaluation_boundaries() and ok
 	var i18n_ok := await _test_i18n_defaults_and_locale_switch()
@@ -448,7 +448,7 @@ func _test_codec_round_trip() -> bool:
 
 
 func _test_save_round_trip() -> bool:
-	var state := ReversiEngine.create_new_game(ReversiEngine.WHITE, "HARD")
+	var state := ReversiEngine.create_new_game(ReversiEngine.WHITE, "HARD", 8, 13579)
 	ReversiEngine.play_move(state, 2, 3)
 	state["pass_count"] = 2
 	var settings: Dictionary = state.get("settings", {})
@@ -460,12 +460,22 @@ func _test_save_round_trip() -> bool:
 	legacy_saved["difficulty"] = "HARD"
 	legacy_saved["settings"] = settings
 	var legacy_restored := ReversiEngine.state_from_save_dict(legacy_saved)
+	var seedless_legacy_saved := legacy_saved.duplicate(true)
+	seedless_legacy_saved.erase("game_seed")
+	var seedless_legacy_restored := ReversiEngine.state_from_save_dict(seedless_legacy_saved)
+	var seedless_legacy_restored_again := ReversiEngine.state_from_save_dict(seedless_legacy_saved)
 	var migrated_preferences := ReversiEngine.preferences_from_legacy_save(legacy_saved)
 	return (
 		_assert(!restored.is_empty(), "save restores")
 		and _assert(int(restored["player_stone"]) == ReversiEngine.WHITE, "save player stone")
 		and _assert(restored["move_history"].size() == 1, "save move history")
 		and _assert(int(restored["pass_count"]) == 2, "save pass count")
+		and _assert(int(restored["game_seed"]) == 13579, "save game seed")
+		and _assert(
+			int(seedless_legacy_restored.get("game_seed", -1))
+				== int(seedless_legacy_restored_again.get("game_seed", -2)),
+			"legacy save derives a reproducible game seed",
+		)
 		and _assert(!saved.has("difficulty") and !saved.has("settings"), "game save excludes preferences")
 		and _assert(str(legacy_restored["difficulty"]) == "HARD", "legacy save restores difficulty")
 		and _assert(!bool(legacy_restored.get("settings", {}).get("haptic", true)), "legacy save restores settings")
@@ -591,7 +601,7 @@ func _test_difficulty_stats_save_round_trip() -> bool:
 
 
 func _test_undo_round_trip() -> bool:
-	var state := ReversiEngine.create_new_game(ReversiEngine.BLACK, "MEDIUM")
+	var state := ReversiEngine.create_new_game(ReversiEngine.BLACK, "MEDIUM", 8, 24680)
 	var before_payload := ReversiEngine.encode_board_payload(
 		state["board"],
 		int(state["current_turn"]),
@@ -627,6 +637,8 @@ func _test_undo_round_trip() -> bool:
 		and _assert(_moves_equal(state["valid_moves"], before_valid_moves), "undo restores valid moves")
 		and _assert(int(state["pass_count"]) == 0, "undo restores pass count")
 		and _assert(state["move_history"].is_empty(), "undo trims move history")
+		and _assert(int(state.get("game_seed", -1)) == 24680, "undo preserves game seed")
+		and _assert(int(restored.get("game_seed", -1)) == 24680, "undo seed survives save round trip")
 		and _assert(restored_payload == before_payload, "undo state survives save round trip")
 		and _assert(!bool(empty_undo.get("ok", true)), "undo rejects empty history")
 	)
@@ -653,16 +665,23 @@ func _test_alpha_beta_matches_full_search() -> bool:
 			var move: Dictionary = valid_moves[0]
 			ReversiEngine.play_move(state, int(move["x"]), int(move["y"]))
 
-		var alpha_beta_move := ReversiEngine.choose_ai_move(state)
+		var search_stats := {
+			"nodes": 0,
+			"max_cutoffs": 0,
+			"min_cutoffs": 0,
+		}
+		var alpha_beta_move := ReversiEngine.choose_ai_move(state, search_stats)
 		var full_search_move := _choose_ai_move_full_search(state)
+		var selected_score := _score_move_full_search(state, alpha_beta_move)
+		var full_search_score := _score_move_full_search(state, full_search_move)
 		var fixture_matches := (
 			!alpha_beta_move.is_empty()
-			and int(alpha_beta_move["x"]) == int(full_search_move["x"])
-			and int(alpha_beta_move["y"]) == int(full_search_move["y"])
+			and selected_score == full_search_score
+			and int(search_stats.get("best_score", ReversiEngine.SEARCH_MIN)) == full_search_score
 		)
 		all_match = _assert(
 			fixture_matches,
-			"alpha-beta best move matches full search for %s" % fixture["difficulty"],
+			"alpha-beta keeps the full-search best score for %s" % fixture["difficulty"],
 		) and all_match
 	return all_match
 
@@ -713,10 +732,12 @@ func _test_search_score_alpha_beta_cutoff_branches() -> bool:
 	)
 
 
-func _test_choose_ai_move_alpha_beta_and_tie_order() -> bool:
+func _test_choose_ai_move_alpha_beta_and_seeded_ties() -> bool:
 	var hard_state := ReversiEngine.create_new_game(
 		ReversiEngine.BLACK,
 		"HARD",
+		8,
+		11,
 	)
 	var search_stats := {
 		"nodes": 0,
@@ -724,12 +745,56 @@ func _test_choose_ai_move_alpha_beta_and_tie_order() -> bool:
 		"min_cutoffs": 0,
 	}
 	var hard_move := ReversiEngine.choose_ai_move(hard_state, search_stats)
-	var easy_state := ReversiEngine.create_new_game(
+	var fixed_seeds := [11, 29, 47, 71, 97, 131]
+	var medium_choices := {}
+	var hard_choices := {}
+	for game_seed in fixed_seeds:
+		var medium_state := ReversiEngine.create_new_game(
+			ReversiEngine.BLACK,
+			"MEDIUM",
+			8,
+			int(game_seed),
+		)
+		var medium_move := ReversiEngine.choose_ai_move(medium_state)
+		medium_choices["%d,%d" % [medium_move["x"], medium_move["y"]]] = true
+
+		var seeded_hard_state := ReversiEngine.create_new_game(
+			ReversiEngine.BLACK,
+			"HARD",
+			8,
+			int(game_seed),
+		)
+		var seeded_hard_move := ReversiEngine.choose_ai_move(seeded_hard_state)
+		hard_choices["%d,%d" % [seeded_hard_move["x"], seeded_hard_move["y"]]] = true
+
+	var reproducible_state := ReversiEngine.create_new_game(
+		ReversiEngine.BLACK,
+		"MEDIUM",
+		8,
+		424242,
+	)
+	var reproducible_move := ReversiEngine.choose_ai_move(reproducible_state)
+	var restored_state := ReversiEngine.state_from_save_dict(
+		ReversiEngine.state_to_save_dict(reproducible_state)
+	)
+	var restored_move := ReversiEngine.choose_ai_move(restored_state)
+
+	var easy_choices := {}
+	for game_seed in fixed_seeds:
+		var easy_state := ReversiEngine.create_new_game(
+			ReversiEngine.BLACK,
+			"EASY",
+			8,
+			int(game_seed),
+		)
+		var easy_move := ReversiEngine.choose_ai_move(easy_state)
+		easy_choices["%d,%d" % [easy_move["x"], easy_move["y"]]] = true
+	var first_sorted_move: Dictionary = ReversiEngine.create_new_game(
 		ReversiEngine.BLACK,
 		"EASY",
-	)
-	var easy_move := ReversiEngine.choose_ai_move(easy_state)
-	var first_sorted_move: Dictionary = easy_state["valid_moves"][0]
+		8,
+		11,
+	)["valid_moves"][0]
 	return (
 		_assert(
 			!hard_move.is_empty()
@@ -738,9 +803,23 @@ func _test_choose_ai_move_alpha_beta_and_tie_order() -> bool:
 			"choose_ai_move executes alpha-beta search with a cutoff",
 		)
 		and _assert(
-			int(easy_move["x"]) == int(first_sorted_move["x"])
-				and int(easy_move["y"]) == int(first_sorted_move["y"]),
-			"choose_ai_move keeps the first sort_moves entry on a symmetric tie",
+			int(search_stats.get("tie_count", 0)) > 1,
+			"hard search retains every tied best move",
+		)
+		and _assert(
+			medium_choices.size() > 1 and hard_choices.size() > 1,
+			"fixed game seeds vary tied MEDIUM and HARD opening choices",
+		)
+		and _assert(
+			int(reproducible_move["x"]) == int(restored_move["x"])
+				and int(reproducible_move["y"]) == int(restored_move["y"])
+				and int(restored_state.get("game_seed", -1)) == 424242,
+			"saved game seed reproduces the same tied choice",
+		)
+		and _assert(
+			easy_choices.size() == 1
+				and easy_choices.has("%d,%d" % [first_sorted_move["x"], first_sorted_move["y"]]),
+			"EASY keeps the first sorted move for every game seed",
 		)
 	)
 
@@ -765,6 +844,22 @@ func _choose_ai_move_full_search(state: Dictionary) -> Dictionary:
 			best_score = score
 			best_move = move
 	return best_move
+
+
+func _score_move_full_search(state: Dictionary, move: Dictionary) -> int:
+	if move.is_empty():
+		return ReversiEngine.SEARCH_MIN
+	var stone := int(state["current_turn"])
+	var depth := int(ReversiEngine.DIFFICULTY_DEPTH.get(str(state["difficulty"]), 3))
+	var board_after := ReversiEngine.clone_board(state["board"])
+	ReversiEngine._apply_move(
+		board_after,
+		stone,
+		int(move["x"]),
+		int(move["y"]),
+	)
+	var next_turn := _full_search_next_turn(board_after, stone)
+	return _full_search_score(board_after, next_turn, stone, depth - 1)
 
 
 func _full_search_score(board: Array, turn: int, root_stone: int, depth: int) -> int:
