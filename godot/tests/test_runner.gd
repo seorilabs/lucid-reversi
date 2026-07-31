@@ -1374,12 +1374,16 @@ func _test_undo_button_states() -> bool:
 	var pending_disabled_ok: bool = main.undo_button.disabled
 	main.ai_move_pending = false
 	main.state["game_over"] = true
-	var game_over_disabled_ok: bool = !main._can_undo()
-	main.state["game_over"] = false
+	main.state["current_turn"] = ReversiEngine.NONE
 	main._render()
+	var game_over_available_ok: bool = main._can_undo() and !main.undo_button.disabled \
+		and main.result_overlay.visible
 
 	main._on_undo_pressed(false)
 	var undo_board_ok: bool = main.state["board"] == initial_board
+	var game_resumed_ok: bool = !bool(main.state.get("game_over", true)) \
+		and int(main.state.get("current_turn", ReversiEngine.NONE)) == main.player_stone \
+		and !main.result_overlay.visible
 	var disabled_after_undo_ok: bool = main.undo_button.disabled
 	main.queue_free()
 	return (
@@ -1392,8 +1396,9 @@ func _test_undo_button_states() -> bool:
 		and _assert(available_after_round_ok, "ui enables undo after player and ai round")
 		and _assert(locked_disabled_ok, "ui disables undo while input is locked")
 		and _assert(pending_disabled_ok, "ui disables undo while ai move is pending")
-		and _assert(game_over_disabled_ok, "ui disables undo after game over")
+		and _assert(game_over_available_ok, "ui enables undo from the game-over board")
 		and _assert(undo_board_ok, "ui undo restores the previous board")
+		and _assert(game_resumed_ok, "ui undo closes the result overlay and resumes play")
 		and _assert(disabled_after_undo_ok, "ui disables undo after history is exhausted")
 	)
 

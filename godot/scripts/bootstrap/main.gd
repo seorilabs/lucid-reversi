@@ -1274,9 +1274,10 @@ func _on_undo_pressed(persist: bool = true) -> void:
 func _can_undo() -> bool:
 	if state.is_empty() or input_locked or ai_move_pending:
 		return false
-	if bool(state.get("game_over", false)):
-		return false
-	if int(state.get("current_turn", ReversiEngine.NONE)) != player_stone:
+	if (
+		!bool(state.get("game_over", false))
+		and int(state.get("current_turn", ReversiEngine.NONE)) != player_stone
+	):
 		return false
 	return ReversiEngine.can_undo_last_round(state)
 
