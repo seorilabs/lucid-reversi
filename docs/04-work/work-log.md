@@ -2,6 +2,7 @@
 
 ## 2026-07-31
 
+- Expanded the first-run How to Play sheet into a four-step sequence with localized previous/next/skip/done actions, step-specific board-cell highlights, and completion-only preference persistence.
 - Extended seeded best-score tie selection to EASY so separate games vary symmetric openings while save/restore reproduces the same move and every difficulty keeps an optimal-scored choice.
 - Added muted A-H/1-8 board coordinates outside cell touch targets, aligned to each cell and adapted to 6x6/10x10 boards and all visual themes.
 - Added a localized, vertically scrollable How to Play sheet covering placement, flipping, pass, and winner rules; it opens once on the first game and remains available from settings without changing game state.

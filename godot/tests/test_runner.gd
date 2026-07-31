@@ -1987,8 +1987,12 @@ func _test_how_to_play_sheet() -> bool:
 	var suffix := str(OS.get_process_id())
 	var prefs_path := "user://prefs_how_to_play_%s.json" % suffix
 	var save_path := "user://save_how_to_play_%s.json" % suffix
+	var skip_prefs_path := "user://prefs_how_to_play_skip_%s.json" % suffix
+	var skip_save_path := "user://save_how_to_play_skip_%s.json" % suffix
 	_rm_user(prefs_path)
 	_rm_user(save_path)
+	_rm_user(skip_prefs_path)
+	_rm_user(skip_save_path)
 
 	var first = main_scene.instantiate()
 	first._prefs_path = prefs_path
@@ -2001,8 +2005,9 @@ func _test_how_to_play_sheet() -> bool:
 	var stored_after_first_show: Dictionary = first._load_preferences()
 	var first_show_once_ok: bool = first.how_to_play_overlay != null \
 		and first.how_to_play_overlay.visible \
-		and bool(first.preferences.get("how_to_play_seen", false)) \
-		and bool(stored_after_first_show.get("how_to_play_seen", false))
+		and first.how_to_play_is_first_run \
+		and !bool(first.preferences.get("how_to_play_seen", false)) \
+		and !bool(stored_after_first_show.get("how_to_play_seen", false))
 	var settings_only_entry_ok: bool = first.how_to_play_entry_button != null \
 		and first.settings_panel.is_ancestor_of(first.how_to_play_entry_button) \
 		and !first.gameplay_strip.is_ancestor_of(first.how_to_play_entry_button)
@@ -2024,6 +2029,11 @@ func _test_how_to_play_sheet() -> bool:
 			"how_to_play_pass_body",
 			"how_to_play_finish_title",
 			"how_to_play_finish_body",
+			"how_to_play_previous",
+			"how_to_play_next",
+			"how_to_play_done",
+			"how_to_play_skip",
+			"how_to_play_progress",
 		]:
 			i18n_ok = i18n_ok and locale_texts.has(key) and !str(locale_texts[key]).is_empty()
 	var scroll_ok: bool = first.how_to_play_scroll != null \
@@ -2032,15 +2042,45 @@ func _test_how_to_play_sheet() -> bool:
 		and first.how_to_play_scroll.is_ancestor_of(first.how_to_play_content) \
 		and first.how_to_play_content.custom_minimum_size.y \
 			> first.how_to_play_scroll.custom_minimum_size.y
-
-	first.how_to_play_close_button.pressed.emit()
+	var step_controls_ok: bool = first.how_to_play_step_cards.size() == 4 \
+		and first.how_to_play_step_index == 0 \
+		and first.how_to_play_previous_button.disabled \
+		and first.how_to_play_skip_button.visible \
+		and first.how_to_play_progress_label.text == "1 / 4"
+	var step_highlights_ok := true
+	for step_index in range(4):
+		step_highlights_ok = step_highlights_ok \
+			and first.how_to_play_step_index == step_index \
+			and _visible_tutorial_highlight_count(first) > 0 \
+			and first.how_to_play_step_cards[step_index].modulate.a > 0.9
+		if step_index < 3:
+			first.how_to_play_next_button.pressed.emit()
+			await get_tree().process_frame
+	var final_step_ok: bool = first.how_to_play_next_button.text \
+		== str(MainScript.TEXT["ko"]["how_to_play_done"]) \
+		and !first.how_to_play_previous_button.disabled
+	first.how_to_play_next_button.pressed.emit()
 	await get_tree().process_frame
-	var close_button_ok: bool = !first.how_to_play_overlay.visible
+	var stored_after_completion: Dictionary = first._load_preferences()
+	var completion_persists_ok: bool = !first.how_to_play_overlay.visible \
+		and bool(first.preferences.get("how_to_play_seen", false)) \
+		and bool(stored_after_completion.get("how_to_play_seen", false)) \
+		and _visible_tutorial_highlight_count(first) == 0
+
 	first._show_settings_menu()
 	first.how_to_play_entry_button.pressed.emit()
 	await get_tree().process_frame
 	var settings_reopen_ok: bool = first.how_to_play_overlay.visible \
-		and !first.settings_overlay.visible
+		and !first.settings_overlay.visible \
+		and !first.how_to_play_skip_button.visible \
+		and first.how_to_play_step_index == 0
+	first.how_to_play_close_button.pressed.emit()
+	await get_tree().process_frame
+	var close_button_ok: bool = !first.how_to_play_overlay.visible \
+		and _visible_tutorial_highlight_count(first) == 0
+	first._show_settings_menu()
+	first.how_to_play_entry_button.pressed.emit()
+	await get_tree().process_frame
 	var panel_rect: Rect2 = first.how_to_play_panel.get_global_rect()
 	first._on_how_to_play_overlay_gui_input(_make_left_click(panel_rect.get_center()))
 	await get_tree().process_frame
@@ -2071,14 +2111,46 @@ func _test_how_to_play_sheet() -> bool:
 		and !restored.settings_overlay.visible
 	restored.queue_free()
 	await get_tree().process_frame
+
+	var skipped = main_scene.instantiate()
+	skipped._prefs_path = skip_prefs_path
+	skipped._save_path = skip_save_path
+	add_child(skipped)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var skip_control_ok: bool = skipped.how_to_play_overlay.visible \
+		and skipped.how_to_play_skip_button.visible
+	skipped.how_to_play_skip_button.pressed.emit()
+	await get_tree().process_frame
+	var skip_stored: Dictionary = skipped._load_preferences()
+	var skip_persists_ok: bool = !skipped.how_to_play_overlay.visible \
+		and bool(skip_stored.get("how_to_play_seen", false))
+	skipped.queue_free()
+	await get_tree().process_frame
+
+	var skipped_restored = main_scene.instantiate()
+	skipped_restored._prefs_path = skip_prefs_path
+	skipped_restored._save_path = skip_save_path
+	add_child(skipped_restored)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var skip_no_repeat_ok: bool = !skipped_restored.how_to_play_overlay.visible
+	skipped_restored.queue_free()
+	await get_tree().process_frame
 	_rm_user(prefs_path)
 	_rm_user(save_path)
+	_rm_user(skip_prefs_path)
+	_rm_user(skip_save_path)
 	return (
-		_assert(first_show_once_ok, "how-to opens once on the first game and persists the flag")
+		_assert(first_show_once_ok, "how-to opens once without completing first-run state early")
 		and _assert(settings_only_entry_ok, "how-to entry stays inside settings instead of the main HUD")
 		and _assert(rule_content_ok, "how-to contains placement flip pass and winner steps")
 		and _assert(i18n_ok, "how-to provides complete Korean and English copy")
 		and _assert(scroll_ok, "how-to content scrolls vertically on constrained screens")
+		and _assert(step_controls_ok, "how-to starts a four-step sequence with skip and navigation")
+		and _assert(step_highlights_ok, "how-to highlights board cells for every rule step")
+		and _assert(final_step_ok, "how-to final step exposes the localized completion action")
+		and _assert(completion_persists_ok, "how-to completion saves the first-run flag and clears highlights")
 		and _assert(close_button_ok, "how-to close button hides the sheet")
 		and _assert(settings_reopen_ok, "how-to reopens from settings")
 		and _assert(inside_tap_ok, "how-to panel tap keeps the sheet open")
@@ -2086,6 +2158,9 @@ func _test_how_to_play_sheet() -> bool:
 		and _assert(state_unchanged_ok, "how-to interactions preserve the current game state")
 		and _assert(no_repeat_ok, "how-to does not auto-open after the first game")
 		and _assert(later_reopen_ok, "how-to remains available from settings after first launch")
+		and _assert(skip_control_ok, "how-to exposes skip during first-run onboarding")
+		and _assert(skip_persists_ok, "how-to skip saves completion immediately")
+		and _assert(skip_no_repeat_ok, "skipped how-to does not auto-open after restart")
 	)
 
 
@@ -2802,6 +2877,15 @@ func _test_analytics_adapter_headless_noop() -> bool:
 	var ok := _assert(probe.sent.is_empty(), "analytics adapter is no-op in headless")
 	probe.free()
 	return ok
+
+
+func _visible_tutorial_highlight_count(main: Node) -> int:
+	var count := 0
+	for row in main.cell_tutorial_views:
+		for highlight in row:
+			if (highlight as PanelContainer).visible:
+				count += 1
+	return count
 
 
 func _assert(condition: bool, label: String) -> bool:

@@ -87,6 +87,11 @@ const TEXT := {
 		"how_to_play_pass_body": "둘 수 있는 합법수가 없으면 자동으로 패스하고 상대가 계속 둡니다.",
 		"how_to_play_finish_title": "4. 종료와 승패",
 		"how_to_play_finish_body": "보드가 가득 차거나 양쪽 모두 둘 곳이 없으면 끝납니다. 내 색 돌이 더 많으면 승리합니다.",
+		"how_to_play_previous": "이전",
+		"how_to_play_next": "다음",
+		"how_to_play_done": "완료",
+		"how_to_play_skip": "건너뛰기",
+		"how_to_play_progress": "%d / %d",
 		"about_title": "정보",
 		"about_app_version": "%s · 버전 %s",
 		"support_email": "지원 이메일 · %s",
@@ -159,6 +164,11 @@ const TEXT := {
 		"how_to_play_pass_body": "If you have no legal move, your turn passes automatically and your opponent continues.",
 		"how_to_play_finish_title": "4. END AND WINNER",
 		"how_to_play_finish_body": "The game ends when the board is full or neither player can move. The player with more discs wins.",
+		"how_to_play_previous": "BACK",
+		"how_to_play_next": "NEXT",
+		"how_to_play_done": "DONE",
+		"how_to_play_skip": "SKIP",
+		"how_to_play_progress": "%d / %d",
 		"about_title": "ABOUT",
 		"about_app_version": "%s · VERSION %s",
 		"support_email": "SUPPORT · %s",
@@ -231,6 +241,11 @@ const TEXT := {
 		"how_to_play_pass_body": "置ける場所がない場合は自動でパスし、相手の手番になります。",
 		"how_to_play_finish_title": "4. 終了と勝敗",
 		"how_to_play_finish_body": "盤面が埋まるか両者とも置けなくなると終了し、石が多い方の勝ちです。",
+		"how_to_play_previous": "戻る",
+		"how_to_play_next": "次へ",
+		"how_to_play_done": "完了",
+		"how_to_play_skip": "スキップ",
+		"how_to_play_progress": "%d / %d",
 		"about_title": "情報",
 		"about_app_version": "%s · バージョン %s",
 		"support_email": "サポート · %s",
@@ -297,6 +312,7 @@ var _winner_emphasis_animation_count := 0
 var cell_buttons: Array = []
 var cell_piece_views: Array = []
 var cell_hint_views: Array = []
+var cell_tutorial_views: Array = []
 var board_column_labels: Array = []
 var board_row_labels: Array = []
 var player_score_label: Label
@@ -317,6 +333,13 @@ var how_to_play_panel: PanelContainer
 var how_to_play_scroll: ScrollContainer
 var how_to_play_content: VBoxContainer
 var how_to_play_close_button: Button
+var how_to_play_step_cards: Array = []
+var how_to_play_progress_label: Label
+var how_to_play_previous_button: Button
+var how_to_play_next_button: Button
+var how_to_play_skip_button: Button
+var how_to_play_step_index := 0
+var how_to_play_is_first_run := false
 var sound_toggle: CheckButton
 var haptic_toggle: CheckButton
 var gameplay_strip: PanelContainer
@@ -659,10 +682,12 @@ func _build_board(root: VBoxContainer) -> void:
 	cell_buttons.clear()
 	cell_piece_views.clear()
 	cell_hint_views.clear()
+	cell_tutorial_views.clear()
 	for x in range(board_size):
 		var button_row: Array = []
 		var piece_row: Array = []
 		var hint_row: Array = []
+		var tutorial_row: Array = []
 		for y in range(board_size):
 			var cell_x := x
 			var cell_y := y
@@ -695,13 +720,30 @@ func _build_board(root: VBoxContainer) -> void:
 			hint.add_theme_stylebox_override("panel", _make_style(_theme_color("hint"), 1, _theme_color("hint_border"), 14))
 			button.add_child(hint)
 
+			var tutorial_highlight := PanelContainer.new()
+			tutorial_highlight.name = "TutorialHighlight%d_%d" % [x, y]
+			tutorial_highlight.visible = false
+			tutorial_highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			tutorial_highlight.set_anchors_preset(Control.PRESET_FULL_RECT)
+			tutorial_highlight.offset_left = 3
+			tutorial_highlight.offset_top = 3
+			tutorial_highlight.offset_right = -3
+			tutorial_highlight.offset_bottom = -3
+			tutorial_highlight.add_theme_stylebox_override(
+				"panel",
+				_make_style(Color.TRANSPARENT, 4, _theme_color("accent"), 8),
+			)
+			button.add_child(tutorial_highlight)
+
 			board.add_child(button)
 			button_row.append(button)
 			piece_row.append(piece)
 			hint_row.append(hint)
+			tutorial_row.append(tutorial_highlight)
 		cell_buttons.append(button_row)
 		cell_piece_views.append(piece_row)
 		cell_hint_views.append(hint_row)
+		cell_tutorial_views.append(tutorial_row)
 
 
 func _make_board_coordinate_label(text: String, minimum_size: Vector2) -> Label:
@@ -1038,30 +1080,36 @@ func _build_how_to_play_overlay() -> void:
 	how_to_play_overlay = ColorRect.new()
 	how_to_play_overlay.name = "HowToPlayOverlay"
 	how_to_play_overlay.visible = false
-	how_to_play_overlay.color = Color(0.005, 0.008, 0.014, 0.78)
+	how_to_play_overlay.color = Color(0.005, 0.008, 0.014, 0.58)
 	how_to_play_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	how_to_play_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	how_to_play_overlay.gui_input.connect(_on_how_to_play_overlay_gui_input)
 	add_child(how_to_play_overlay)
 
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center.offset_left = 18
-	center.offset_top = 28
-	center.offset_right = -18
-	center.offset_bottom = -28
-	how_to_play_overlay.add_child(center)
+	var sheet_stack := VBoxContainer.new()
+	sheet_stack.set_anchors_preset(Control.PRESET_FULL_RECT)
+	sheet_stack.offset_left = 18
+	sheet_stack.offset_top = 28
+	sheet_stack.offset_right = -18
+	sheet_stack.offset_bottom = -28
+	how_to_play_overlay.add_child(sheet_stack)
+
+	var spacer := Control.new()
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sheet_stack.add_child(spacer)
 
 	how_to_play_panel = PanelContainer.new()
 	how_to_play_panel.name = "HowToPlayPanel"
-	how_to_play_panel.custom_minimum_size = Vector2(560, 720)
+	how_to_play_panel.custom_minimum_size = Vector2(560, 430)
+	how_to_play_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	how_to_play_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	how_to_play_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	how_to_play_panel.add_theme_stylebox_override(
 		"panel",
 		_make_style(_theme_color("hud_dark"), 2, Color(1, 1, 1, 0.14), 12),
 	)
-	center.add_child(how_to_play_panel)
+	sheet_stack.add_child(how_to_play_panel)
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 20)
@@ -1097,7 +1145,7 @@ func _build_how_to_play_overlay() -> void:
 
 	how_to_play_scroll = ScrollContainer.new()
 	how_to_play_scroll.name = "HowToPlayScroll"
-	how_to_play_scroll.custom_minimum_size = Vector2(0, 620)
+	how_to_play_scroll.custom_minimum_size = Vector2(0, 220)
 	how_to_play_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	how_to_play_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	how_to_play_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -1111,9 +1159,52 @@ func _build_how_to_play_overlay() -> void:
 	how_to_play_content.add_theme_constant_override("separation", 12)
 	how_to_play_scroll.add_child(how_to_play_content)
 
+	how_to_play_step_cards.clear()
 	var rule_keys := ["place", "flip", "pass", "finish"]
 	for rule_key in rule_keys:
-		how_to_play_content.add_child(_make_how_to_play_step(str(rule_key)))
+		var step_card := _make_how_to_play_step(str(rule_key))
+		how_to_play_content.add_child(step_card)
+		how_to_play_step_cards.append(step_card)
+
+	var footer := HBoxContainer.new()
+	footer.name = "HowToPlayFooter"
+	footer.alignment = BoxContainer.ALIGNMENT_CENTER
+	footer.add_theme_constant_override("separation", 8)
+	layout.add_child(footer)
+
+	how_to_play_skip_button = _make_action_button(
+		_t("how_to_play_skip"),
+		func() -> void: _finish_how_to_play(),
+	)
+	how_to_play_skip_button.name = "HowToPlaySkipButton"
+	how_to_play_skip_button.custom_minimum_size = Vector2(116, ACTION_BUTTON_HEIGHT)
+	footer.add_child(how_to_play_skip_button)
+
+	how_to_play_previous_button = _make_action_button(
+		_t("how_to_play_previous"),
+		func() -> void: _move_how_to_play_step(-1),
+	)
+	how_to_play_previous_button.name = "HowToPlayPreviousButton"
+	how_to_play_previous_button.custom_minimum_size = Vector2(116, ACTION_BUTTON_HEIGHT)
+	footer.add_child(how_to_play_previous_button)
+
+	how_to_play_progress_label = Label.new()
+	how_to_play_progress_label.name = "HowToPlayProgress"
+	how_to_play_progress_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	how_to_play_progress_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	how_to_play_progress_label.add_theme_font_size_override("font_size", _font_size(18))
+	how_to_play_progress_label.add_theme_color_override("font_color", _theme_color("text_muted"))
+	_apply_text_visibility(how_to_play_progress_label, 1, _theme_color("text_muted"))
+	footer.add_child(how_to_play_progress_label)
+
+	how_to_play_next_button = _make_action_button(
+		_t("how_to_play_next"),
+		func() -> void: _move_how_to_play_step(1),
+		true,
+	)
+	how_to_play_next_button.name = "HowToPlayNextButton"
+	how_to_play_next_button.custom_minimum_size = Vector2(116, ACTION_BUTTON_HEIGHT)
+	footer.add_child(how_to_play_next_button)
 
 
 func _make_how_to_play_step(rule_key: String) -> PanelContainer:
@@ -1379,22 +1470,133 @@ func _hide_settings_menu() -> void:
 
 func _show_first_game_how_to_play() -> void:
 	if !bool(preferences.get("how_to_play_seen", false)):
-		_show_how_to_play()
+		_show_how_to_play(true)
 
 
-func _show_how_to_play() -> void:
+func _show_how_to_play(is_first_run: bool = false) -> void:
 	_hide_settings_menu()
 	if how_to_play_overlay == null:
 		return
+	how_to_play_is_first_run = is_first_run
+	how_to_play_step_index = 0
 	how_to_play_overlay.visible = true
+	if how_to_play_skip_button != null:
+		how_to_play_skip_button.visible = is_first_run
+	_apply_how_to_play_step()
+
+
+func _move_how_to_play_step(direction: int) -> void:
+	if direction > 0 and how_to_play_step_index >= how_to_play_step_cards.size() - 1:
+		_finish_how_to_play()
+		return
+	how_to_play_step_index = clampi(
+		how_to_play_step_index + direction,
+		0,
+		maxi(0, how_to_play_step_cards.size() - 1),
+	)
+	_apply_how_to_play_step()
+
+
+func _apply_how_to_play_step() -> void:
+	if how_to_play_step_cards.is_empty():
+		return
+	how_to_play_step_index = clampi(
+		how_to_play_step_index,
+		0,
+		how_to_play_step_cards.size() - 1,
+	)
+	for index in range(how_to_play_step_cards.size()):
+		var card: PanelContainer = how_to_play_step_cards[index]
+		card.modulate = Color.WHITE if index == how_to_play_step_index else Color(1, 1, 1, 0.42)
+	if how_to_play_progress_label != null:
+		how_to_play_progress_label.text = _t("how_to_play_progress") % [
+			how_to_play_step_index + 1,
+			how_to_play_step_cards.size(),
+		]
+	if how_to_play_previous_button != null:
+		how_to_play_previous_button.disabled = how_to_play_step_index == 0
+	if how_to_play_next_button != null:
+		how_to_play_next_button.text = (
+			_t("how_to_play_done")
+			if how_to_play_step_index == how_to_play_step_cards.size() - 1
+			else _t("how_to_play_next")
+		)
+	_clear_how_to_play_highlights()
+	for cell in _how_to_play_highlight_cells(how_to_play_step_index):
+		var x := int(cell.get("x", -1))
+		var y := int(cell.get("y", -1))
+		if x < 0 or x >= cell_tutorial_views.size():
+			continue
+		if y < 0 or y >= cell_tutorial_views[x].size():
+			continue
+		var highlight: PanelContainer = cell_tutorial_views[x][y]
+		highlight.visible = true
+		_pulse_cell(x, y, Color(1.0, 0.93, 0.58, 1.0))
+	call_deferred("_scroll_how_to_play_step_into_view", how_to_play_step_index)
+
+
+func _how_to_play_highlight_cells(step_index: int) -> Array:
+	var board: Array = state.get("board", [])
+	var board_size := ReversiEngine.get_board_size(board)
+	if board_size <= 0:
+		return []
+	var cells: Array = []
+	match step_index:
+		0:
+			for move in state.get("valid_moves", []):
+				cells.append({"x": int(move.get("x", -1)), "y": int(move.get("y", -1))})
+		1:
+			var center_low := board_size / 2 - 1
+			var center_high := board_size / 2
+			cells = [
+				{"x": center_low, "y": center_low},
+				{"x": center_low, "y": center_high},
+				{"x": center_high, "y": center_low},
+				{"x": center_high, "y": center_high},
+			]
+		2:
+			var edge_mid := board_size / 2
+			cells = [
+				{"x": 0, "y": edge_mid},
+				{"x": board_size - 1, "y": edge_mid - 1},
+				{"x": edge_mid, "y": 0},
+				{"x": edge_mid - 1, "y": board_size - 1},
+			]
+		_:
+			for x in range(board_size):
+				for y in range(board_size):
+					if int(board[x][y]) != ReversiEngine.NONE:
+						cells.append({"x": x, "y": y})
+	if cells.is_empty():
+		cells.append({"x": board_size / 2 - 1, "y": board_size / 2 - 1})
+	return cells
+
+
+func _scroll_how_to_play_step_into_view(expected_index: int) -> void:
+	if how_to_play_scroll == null or expected_index != how_to_play_step_index:
+		return
+	var card: PanelContainer = how_to_play_step_cards[expected_index]
+	how_to_play_scroll.scroll_vertical = roundi(card.position.y)
+
+
+func _clear_how_to_play_highlights() -> void:
+	for row in cell_tutorial_views:
+		for highlight in row:
+			(highlight as PanelContainer).visible = false
+
+
+func _finish_how_to_play() -> void:
 	if !bool(preferences.get("how_to_play_seen", false)):
 		preferences["how_to_play_seen"] = true
 		_save_preferences()
+	if how_to_play_overlay != null:
+		how_to_play_overlay.visible = false
+	how_to_play_is_first_run = false
+	_clear_how_to_play_highlights()
 
 
 func _hide_how_to_play() -> void:
-	if how_to_play_overlay != null:
-		how_to_play_overlay.visible = false
+	_finish_how_to_play()
 
 
 func _on_how_to_play_overlay_gui_input(event: InputEvent) -> void:
