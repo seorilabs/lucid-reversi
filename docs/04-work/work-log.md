@@ -2,6 +2,7 @@
 
 ## 2026-07-31
 
+- Added a default-on, persisted legal-move marker toggle inside settings, keeping invalid-move feedback and the playfield HUD unchanged.
 - Added a once-per-game result-card entrance and winning-stone pulse inside the existing overlay, with static win/draw/loss rendering when reduced motion is enabled.
 - Added per-game seeded tie-breaking for MEDIUM/HARD AI, preserving EASY and best-score behavior while making save/restore and Undo reproduce the same choice.
 - Added 6x6/8x8/10x10 board-size preferences, size-derived rules/evaluation/UI layout, a tagged variable-length board codec with legacy 18-byte restore compatibility, and automatic new-game rebuilds when the size changes.
