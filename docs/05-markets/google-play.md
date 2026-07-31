@@ -33,7 +33,7 @@
 ## Current Implementation
 
 - Godot project name: `루시드 리버시`
-- Playable MVP: 싱글플레이, 난이도, 합법 수 표시, 패스, 게임오버, 로컬 저장
+- Playable MVP: AI 대전, 로컬 2인 패스 앤 플레이, 난이도, 합법 수 표시, 패스, 게임오버, 로컬 저장
 - Android device smoke: `npm run build:android:smoke` creates `build/android/lucid-reversi-device-smoke.apk` by packaging the Godot export pack into the local Android debug template.
 - **릴리스 AAB 빌드 인프라 구성 완료**:
   - `godot/export_presets.cfg`에 Android preset(`Android`) 커밋 — `package/unique_name=com.etlegame.reversi`, gradle AAB(`gradle_build/use_gradle_build=true`, `export_format=0`), arm64-v8a, keystore는 env 주입용으로 비움.

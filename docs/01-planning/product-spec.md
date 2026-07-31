@@ -6,7 +6,7 @@
 - English app name: Lucid Reversi
 - App ID: `lucid-reversi`
 - One-line pitch: 짧은 세션에 AI와 바로 둘 수 있는 모바일 리버시.
-- Genre: Board game / Reversi / Single-player strategy
+- Genre: Board game / Reversi / Single-player and local pass-and-play strategy
 - Target audience: 클래식 보드게임을 짧게 즐기는 모바일 사용자
 - Primary launch target: AppsInToss first
 - Default locale: Korean (`ko`). English (`en`) and Japanese (`ja`) are supported in-app as secondary locales.
@@ -16,7 +16,7 @@
 
 ## 핵심 루프
 
-- Primary loop: 색상과 난이도를 고르고 AI와 한 판을 둔다.
+- Primary loop: AI 대전에서는 색상과 난이도를 고르고, 로컬 2인에서는 한 기기에서 흑·백을 번갈아 둔다.
 - Session length: 3-5분
 - Progression: EASY, MEDIUM, HARD 난이도를 바꿔 반복 대국하고 난이도별 로컬 승/무/패 전적을 누적한다.
 - Failure/retry model: 승패/무승부 후 즉시 새 게임을 시작한다. 진행 중인 대국에서는 새 게임이나 돌 색 변경 전에 초기화 확인을 받는다.
@@ -27,19 +27,20 @@
 
 - Mobile playfield-first: 게임판, 점수, 차례, 착수 가능 위치, 돌 뒤집힘 애니메이션을 화면 중심 경험으로 둔다.
 - Board-adjacent feedback starts immediately under the board: full-width advantage meter first, then one compact row for 새 게임, 선공/후공, 착수 가능 수.
-- Non-gameplay controls live in the top-right settings menu: 난이도, 보드 크기, 사운드, 진동, 착수 표시, 보드/돌 테마, 언어, 글자 크기, 모션 줄이기, 플레이 방법, 정보. 플레이 방법은 착수·뒤집기·패스·종료/승패를 설명하는 4단계 스크롤 시트이며, 단계 이동 때 실제 보드 셀을 강조한다. 최초 대국에서 자동 표시하고 완료·건너뛰기·닫기를 한 뒤에는 다시 자동 표시하지 않으며 설정에서 언제든 다시 열 수 있다. 정보 섹션은 앱 이름·export와 동기화된 버전·지원 이메일을 표시하고, 개인정보 처리방침 URL이 확정되어 주입된 경우에만 링크를 노출한다. Mobile settings use large segmented buttons instead of select boxes, and tapping outside the settings panel closes it.
+- Non-gameplay controls live in the top-right settings menu: 대전 상대 AI·2인, 난이도, 보드 크기, 사운드, 진동, 착수 표시, 보드/돌 테마, 언어, 글자 크기, 모션 줄이기, 플레이 방법, 정보. 대전 상대 변경은 새 대국을 시작하며 선택은 환경설정에 즉시 저장된다. 설정 패널은 기준 화면 안에 고정되고 내용이 길면 세로 스크롤한다. 플레이 방법은 착수·뒤집기·패스·종료/승패를 설명하는 4단계 스크롤 시트이며, 단계 이동 때 실제 보드 셀을 강조한다. 최초 대국에서 자동 표시하고 완료·건너뛰기·닫기를 한 뒤에는 다시 자동 표시하지 않으며 설정에서 언제든 다시 열 수 있다. 정보 섹션은 앱 이름·export와 동기화된 버전·지원 이메일을 표시하고, 개인정보 처리방침 URL이 확정되어 주입된 경우에만 링크를 노출한다. Mobile settings use large segmented buttons instead of select boxes, and tapping outside the settings panel closes it.
 - In-play fun feedback should stay close to the board: a single theme-derived board surface with thin grid lines, last-move highlight, default-on legal move markers, midpoint color-swap disc flip with a placement-origin wave, placement sound, flip sound, big-flip sound, and a full-width advantage meter. Classic uses the traditional green Othello surface while Arctic and Ember derive their own surface/grid pair.
 - 보드 상단과 왼쪽에는 셀 중심에 맞춘 열 문자와 행 숫자 좌표를 표시한다. 기본 8x8은 좌상단 A1부터 우하단 H8이며 6x6/10x10 보드에서는 A-F/1-6, A-J/1-10으로 확장한다. 좌표는 셀 버튼 밖에서 입력을 무시한다.
 - 대국 중 상태 바의 기보 진입점은 누적 수와 마지막 착수 좌표를 표시한다. 기보 패널은 수순을 시간순으로 번호·흑백 돌·표준 좌표와 함께 보여 주고, 긴 대국에서는 세로 스크롤하며 결과 오버레이에서도 다시 열 수 있다. 새 게임을 시작하면 기보와 열린 패널 상태를 초기화한다.
 - 한 수 무르기는 보드 하단 컨트롤에서 플레이어 착수와 이어진 AI 응수를 되돌리며, 게임 종료 뒤에도 결과 오버레이를 닫고 대국을 재개할 수 있다.
 - 보드 하단의 힌트 버튼은 플레이어 차례에 현재 난이도 탐색기가 선택한 합법 최선 수 한 곳을 강조한다. AI 사고·입력 잠금·게임 종료·AI 차례·패스 상태에서는 비활성화하고, 다음 보드 상호작용이나 새 게임에서 강조를 지운다.
 - 게임 종료는 기존 전체 화면 결과 오버레이에서 카드 등장과 승자 돌 1회 펄스로 강조한다. 모션 줄이기에서는 정적 최종 결과만 즉시 표시한다.
+- 로컬 2인 대전에서는 AI 자동 착수를 중단하고 양쪽 돌 입력을 허용한다. 점수·상태·차례·결과는 흑·백 기준으로 표시하며 로컬 결과는 AI 난이도별 승률 통계에 합산하지 않는다.
 - Avoid bottom control decks that compete with the board or make the game feel like a settings dashboard.
 
 ## MVP Scope
 
 - Must-have:
-  - 6x6 / 8x8 / 10x10 리버시 싱글플레이(기본 8x8)
+  - 6x6 / 8x8 / 10x10 AI 및 로컬 2인 리버시(기본 8x8)
   - 플레이어 선공/후공 선택
   - 난이도 3단계: EASY depth 1, MEDIUM depth 3, HARD depth 5
   - 합법 수 표시, 패스 처리, 게임오버/승패/무승부 처리
@@ -99,6 +100,7 @@
 - Valid move cells can be encoded with `VALID = 3` for review/share payloads.
 - 결과 오버레이의 공유 버튼은 현재 로케일의 앱 이름·승패·최종 흑백 점수 텍스트를 만든다. AppsInToss Web은 `__aitBridge.shareResult`와 공식 `setClipboardText`를 사용하고, 네이티브는 OS 클립보드로 폴백하며 채널 부재 시 no-op 한다.
 - 대국별 AI seed를 game save에 저장한다. seed가 없는 기존 save는 board payload에서 결정론적으로 복원한다.
+- `opponent_mode`는 `ai`를 안전한 기본값으로 사용하고 `local` 선택을 `prefs_v1.json`에 저장한다. 게임 save 복원 뒤에도 환경설정을 적용해 같은 모드로 이어간다.
 
 ## 승인
 

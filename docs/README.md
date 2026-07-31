@@ -9,7 +9,7 @@ Obsidian은 지식베이스와 재사용 가능한 운영 노하우를 보조로
 - Planning approval: approved on 2026-06-18
 - Active scope: Phase 0, Phase 1, Phase 2
 - Base template: `starter-template-game`
-- Current implementation: Godot single-player Reversi MVP with local save and ko/en in-app localization
+- Current implementation: Godot AI and local pass-and-play Reversi MVP with local save and ko/en/ja in-app localization
 - Release priority: AppsInToss first
 - Release status: AppsInToss appName, AIT wrapper finalization, registration images, and sandbox QA are not ready
 

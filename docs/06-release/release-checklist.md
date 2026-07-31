@@ -6,7 +6,7 @@
 - [x] Product docs identify Lucid Reversi
 - [x] Reversi rules/AI/codec/save DTO implemented
 - [x] Godot smoke tests cover initial moves, flip, pass, game over, codec, save round trip
-- [x] Playable Godot single-player shell exists
+- [x] Playable Godot AI and local pass-and-play shell exists
 - [x] Korean default UI with English and Japanese secondary locales
 - [x] Bundled game-readable Korean font and Japanese glyph fallback for Godot Web/AIT
 - [x] `npm run test`

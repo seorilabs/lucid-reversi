@@ -24,6 +24,7 @@ const DIFFICULTY_DEPTH := {
 	"MEDIUM": 3,
 	"HARD": 5,
 }
+const OPPONENT_MODES := ["ai", "local"]
 const ENDGAME_EXACT_EMPTIES := {
 	"MEDIUM": 6,
 	"HARD": 8,
@@ -48,6 +49,7 @@ static func default_settings() -> Dictionary:
 		"high_contrast": false,
 		"show_moves": true,
 		"show_flip_counts": false,
+		"opponent_mode": "ai",
 		"board_size": DEFAULT_BOARD_SIZE,
 	}
 
@@ -61,7 +63,14 @@ static func normalize_settings(raw_settings: Dictionary) -> Dictionary:
 	normalized["board_size"] = normalize_board_size(
 		int(raw_settings.get("board_size", DEFAULT_BOARD_SIZE))
 	)
+	normalized["opponent_mode"] = normalize_opponent_mode(
+		str(raw_settings.get("opponent_mode", "ai"))
+	)
 	return normalized
+
+
+static func normalize_opponent_mode(value: String) -> String:
+	return value if OPPONENT_MODES.has(value) else "ai"
 
 
 static func normalize_board_size(value: int) -> int:
