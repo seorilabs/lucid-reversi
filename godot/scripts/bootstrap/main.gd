@@ -23,6 +23,8 @@ const PRIVACY_POLICY_URL := ""
 const CELL_SIZE := 84
 const CELL_GAP := 2
 const BOARD_PADDING := 4
+const BOARD_COORDINATE_GUTTER := 20
+const BOARD_COORDINATE_GAP := 2
 const BOARD_TARGET_CONTENT_SIZE := CELL_SIZE * ReversiEngine.DEFAULT_BOARD_SIZE + CELL_GAP * (ReversiEngine.DEFAULT_BOARD_SIZE - 1)
 const PLAY_BUTTON_HEIGHT := 58
 const ACTION_BUTTON_HEIGHT := 52
@@ -295,6 +297,8 @@ var _winner_emphasis_animation_count := 0
 var cell_buttons: Array = []
 var cell_piece_views: Array = []
 var cell_hint_views: Array = []
+var board_column_labels: Array = []
+var board_row_labels: Array = []
 var player_score_label: Label
 var ai_score_label: Label
 var player_info_label: Label
@@ -589,13 +593,61 @@ func _build_board(root: VBoxContainer) -> void:
 	board_margin.add_theme_constant_override("margin_bottom", BOARD_PADDING)
 	board_frame.add_child(board_margin)
 
+	var board_layout := GridContainer.new()
+	board_layout.name = "BoardCoordinateLayout"
+	board_layout.columns = 2
+	board_layout.add_theme_constant_override("h_separation", BOARD_COORDINATE_GAP)
+	board_layout.add_theme_constant_override("v_separation", BOARD_COORDINATE_GAP)
+	board_margin.add_child(board_layout)
+
+	var coordinate_corner := Control.new()
+	coordinate_corner.name = "BoardCoordinateCorner"
+	coordinate_corner.custom_minimum_size = Vector2(
+		BOARD_COORDINATE_GUTTER,
+		BOARD_COORDINATE_GUTTER,
+	)
+	coordinate_corner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	board_layout.add_child(coordinate_corner)
+
+	var column_coordinates := GridContainer.new()
+	column_coordinates.name = "BoardColumnCoordinates"
+	column_coordinates.columns = board_size
+	column_coordinates.add_theme_constant_override("h_separation", CELL_GAP)
+	board_layout.add_child(column_coordinates)
+
+	board_column_labels.clear()
+	for y in range(board_size):
+		var column_label := _make_board_coordinate_label(
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZ".substr(y, 1),
+			Vector2(cell_size, BOARD_COORDINATE_GUTTER),
+		)
+		column_label.name = "BoardColumn%s" % column_label.text
+		column_coordinates.add_child(column_label)
+		board_column_labels.append(column_label)
+
+	var row_coordinates := GridContainer.new()
+	row_coordinates.name = "BoardRowCoordinates"
+	row_coordinates.columns = 1
+	row_coordinates.add_theme_constant_override("v_separation", CELL_GAP)
+	board_layout.add_child(row_coordinates)
+
+	board_row_labels.clear()
+	for x in range(board_size):
+		var row_label := _make_board_coordinate_label(
+			str(x + 1),
+			Vector2(BOARD_COORDINATE_GUTTER, cell_size),
+		)
+		row_label.name = "BoardRow%s" % row_label.text
+		row_coordinates.add_child(row_label)
+		board_row_labels.append(row_label)
+
 	var board_surface := PanelContainer.new()
 	board_surface.name = "BoardSurface"
 	board_surface.add_theme_stylebox_override(
 		"panel",
 		_make_style(_theme_color("board_grid"), 0, Color.TRANSPARENT, 2),
 	)
-	board_margin.add_child(board_surface)
+	board_layout.add_child(board_surface)
 
 	var board := GridContainer.new()
 	board.name = "BoardGrid"
@@ -650,6 +702,20 @@ func _build_board(root: VBoxContainer) -> void:
 		cell_buttons.append(button_row)
 		cell_piece_views.append(piece_row)
 		cell_hint_views.append(hint_row)
+
+
+func _make_board_coordinate_label(text: String, minimum_size: Vector2) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.custom_minimum_size = minimum_size
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_override("font", UI_FONT)
+	label.add_theme_font_size_override("font_size", _font_size(14))
+	label.add_theme_color_override("font_color", _theme_color("text_muted"))
+	_apply_text_visibility(label, 1, _theme_color("text_muted"))
+	return label
 
 
 func _build_play_focus_strip(root: VBoxContainer) -> void:
@@ -1443,10 +1509,15 @@ func _start_new_game(stone: int, persist: bool = true) -> void:
 
 static func cell_size_for_board(board_size: int) -> int:
 	var normalized_size := ReversiEngine.normalize_board_size(board_size)
+	var board_grid_target := (
+		BOARD_TARGET_CONTENT_SIZE
+		- BOARD_COORDINATE_GUTTER
+		- BOARD_COORDINATE_GAP
+	)
 	return maxi(
 		1,
 		int(floor(
-			float(BOARD_TARGET_CONTENT_SIZE - CELL_GAP * (normalized_size - 1))
+			float(board_grid_target - CELL_GAP * (normalized_size - 1))
 			/ float(normalized_size)
 		)),
 	)
@@ -1458,6 +1529,8 @@ static func board_frame_size_for_board(board_size: int) -> int:
 	return (
 		cell_size * normalized_size
 		+ CELL_GAP * (normalized_size - 1)
+		+ BOARD_COORDINATE_GUTTER
+		+ BOARD_COORDINATE_GAP
 		+ BOARD_PADDING * 2
 	)
 

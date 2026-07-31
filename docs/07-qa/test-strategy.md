@@ -15,6 +15,7 @@
 - 패스 직후 상태 표시와 다음 정상 착수 뒤 현재 차례 표시 복귀, 누적 `pass_count` 유지, 기존 save 기본값
 - full-board game over and winner
 - 6x6/8x8/10x10 초기 합법수·뒤집기·평가와 board-size 설정 정규화
+- 보드 좌표의 A-H/1-8 매핑, 셀 중심 정렬, 입력 무시, UI 폰트·테마별 muted 대비, 테마·언어 재구성, 6x6/10x10 확장
 - 크기 태그 가변 board codec의 10x10 round trip과 기존 18-byte 8x8 fixture 복원
 - save DTO round trip
 - 고정 seed별 MEDIUM/HARD 동점 최선 수 분산, 동일 seed save/restore 재현, EASY 첫 정렬 수와 최선 평가 유지
@@ -58,6 +59,7 @@
 - 착수 표시 smoke는 기존 설정 패널 안의 `show_moves` 토글만 사용하고, 기본 ON 및 기존 prefs 보정, OFF/ON 즉시 렌더, 재실행 복원, ko/en 라벨과 잘못된 착수 피드백을 확인한다.
 - 일본어 smoke는 기존 언어 세그먼트의 `日本語` 선택만 추가하고, `ko` 키와 `ja` 키의 일치, 주요 HUD·설정 문구, `prefs_v1.json` 재실행 복원, `ja_JP`/`ja-JP` 기기 로케일 선택, 한국어 fallback, M PLUS Rounded 1c 글리프 범위를 확인한다.
 - 보드 크기 smoke는 6x6/8x8/10x10 세그먼트가 설정 패널 안에만 있고, 선택 즉시 해당 크기의 새 대국·동적 셀 크기·save/prefs를 재구성하는지 확인한다.
+- 보드 좌표 smoke는 기본 A1-H8 매핑과 셀 중심 정렬, 셀 버튼 밖 `MOUSE_FILTER_IGNORE`, UI 폰트·3개 테마별 muted 대비, 테마·언어 전환 재생성, 6x6/10x10 라벨 확장을 확인한다.
 - 접근성 smoke는 100/115/130% 글자 배율과 모션 줄이기 toggle의 prefs 영속화, ko/en 라벨, tween 없는 최종 상태 렌더를 확인한다.
 - 새 게임 확인 smoke는 진행 중 대국에서 새 게임·흑·백 버튼이 동일한 가드를 사용하고, 취소와 확인 결과 및 첫 수 전·종료 후 예외를 검증한다.
 - 사운드 smoke는 `sound=false` 설정에서 착수 사운드가 생성되지 않는지 확인한다. 실제 음색은 Web smoke에서 착수/뒤집힘/대량 뒤집힘 상황으로 확인한다.
