@@ -39,6 +39,7 @@ flowchart LR
 
 - 화면 구성
 - 보드 입력
+- 대국당 1회 결과 카드·승자 강조 연출과 reduce-motion 우회
 - 대국 저장소 `user://save_v1.json`
 - 게임 세이브와 분리된 사용자 환경설정 저장소 `user://prefs_v1.json`
 - 설정 toggle

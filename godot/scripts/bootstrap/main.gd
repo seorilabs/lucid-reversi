@@ -177,6 +177,8 @@ var ai_move_pending := false
 var input_locked := false
 # 한 판당 전면 광고 1회만 노출하기 위한 가드 (게임 종료 시 트리거).
 var _interstitial_shown_this_game := false
+# 결과 카드는 대국 종료 순간에만 1회 연출하고 재렌더·복원에서는 정적으로 표시한다.
+var _result_animation_played_this_game := false
 var analytics: ReversiAnalytics
 var _ios_ads: Node
 var _haptic_probe: Callable
@@ -184,6 +186,8 @@ var _interstitial_probe: Callable
 var _save_path := SAVE_PATH
 var _prefs_path := PREFS_PATH
 var _motion_tween_count := 0
+var _result_entry_animation_count := 0
+var _winner_emphasis_animation_count := 0
 
 var cell_buttons: Array = []
 var cell_piece_views: Array = []
@@ -215,6 +219,8 @@ var locale_buttons: Array = []
 var font_scale_buttons: Array = []
 var reduce_motion_toggle: CheckButton
 var result_overlay: ColorRect
+var result_panel: PanelContainer
+var result_winner_stone_view: TextureRect
 var result_title_label: Label
 var result_score_label: Label
 var result_detail_label: Label
@@ -272,6 +278,7 @@ func _load_or_start() -> void:
 		# 이번 실행에서 광고·analytics on_game_over 를 다시 트리거하지 않는다(오버레이 표시만).
 		if bool(state.get("game_over", false)):
 			_interstitial_shown_this_game = true
+			_result_animation_played_this_game = true
 	_apply_preferences_to_state()
 
 
@@ -643,17 +650,18 @@ func _build_result_overlay() -> void:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	result_overlay.add_child(center)
 
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(420, 260)
-	panel.add_theme_stylebox_override("panel", _make_style(_theme_color("hud_dark"), 2, Color(1, 1, 1, 0.14), 10))
-	center.add_child(panel)
+	result_panel = PanelContainer.new()
+	result_panel.custom_minimum_size = Vector2(420, 300)
+	result_panel.pivot_offset = result_panel.custom_minimum_size * 0.5
+	result_panel.add_theme_stylebox_override("panel", _make_style(_theme_color("hud_dark"), 2, Color(1, 1, 1, 0.14), 10))
+	center.add_child(result_panel)
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 22)
 	margin.add_theme_constant_override("margin_top", 20)
 	margin.add_theme_constant_override("margin_right", 22)
 	margin.add_theme_constant_override("margin_bottom", 20)
-	panel.add_child(margin)
+	result_panel.add_child(margin)
 
 	var box := VBoxContainer.new()
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -666,6 +674,14 @@ func _build_result_overlay() -> void:
 	result_title_label.add_theme_color_override("font_color", _theme_color("text_primary"))
 	_apply_text_visibility(result_title_label, 3, _theme_color("text_primary"))
 	box.add_child(result_title_label)
+
+	result_winner_stone_view = TextureRect.new()
+	result_winner_stone_view.custom_minimum_size = Vector2(72, 72)
+	result_winner_stone_view.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	result_winner_stone_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	result_winner_stone_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	result_winner_stone_view.pivot_offset = result_winner_stone_view.custom_minimum_size * 0.5
+	box.add_child(result_winner_stone_view)
 
 	result_score_label = Label.new()
 	result_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1049,6 +1065,7 @@ func _start_new_game(stone: int, persist: bool = true) -> void:
 	ai_move_pending = false
 	input_locked = false
 	_interstitial_shown_this_game = false
+	_result_animation_played_this_game = false
 	var current_settings := _current_settings()
 	var current_stats := ReversiEngine.normalize_stats(state.get("stats", {}))
 	var board_size := ReversiEngine.normalize_board_size(
@@ -1563,7 +1580,7 @@ func _update_result_overlay(persist_stats: bool = true) -> void:
 		white_score if player_stone == ReversiEngine.BLACK else black_score,
 	]
 	result_detail_label.text = _t("result_detail") % [black_score, white_score]
-	result_overlay.visible = true
+	_show_result_overlay(winner)
 	# game_over 는 광고와 같은 1회 가드 안에서만 전송한다.
 	# (오버레이는 게임 종료 후 입력·AI턴 진입마다 재호출되므로 밖에 두면 중복 집계된다.)
 	if not _interstitial_shown_this_game:
@@ -1582,6 +1599,61 @@ func _update_result_overlay(persist_stats: bool = true) -> void:
 			)
 		_request_interstitial_ad()
 	result_stats_label.text = _current_difficulty_stats_text()
+
+
+func _show_result_overlay(winner: int) -> void:
+	result_overlay.visible = true
+	var has_winner := winner == ReversiEngine.BLACK or winner == ReversiEngine.WHITE
+	result_winner_stone_view.visible = has_winner
+	result_winner_stone_view.texture = _texture_for_stone(winner) if has_winner else null
+	if _result_animation_played_this_game:
+		return
+	_result_animation_played_this_game = true
+
+	result_overlay.modulate = Color.WHITE
+	result_panel.scale = Vector2.ONE
+	result_winner_stone_view.scale = Vector2.ONE
+	if _reduce_motion_enabled():
+		return
+
+	result_overlay.modulate.a = 0.0
+	result_panel.scale = Vector2(0.86, 0.86)
+	_motion_tween_count += 1
+	_result_entry_animation_count += 1
+	var entry_tween := create_tween()
+	entry_tween.set_parallel(true)
+	entry_tween.tween_property(
+		result_overlay,
+		"modulate:a",
+		1.0,
+		0.18,
+	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	entry_tween.tween_property(
+		result_panel,
+		"scale",
+		Vector2.ONE,
+		0.28,
+	).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+	if !has_winner:
+		return
+	result_winner_stone_view.scale = Vector2(0.72, 0.72)
+	_motion_tween_count += 1
+	_winner_emphasis_animation_count += 1
+	var winner_tween := create_tween()
+	winner_tween.tween_interval(0.10)
+	winner_tween.tween_property(
+		result_winner_stone_view,
+		"scale",
+		Vector2(1.16, 1.16),
+		0.18,
+	).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	winner_tween.tween_property(
+		result_winner_stone_view,
+		"scale",
+		Vector2.ONE,
+		0.16,
+	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 func _current_difficulty_stats_text() -> String:

@@ -29,6 +29,7 @@
 - Board-adjacent feedback starts immediately under the board: full-width advantage meter first, then one compact row for 새 게임, 선공/후공, 착수 가능 수.
 - Non-gameplay controls live in the top-right settings menu: 난이도, 보드 크기, 사운드, 진동, 보드/돌 테마, 언어, 글자 크기, 모션 줄이기. Mobile settings use large segmented buttons instead of select boxes, and tapping outside the settings panel closes it.
 - In-play fun feedback should stay close to the board: last-move highlight, always-on legal move markers, midpoint color-swap disc flip with a placement-origin wave, placement sound, flip sound, big-flip sound, and a full-width advantage meter.
+- 게임 종료는 기존 전체 화면 결과 오버레이에서 카드 등장과 승자 돌 1회 펄스로 강조한다. 모션 줄이기에서는 정적 최종 결과만 즉시 표시한다.
 - Avoid bottom control decks that compete with the board or make the game feel like a settings dashboard.
 
 ## MVP Scope
