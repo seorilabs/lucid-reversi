@@ -72,6 +72,8 @@ func _ready() -> void:
 	ok = settings_menu_ok and ok
 	var how_to_play_ok := await _test_how_to_play_sheet()
 	ok = how_to_play_ok and ok
+	var move_list_ok := await _test_move_list_panel()
+	ok = move_list_ok and ok
 	var settings_persistence_ok := await _test_settings_persist_immediately()
 	ok = settings_persistence_ok and ok
 	var board_size_ui_ok := await _test_board_size_ui()
@@ -1978,6 +1980,124 @@ func _test_settings_menu_keeps_playfield_focused() -> bool:
 		and _assert(inside_tap_keeps_open_ok, "ui settings panel tap keeps menu open")
 		and _assert(outside_tap_closes_ok, "ui settings background tap closes menu")
 		and _assert(menu_close_ok, "ui settings menu closes")
+	)
+
+
+func _test_move_list_panel() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+
+	main.player_stone = ReversiEngine.BLACK
+	main.difficulty = "MEDIUM"
+	main.state = ReversiEngine.create_new_game(ReversiEngine.BLACK, "MEDIUM")
+	var settings: Dictionary = main.state.get("settings", {})
+	settings["locale"] = "ko"
+	settings["sound"] = false
+	main.state["settings"] = settings
+	main.state["move_history"] = [
+		{"x": 3, "y": 2, "stone": ReversiEngine.BLACK, "turn_index": 0},
+		{"x": 2, "y": 4, "stone": ReversiEngine.WHITE, "turn_index": 1},
+	]
+	main.state["last_move"] = {"x": 2, "y": 4, "stone": ReversiEngine.WHITE}
+	main.ai_move_pending = true
+	main.input_locked = true
+	main._render()
+	await get_tree().process_frame
+
+	var helper_ok: bool = MainScript.move_coordinate(2, 3) == "C4"
+	var entry_ok: bool = main.move_count_label.text == "기보 02 · E3"
+	var state_before: Dictionary = main.state.duplicate(true)
+	var input_locked_before: bool = main.input_locked
+	var ai_pending_before: bool = main.ai_move_pending
+	main.move_count_label.pressed.emit()
+	await get_tree().process_frame
+
+	var overlay_ok: bool = main.move_list_overlay.visible \
+		and main.move_list_panel != null \
+		and main.move_list_overlay.mouse_filter == Control.MOUSE_FILTER_STOP
+	var scroll_ok: bool = main.move_list_scroll.horizontal_scroll_mode \
+		== ScrollContainer.SCROLL_MODE_DISABLED \
+		and main.move_list_scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_AUTO
+	var rows_ok: bool = main.move_list_rows.size() == 2
+	var ordered_rows_ok := false
+	var stone_icons_ok := false
+	if rows_ok:
+		var first_row: PanelContainer = main.move_list_rows[0]
+		var second_row: PanelContainer = main.move_list_rows[1]
+		var first_coordinate := first_row.find_child("MoveListCoordinate", true, false) as Label
+		var first_stone := first_row.find_child("MoveListStone", true, false) as Label
+		var first_icon := first_row.find_child("MoveListStoneIcon", true, false) as TextureRect
+		var second_coordinate := second_row.find_child("MoveListCoordinate", true, false) as Label
+		var second_stone := second_row.find_child("MoveListStone", true, false) as Label
+		var second_icon := second_row.find_child("MoveListStoneIcon", true, false) as TextureRect
+		ordered_rows_ok = first_coordinate != null \
+			and first_coordinate.text == "C4" \
+			and first_stone != null \
+			and first_stone.text == "흑" \
+			and second_coordinate != null \
+			and second_coordinate.text == "E3" \
+			and second_stone != null \
+			and second_stone.text == "백"
+		stone_icons_ok = first_icon != null \
+			and first_icon.texture == main._texture_for_stone(ReversiEngine.BLACK) \
+			and second_icon != null \
+			and second_icon.texture == main._texture_for_stone(ReversiEngine.WHITE)
+	var state_unchanged_ok: bool = main.state == state_before \
+		and main.input_locked == input_locked_before \
+		and main.ai_move_pending == ai_pending_before
+
+	main._hide_move_list()
+	main.result_move_list_button.pressed.emit()
+	await get_tree().process_frame
+	var result_entry_ok: bool = main.move_list_overlay.visible \
+		and main.result_overlay.is_ancestor_of(main.result_move_list_button)
+
+	var long_history: Array = []
+	for index in range(32):
+		long_history.append({
+			"x": index % 8,
+			"y": (index * 3) % 8,
+			"stone": ReversiEngine.BLACK if index % 2 == 0 else ReversiEngine.WHITE,
+			"turn_index": index,
+		})
+	main.state["move_history"] = long_history
+	main._render_move_list()
+	var overflow_ok: bool = main.move_list_rows.size() == 32 \
+		and main.move_list_content.custom_minimum_size.y \
+		> main.move_list_scroll.custom_minimum_size.y
+
+	main._start_new_game(ReversiEngine.BLACK, false)
+	await get_tree().process_frame
+	var reset_ok: bool = !main.move_list_overlay.visible \
+		and main.state.get("move_history", []).is_empty()
+	main._show_move_list()
+	var empty_ok: bool = main.move_list_rows.is_empty() \
+		and main.move_list_empty_label != null \
+		and main.move_list_empty_label.text == "아직 기록된 수가 없습니다."
+	var i18n_ok: bool = true
+	for locale_id in ["ko", "en"]:
+		var locale_texts: Dictionary = MainScript.TEXT[locale_id]
+		for key in ["move_list_entry", "move_list_title", "move_list_empty"]:
+			i18n_ok = i18n_ok and locale_texts.has(key) \
+				and !str(locale_texts.get(key, "")).is_empty()
+
+	main.queue_free()
+	return (
+		_assert(helper_ok, "move list coordinate helper maps column row to C4")
+		and _assert(entry_ok, "move list entry shows count and localized last move")
+		and _assert(overlay_ok, "move list entry opens an input-blocking overlay")
+		and _assert(scroll_ok, "move list enables vertical-only scrolling")
+		and _assert(ordered_rows_ok, "move list preserves chronological coordinates and stone labels")
+		and _assert(stone_icons_ok, "move list renders the matching black and white stone icons")
+		and _assert(state_unchanged_ok, "move list leaves game and input state unchanged")
+		and _assert(result_entry_ok, "result overlay exposes the move list entry")
+		and _assert(overflow_ok, "long move history exceeds the scroll viewport")
+		and _assert(reset_ok, "new game hides and clears the move list")
+		and _assert(empty_ok, "empty move list renders a localized empty state")
+		and _assert(i18n_ok, "move list has Korean and English strings")
 	)
 
 

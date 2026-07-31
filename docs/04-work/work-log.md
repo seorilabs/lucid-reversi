@@ -1,5 +1,9 @@
 # Work Log
 
+## 2026-08-01
+
+- Added a localized, vertically scrollable move-list panel with chronological stone/coordinate rows, live move-count and last-move entry text, result-screen access, and new-game reset behavior.
+
 ## 2026-07-31
 
 - Expanded the first-run How to Play sheet into a four-step sequence with localized previous/next/skip/done actions, step-specific board-cell highlights, and completion-only preference persistence.

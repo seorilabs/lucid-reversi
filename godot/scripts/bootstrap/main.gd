@@ -92,6 +92,9 @@ const TEXT := {
 		"how_to_play_done": "완료",
 		"how_to_play_skip": "건너뛰기",
 		"how_to_play_progress": "%d / %d",
+		"move_list_entry": "기보 %02d · %s",
+		"move_list_title": "기보",
+		"move_list_empty": "아직 기록된 수가 없습니다.",
 		"about_title": "정보",
 		"about_app_version": "%s · 버전 %s",
 		"support_email": "지원 이메일 · %s",
@@ -169,6 +172,9 @@ const TEXT := {
 		"how_to_play_done": "DONE",
 		"how_to_play_skip": "SKIP",
 		"how_to_play_progress": "%d / %d",
+		"move_list_entry": "MOVES %02d · %s",
+		"move_list_title": "MOVE LIST",
+		"move_list_empty": "NO MOVES RECORDED YET.",
 		"about_title": "ABOUT",
 		"about_app_version": "%s · VERSION %s",
 		"support_email": "SUPPORT · %s",
@@ -246,6 +252,9 @@ const TEXT := {
 		"how_to_play_done": "完了",
 		"how_to_play_skip": "スキップ",
 		"how_to_play_progress": "%d / %d",
+		"move_list_entry": "棋譜 %02d · %s",
+		"move_list_title": "棋譜",
+		"move_list_empty": "まだ着手記録がありません。",
 		"about_title": "情報",
 		"about_app_version": "%s · バージョン %s",
 		"support_email": "サポート · %s",
@@ -323,7 +332,7 @@ var player_stone_view: TextureRect
 var ai_stone_view: TextureRect
 var turn_badge: Label
 var status_label: Label
-var move_count_label: Label
+var move_count_label: Button
 var settings_button: Button
 var settings_overlay: ColorRect
 var settings_panel: PanelContainer
@@ -340,6 +349,13 @@ var how_to_play_next_button: Button
 var how_to_play_skip_button: Button
 var how_to_play_step_index := 0
 var how_to_play_is_first_run := false
+var move_list_overlay: ColorRect
+var move_list_panel: PanelContainer
+var move_list_scroll: ScrollContainer
+var move_list_content: VBoxContainer
+var move_list_close_button: Button
+var move_list_empty_label: Label
+var move_list_rows: Array = []
 var sound_toggle: CheckButton
 var haptic_toggle: CheckButton
 var gameplay_strip: PanelContainer
@@ -362,6 +378,7 @@ var result_title_label: Label
 var result_score_label: Label
 var result_detail_label: Label
 var result_stats_label: Label
+var result_move_list_button: Button
 var new_game_confirmation_overlay: ColorRect
 var new_game_confirmation_title_label: Label
 var new_game_confirmation_body_label: Label
@@ -460,6 +477,7 @@ func _build_ui() -> void:
 	_build_result_overlay()
 	_build_settings_overlay()
 	_build_how_to_play_overlay()
+	_build_move_list_overlay()
 	_build_new_game_confirmation_overlay()
 
 
@@ -589,11 +607,17 @@ func _build_status_bar(root: VBoxContainer) -> void:
 	_apply_text_visibility(status_label, 1, _theme_color("text_muted"))
 	status.add_child(status_label)
 
-	move_count_label = Label.new()
-	move_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	move_count_label = Button.new()
+	move_count_label.name = "MoveListEntryButton"
+	move_count_label.custom_minimum_size = Vector2(196, 42)
+	move_count_label.alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	move_count_label.focus_mode = Control.FOCUS_NONE
+	move_count_label.flat = true
 	move_count_label.add_theme_font_size_override("font_size", _font_size(16))
 	move_count_label.add_theme_color_override("font_color", _theme_color("text_muted"))
+	move_count_label.add_theme_color_override("font_hover_color", _theme_color("text_primary"))
 	_apply_text_visibility(move_count_label, 1, _theme_color("text_muted"))
+	move_count_label.pressed.connect(_show_move_list)
 	status.add_child(move_count_label)
 
 
@@ -934,6 +958,15 @@ func _build_result_overlay() -> void:
 	_apply_text_visibility(result_stats_label, 1, _theme_color("text_primary"))
 	box.add_child(result_stats_label)
 
+	result_move_list_button = _make_action_button(
+		_t("move_list_title"),
+		func() -> void: _show_move_list(),
+	)
+	result_move_list_button.name = "ResultMoveListButton"
+	result_move_list_button.custom_minimum_size = Vector2(300, ACTION_BUTTON_HEIGHT)
+	result_move_list_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(result_move_list_button)
+
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.add_theme_constant_override("separation", 8)
@@ -1242,6 +1275,176 @@ func _make_how_to_play_step(rule_key: String) -> PanelContainer:
 	_apply_text_visibility(body, 1, _theme_color("text_primary"))
 	text_box.add_child(body)
 	return card
+
+
+func _build_move_list_overlay() -> void:
+	move_list_overlay = ColorRect.new()
+	move_list_overlay.name = "MoveListOverlay"
+	move_list_overlay.visible = false
+	move_list_overlay.color = Color(0.005, 0.008, 0.014, 0.72)
+	move_list_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	move_list_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(move_list_overlay)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	move_list_overlay.add_child(center)
+
+	move_list_panel = PanelContainer.new()
+	move_list_panel.name = "MoveListPanel"
+	move_list_panel.custom_minimum_size = Vector2(520, 720)
+	move_list_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	move_list_panel.add_theme_stylebox_override(
+		"panel",
+		_make_style(_theme_color("hud_dark"), 2, Color(1, 1, 1, 0.14), 12),
+	)
+	center.add_child(move_list_panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_top", 18)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_bottom", 18)
+	move_list_panel.add_child(margin)
+
+	var layout := VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 14)
+	margin.add_child(layout)
+
+	var header := HBoxContainer.new()
+	header.alignment = BoxContainer.ALIGNMENT_CENTER
+	header.add_theme_constant_override("separation", 10)
+	layout.add_child(header)
+
+	var title := Label.new()
+	title.name = "MoveListTitle"
+	title.text = _t("move_list_title")
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.add_theme_font_size_override("font_size", _font_size(28))
+	title.add_theme_color_override("font_color", _theme_color("text_primary"))
+	_apply_text_visibility(title, 2, _theme_color("text_primary"))
+	header.add_child(title)
+
+	move_list_close_button = _make_action_button(
+		_t("close"),
+		func() -> void: _hide_move_list(),
+	)
+	move_list_close_button.name = "MoveListCloseButton"
+	header.add_child(move_list_close_button)
+
+	move_list_scroll = ScrollContainer.new()
+	move_list_scroll.name = "MoveListScroll"
+	move_list_scroll.custom_minimum_size = Vector2(0, 620)
+	move_list_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	move_list_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	move_list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	move_list_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	layout.add_child(move_list_scroll)
+
+	move_list_content = VBoxContainer.new()
+	move_list_content.name = "MoveListContent"
+	move_list_content.custom_minimum_size = Vector2(460, 0)
+	move_list_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	move_list_content.add_theme_constant_override("separation", 8)
+	move_list_scroll.add_child(move_list_content)
+
+
+func _show_move_list() -> void:
+	if move_list_overlay == null:
+		return
+	_render_move_list()
+	move_list_overlay.visible = true
+
+
+func _hide_move_list() -> void:
+	if move_list_overlay != null:
+		move_list_overlay.visible = false
+
+
+func _render_move_list() -> void:
+	if move_list_content == null:
+		return
+	for child in move_list_content.get_children():
+		child.free()
+	move_list_rows.clear()
+	move_list_empty_label = null
+
+	var history: Array = state.get("move_history", [])
+	move_list_content.custom_minimum_size = Vector2(460, maxf(0.0, history.size() * 56.0))
+	if history.is_empty():
+		move_list_empty_label = Label.new()
+		move_list_empty_label.name = "MoveListEmpty"
+		move_list_empty_label.text = _t("move_list_empty")
+		move_list_empty_label.custom_minimum_size = Vector2(0, 120)
+		move_list_empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		move_list_empty_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		move_list_empty_label.add_theme_font_size_override("font_size", _font_size(18))
+		move_list_empty_label.add_theme_color_override("font_color", _theme_color("text_muted"))
+		_apply_text_visibility(move_list_empty_label, 1, _theme_color("text_muted"))
+		move_list_content.add_child(move_list_empty_label)
+		return
+
+	for index in range(history.size()):
+		var move: Dictionary = history[index]
+		var stone := int(move.get("stone", ReversiEngine.NONE))
+		var row := PanelContainer.new()
+		row.name = "MoveListRow%d" % (index + 1)
+		row.custom_minimum_size = Vector2(0, 48)
+		row.add_theme_stylebox_override(
+			"panel",
+			_make_style(_theme_color("hud"), 1, Color(1, 1, 1, 0.10), 7),
+		)
+
+		var row_margin := MarginContainer.new()
+		row_margin.add_theme_constant_override("margin_left", 12)
+		row_margin.add_theme_constant_override("margin_top", 6)
+		row_margin.add_theme_constant_override("margin_right", 12)
+		row_margin.add_theme_constant_override("margin_bottom", 6)
+		row.add_child(row_margin)
+
+		var row_content := HBoxContainer.new()
+		row_content.add_theme_constant_override("separation", 12)
+		row_margin.add_child(row_content)
+
+		var number_label := Label.new()
+		number_label.text = "%02d" % (index + 1)
+		number_label.custom_minimum_size = Vector2(44, 0)
+		number_label.add_theme_font_size_override("font_size", _font_size(17))
+		number_label.add_theme_color_override("font_color", _theme_color("text_muted"))
+		_apply_text_visibility(number_label, 1, _theme_color("text_muted"))
+		row_content.add_child(number_label)
+
+		var stone_view := TextureRect.new()
+		stone_view.name = "MoveListStoneIcon"
+		stone_view.custom_minimum_size = Vector2(32, 32)
+		stone_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		stone_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		stone_view.texture = _texture_for_stone(stone)
+		row_content.add_child(stone_view)
+
+		var coordinate_label := Label.new()
+		coordinate_label.name = "MoveListCoordinate"
+		coordinate_label.text = move_coordinate(
+			int(move.get("y", -1)),
+			int(move.get("x", -1)),
+		)
+		coordinate_label.custom_minimum_size = Vector2(72, 0)
+		coordinate_label.add_theme_font_size_override("font_size", _font_size(20))
+		coordinate_label.add_theme_color_override("font_color", _theme_color("accent"))
+		_apply_text_visibility(coordinate_label, 1, _theme_color("accent"))
+		row_content.add_child(coordinate_label)
+
+		var stone_label := Label.new()
+		stone_label.name = "MoveListStone"
+		stone_label.text = _piece_label(stone)
+		stone_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stone_label.add_theme_font_size_override("font_size", _font_size(18))
+		stone_label.add_theme_color_override("font_color", _theme_color("text_primary"))
+		_apply_text_visibility(stone_label, 1, _theme_color("text_primary"))
+		row_content.add_child(stone_label)
+
+		move_list_content.add_child(row)
+		move_list_rows.append(row)
 
 
 func _build_new_game_confirmation_overlay() -> void:
@@ -1683,6 +1886,7 @@ func _confirm_new_game() -> void:
 
 
 func _start_new_game(stone: int, persist: bool = true) -> void:
+	_hide_move_list()
 	ai_move_pending = false
 	input_locked = false
 	_interstitial_shown_this_game = false
@@ -1926,7 +2130,10 @@ func _render() -> void:
 	var current_turn := int(state.get("current_turn", ReversiEngine.NONE))
 	turn_badge.text = _turn_text(current_turn)
 	status_label.text = _status_text()
-	move_count_label.text = "%02d" % state.get("move_history", []).size()
+	move_count_label.text = _t("move_list_entry") % [
+		state.get("move_history", []).size(),
+		_last_move_text(),
+	]
 	footer_primary_label.text = _advantage_text(player_score, ai_score)
 	footer_secondary_label.text = _t("focus_valid") % state.get("valid_moves", []).size()
 	black_meter.size_flags_stretch_ratio = max(1.0, float(black_score))
@@ -1951,6 +2158,8 @@ func _render() -> void:
 		_update_result_overlay()
 	else:
 		result_overlay.visible = false
+	if move_list_overlay != null and move_list_overlay.visible:
+		_render_move_list()
 
 
 func _render_cell(x: int, y: int, piece: int, is_valid: bool, is_last: bool) -> void:
@@ -2361,11 +2570,20 @@ func _is_last_move(x: int, y: int) -> bool:
 	return int(last_move.get("x", -1)) == x and int(last_move.get("y", -1)) == y
 
 
+static func move_coordinate(column: int, row: int) -> String:
+	if column < 0 or column >= 26 or row < 0:
+		return "--"
+	return "%s%d" % ["ABCDEFGHIJKLMNOPQRSTUVWXYZ".substr(column, 1), row + 1]
+
+
 func _last_move_text() -> String:
 	var last_move: Dictionary = state.get("last_move", {})
 	if last_move.is_empty():
 		return "--"
-	return "%d,%d" % [int(last_move.get("x", 0)) + 1, int(last_move.get("y", 0)) + 1]
+	return move_coordinate(
+		int(last_move.get("y", -1)),
+		int(last_move.get("x", -1)),
+	)
 
 
 func _advantage_text(player_score: int, ai_score: int) -> String:
