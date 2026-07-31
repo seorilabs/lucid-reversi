@@ -9,8 +9,8 @@
 - Genre: Board game / Reversi / Single-player strategy
 - Target audience: 클래식 보드게임을 짧게 즐기는 모바일 사용자
 - Primary launch target: AppsInToss first
-- Default locale: Korean (`ko`). English (`en`) is supported in-app as a secondary locale.
-- Korean typography: game-readable display font with text outlines and high contrast for mobile HUD readability.
+- Default locale: Korean (`ko`). English (`en`) and Japanese (`ja`) are supported in-app as secondary locales.
+- Typography: Korean/Latin uses Do Hyeon, with M PLUS Rounded 1c as a bundled Japanese glyph fallback. Text outlines and high contrast preserve mobile HUD readability.
 - Monetization: 광고 기반 후보. 게임 종료 전면 광고 hook은 Phase 2 이후 adapter에서 연결한다.
 - Support email: `cs@seorilabs.com`
 
@@ -21,7 +21,7 @@
 - Progression: EASY, MEDIUM, HARD 난이도를 바꿔 반복 대국하고 난이도별 로컬 승/무/패 전적을 누적한다.
 - Failure/retry model: 승패/무승부 후 즉시 새 게임을 시작한다. 진행 중인 대국에서는 새 게임이나 돌 색 변경 전에 초기화 확인을 받는다.
 - Retention surface: 최근 대국 상태와 설정을 로컬 자동 저장/자동 복원한다.
-- Localization: AppsInToss는 한국어를 기본으로 노출하고, 앱 내부 언어 선택에서 영어로 전환할 수 있다.
+- Localization: AppsInToss는 한국어를 기본으로 노출하고, 앱 내부 언어 선택에서 영어 또는 일본어로 전환할 수 있다. 일본어 기기 로케일의 신규 설치는 일본어를 선택한다.
 
 ## UX Direction
 
@@ -42,7 +42,7 @@
   - 최근 대국/보드 상태 로컬 자동 저장/복원
   - 돌 착수 사운드, 일반 뒤집힘 사운드, 대량 뒤집힘 보너스 사운드와 상황별 햅틱
   - 설정: 사운드, 진동, 착수 표시, 보드 테마, 돌 테마, 언어, 글자 크기, 모션 줄이기
-  - 한국어 기본 UI와 영어 보조 UI
+  - 한국어 기본 UI와 영어·일본어 보조 UI
 - Should-have:
   - 게임 종료 광고 hook
   - 출시용 로고, 스플래시, 스크린샷 생성 구조

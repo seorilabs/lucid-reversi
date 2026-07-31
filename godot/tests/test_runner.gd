@@ -57,6 +57,8 @@ func _ready() -> void:
 	ok = _test_mobility_evaluation_boundaries() and ok
 	var i18n_ok := await _test_i18n_defaults_and_locale_switch()
 	ok = i18n_ok and ok
+	var japanese_locale_ok := await _test_japanese_locale_and_font_fallback()
+	ok = japanese_locale_ok and ok
 	var settings_menu_ok := await _test_settings_menu_keeps_playfield_focused()
 	ok = settings_menu_ok and ok
 	var settings_persistence_ok := await _test_settings_persist_immediately()
@@ -1415,7 +1417,9 @@ func _test_i18n_defaults_and_locale_switch() -> bool:
 	var korean_label_ok: bool = main.black_button.text == "흑" and main._t("new_game") == "새 게임"
 	var korean_haptic_label_ok: bool = main.haptic_toggle.text == "진동"
 	var font_ok: bool = main.theme != null and main.theme.default_font != null
-	var font_path_ok: bool = font_ok and str(main.theme.default_font.resource_path).ends_with("DoHyeon-Regular.ttf")
+	var font_variation_ok: bool = font_ok and main.theme.default_font is FontVariation
+	var font_path_ok: bool = font_variation_ok \
+		and str(main.theme.default_font.base_font.resource_path).ends_with("DoHyeon-Regular.ttf")
 	var text_visibility_ok: bool = main.status_label.get_theme_constant("outline_size") >= 1 \
 		and main.status_label.get_theme_color("font_outline_color").a > 0.0
 
@@ -1434,12 +1438,99 @@ func _test_i18n_defaults_and_locale_switch() -> bool:
 		and _assert(korean_label_ok, "ui renders Korean labels")
 		and _assert(korean_haptic_label_ok, "ui renders Korean haptic label")
 		and _assert(font_ok, "ui uses bundled font")
+		and _assert(font_variation_ok, "ui font supports bundled fallbacks")
 		and _assert(font_path_ok, "ui uses Do Hyeon bundled font")
 		and _assert(text_visibility_ok, "ui text has visibility outline")
 		and _assert(english_setting_ok, "ui locale setting changes")
 		and _assert(english_label_ok, "ui renders English labels")
 		and _assert(english_haptic_label_ok, "ui renders English haptic label")
 		and _assert(locale_buttons_ok, "ui locale buttons track selected locale")
+	)
+
+
+func _test_japanese_locale_and_font_fallback() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var suffix := str(OS.get_process_id())
+	var prefs_path := "user://prefs_japanese_%s.json" % suffix
+	_rm_user(prefs_path)
+
+	var japanese_texts: Dictionary = MainScript.TEXT["ja"]
+	var korean_texts: Dictionary = MainScript.TEXT["ko"]
+	var complete_catalog_ok := japanese_texts.size() == korean_texts.size()
+	for key in korean_texts.keys():
+		complete_catalog_ok = japanese_texts.has(key) and complete_catalog_ok
+	var korean_fallback_ok: bool = MainScript.resolve_localized_text(
+		"new_game",
+		{},
+		korean_texts,
+	) == "새 게임"
+	var unknown_key_ok: bool = MainScript.resolve_localized_text(
+		"missing_key",
+		{},
+		korean_texts,
+	) == "missing_key"
+	var device_locale_ok: bool = MainScript.locale_id_from_device_locale("ja_JP") == "ja" \
+		and MainScript.locale_id_from_device_locale("ja-JP") == "ja" \
+		and MainScript.locale_id_from_device_locale("ko_KR") == "ko" \
+		and MainScript.locale_id_from_device_locale("en_US") == "en"
+
+	var japanese_font: Font = MainScript.JAPANESE_FONT
+	var glyph_coverage_ok := japanese_font != null
+	for value in japanese_texts.values():
+		var translated := str(value)
+		for index in range(translated.length()):
+			var codepoint := translated.unicode_at(index)
+			if codepoint > 0x7f and !japanese_font.has_char(codepoint):
+				glyph_coverage_ok = false
+
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	main._prefs_path = prefs_path
+	add_child(main)
+	await get_tree().process_frame
+	main._set_locale("ja")
+	await get_tree().process_frame
+
+	var fallback_fonts: Array[Font] = main.theme.default_font.get_fallbacks()
+	var font_fallback_ok := fallback_fonts.size() == 1 \
+		and str(fallback_fonts[0].resource_path).ends_with("MPLUSRounded1c-Regular.ttf")
+	var japanese_ui_ok: bool = main._current_locale_id() == "ja" \
+		and main.black_button.text == "黒" \
+		and main.white_button.text == "白" \
+		and main.new_game_button.text == "新しい対局" \
+		and main.settings_button.text == "設定" \
+		and main.haptic_toggle.text == "振動" \
+		and main.show_moves_toggle.text == "着手表示" \
+		and main._t("status_your_move") == "あなたの番"
+	var locale_segment_ok: bool = main.locale_buttons.size() == 3 \
+		and str(main.locale_buttons[2].get("id", "")) == "ja" \
+		and (main.locale_buttons[2].get("button") as Button).text == "日本語" \
+		and _choice_group_has_active_id(main.locale_buttons, "ja")
+	var stored: Dictionary = main._load_preferences()
+	var stored_locale_ok: bool = str(stored.get("settings", {}).get("locale", "")) == "ja"
+	main.queue_free()
+	await get_tree().process_frame
+
+	var restored_main = main_scene.instantiate()
+	restored_main._prefs_path = prefs_path
+	add_child(restored_main)
+	await get_tree().process_frame
+	var restored_locale_ok: bool = restored_main._current_locale_id() == "ja" \
+		and restored_main.black_button.text == "黒" \
+		and restored_main.settings_button.text == "設定"
+	restored_main.queue_free()
+	_rm_user(prefs_path)
+	return (
+		_assert(complete_catalog_ok, "Japanese catalog covers every Korean key")
+		and _assert(korean_fallback_ok, "missing Japanese translation falls back to Korean")
+		and _assert(unknown_key_ok, "unknown localization key returns safely")
+		and _assert(device_locale_ok, "Japanese device locale selects ja on first install")
+		and _assert(glyph_coverage_ok, "bundled Japanese font covers localized glyphs")
+		and _assert(font_fallback_ok, "UI theme bundles Japanese font fallback")
+		and _assert(japanese_ui_ok, "UI renders Japanese labels")
+		and _assert(locale_segment_ok, "language segment exposes Japanese only in settings")
+		and _assert(stored_locale_ok, "Japanese locale saves immediately")
+		and _assert(restored_locale_ok, "Japanese locale survives restart")
 	)
 
 

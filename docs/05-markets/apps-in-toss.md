@@ -7,7 +7,7 @@
 - Brand icon (granite `brand.icon`): `https://static.toss.im/appsintoss/38345/764909ef-3849-428b-ae2e-1f868ec00ebf.png`
 - Registration logo asset (console upload): `apps-in-toss/release-assets/lucid-reversi-icon-600.png` (위 HTTPS 아이콘과 동일 이미지, 600x600, alpha 없음)
 - Default locale: Korean
-- Secondary in-app locale: English
+- Secondary in-app locales: English, Japanese
 
 ## Registration Copy
 
@@ -43,14 +43,14 @@
 - Godot runtime은 iframe으로 감싸지 않고 wrapper에서 직접 로드하는 방향을 기본으로 한다.
 - Non-game이 아닌 게임 앱이므로 TDS는 필수 조건이 아니다.
 - AppsInToss 노출 문구와 첫 실행 UI는 한국어를 기본값으로 한다.
-- Godot Web/AIT 한글 렌더링과 게임 UI 가독성을 위해 OFL 라이선스 `godot/assets/fonts/DoHyeon-Regular.ttf`를 번들한다.
+- Godot Web/AIT 한글 렌더링에는 OFL 라이선스 `godot/assets/fonts/DoHyeon-Regular.ttf`를 번들하고, 일본어 글리프에는 `godot/assets/fonts/MPLUSRounded1c-Regular.ttf` fallback을 사용한다.
 
 ## Current Implementation
 
 - Godot Web export workflow는 템플릿에서 가져왔다.
 - Godot project name and initial scene title are Korean.
-- In-app strings support `ko` and `en`; `settings.locale` 기본값은 `ko`다.
-- Korean UI uses Do Hyeon Regular with text outlines and raised muted text contrast for small mobile HUD labels.
+- In-app strings support `ko`, `en`, and `ja`; `settings.locale` 기본값은 `ko`이며 일본어 기기 신규 설치는 `ja`를 선택한다.
+- Korean/Latin UI uses Do Hyeon Regular, Japanese glyphs use bundled M PLUS Rounded 1c fallback, and all labels retain text outlines and raised muted text contrast.
 - `npm run check:release:ait`는 AppsInToss-first 후보 blocker만 점검한다.
 - `apps/ait`는 `@apps-in-toss/web-framework`(granite) 기반 Vite React 래퍼로 스캐폴드 완료했다. `appName`은 콘솔 확정값 `lucid-reversi`로 고정.
 - Godot Web export(`build/pages`)는 `npm run sync:godot`로 `apps/ait/public/godot`에 복사되고, `GodotCanvas.tsx`가 `Engine`을 직접 로드해 canvas에 렌더한다(iframe 미사용).
