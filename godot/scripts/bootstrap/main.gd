@@ -35,6 +35,12 @@ const FLIP_TILT_RADIANS := 0.11
 const FLIP_EDGE_SCALE := Vector2(0.04, 1.12)
 const FLIP_HIGHLIGHT_COLOR := Color(1.0, 0.92, 0.68, 1.0)
 const FLIP_SWAP_ALPHA := 0.55
+const AI_THINK_DELAY_BASE := {
+	"EASY": 0.16,
+	"MEDIUM": 0.32,
+	"HARD": 0.48,
+}
+const AI_THINK_DELAY_JITTER := 0.04
 const DIFFICULTY_IDS := ["EASY", "MEDIUM", "HARD"]
 const BOARD_SIZE_IDS := ["6", "8", "10"]
 const BOARD_SIZE_LABELS := ["6×6", "8×8", "10×10"]
@@ -2075,13 +2081,27 @@ func _maybe_play_ai_turn() -> void:
 
 	ai_move_pending = true
 	status_label.text = _t("status_ai_thinking")
-	await get_tree().create_timer(0.28).timeout
-	if bool(state.get("game_over", false)) or int(state.get("current_turn", ReversiEngine.NONE)) != ai_stone:
+	var expected_game_seed: int = int(state.get("game_seed", -1))
+	var expected_history_size: int = state.get("move_history", []).size()
+	var target_delay: float = _sample_ai_think_delay()
+	var think_started_msec: int = Time.get_ticks_msec()
+	await get_tree().process_frame
+	if !_ai_turn_is_current(ai_stone, expected_game_seed, expected_history_size):
 		ai_move_pending = false
 		_render()
 		return
 
 	var move := ReversiEngine.choose_ai_move(state)
+	var remaining_delay: float = ai_think_remaining_delay(
+		target_delay,
+		Time.get_ticks_msec() - think_started_msec,
+	)
+	if remaining_delay > 0.0:
+		await get_tree().create_timer(remaining_delay).timeout
+	if !_ai_turn_is_current(ai_stone, expected_game_seed, expected_history_size):
+		ai_move_pending = false
+		_render()
+		return
 	if move.is_empty():
 		ai_move_pending = false
 		_render()
@@ -2095,6 +2115,28 @@ func _maybe_play_ai_turn() -> void:
 	# 플레이어가 착수할 곳이 없어 패스되면 엔진이 턴을 다시 AI 에게 넘긴다.
 	# 이 경우 재호출하지 않으면 AI 차례에서 게임이 멈추므로 다시 트리거한다.
 	call_deferred("_maybe_play_ai_turn")
+
+
+static func ai_think_delay(difficulty_id: String, jitter_unit: float) -> float:
+	var base_delay := float(AI_THINK_DELAY_BASE.get(difficulty_id, AI_THINK_DELAY_BASE["MEDIUM"]))
+	var centered_jitter := (clampf(jitter_unit, 0.0, 1.0) * 2.0 - 1.0) \
+		* AI_THINK_DELAY_JITTER
+	return base_delay + centered_jitter
+
+
+static func ai_think_remaining_delay(target_delay: float, elapsed_msec: int) -> float:
+	return maxf(0.0, target_delay - float(maxi(0, elapsed_msec)) / 1000.0)
+
+
+func _sample_ai_think_delay() -> float:
+	return ai_think_delay(str(state.get("difficulty", difficulty)), randf())
+
+
+func _ai_turn_is_current(ai_stone: int, game_seed: int, history_size: int) -> bool:
+	return !bool(state.get("game_over", false)) \
+		and int(state.get("current_turn", ReversiEngine.NONE)) == ai_stone \
+		and int(state.get("game_seed", -1)) == game_seed \
+		and state.get("move_history", []).size() == history_size
 
 
 func _render_with_animation(before_board: Array, result: Dictionary) -> void:

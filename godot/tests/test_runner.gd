@@ -64,6 +64,8 @@ func _ready() -> void:
 	ok = _test_endgame_exact_search() and ok
 	ok = _test_mobility_evaluation_boundaries() and ok
 	ok = _test_phase_aware_mobility_choice() and ok
+	var ai_delay_ok := await _test_ai_think_delay_profile_and_guard()
+	ok = ai_delay_ok and ok
 	var i18n_ok := await _test_i18n_defaults_and_locale_switch()
 	ok = i18n_ok and ok
 	var japanese_locale_ok := await _test_japanese_locale_and_font_fallback()
@@ -136,6 +138,76 @@ func _test_safe_area_margins() -> bool:
 		and _assert(bottom_ok, "safe area bottom margin scaled to viewport")
 		and _assert(lr_ok, "safe area no left/right inset in portrait")
 		and _assert(guard_ok, "safe area guards zero window size")
+	)
+
+
+func _test_ai_think_delay_profile_and_guard() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var easy_base := float(MainScript.AI_THINK_DELAY_BASE["EASY"])
+	var medium_base := float(MainScript.AI_THINK_DELAY_BASE["MEDIUM"])
+	var hard_base := float(MainScript.AI_THINK_DELAY_BASE["HARD"])
+	var ordered_bases_ok: bool = easy_base < medium_base and medium_base < hard_base
+	var midpoint_ok: bool = is_equal_approx(MainScript.ai_think_delay("EASY", 0.5), easy_base) \
+		and is_equal_approx(MainScript.ai_think_delay("MEDIUM", 0.5), medium_base) \
+		and is_equal_approx(MainScript.ai_think_delay("HARD", 0.5), hard_base)
+	var jitter_range_ok: bool = is_equal_approx(
+		MainScript.ai_think_delay("EASY", 0.0),
+		easy_base - MainScript.AI_THINK_DELAY_JITTER,
+	) and is_equal_approx(
+		MainScript.ai_think_delay("EASY", 1.0),
+		easy_base + MainScript.AI_THINK_DELAY_JITTER,
+	) and MainScript.ai_think_delay("MEDIUM", 0.0) \
+		!= MainScript.ai_think_delay("MEDIUM", 1.0)
+	var remaining_delay_ok: bool = is_equal_approx(
+		MainScript.ai_think_remaining_delay(0.4, 100),
+		0.3,
+	) and is_zero_approx(MainScript.ai_think_remaining_delay(0.4, 600))
+
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+	main.player_stone = ReversiEngine.WHITE
+	main.difficulty = "EASY"
+	main.state = ReversiEngine.create_new_game(ReversiEngine.WHITE, "EASY", 8, 991)
+	var settings: Dictionary = main.state.get("settings", {})
+	settings["sound"] = false
+	settings["reduce_motion"] = true
+	main.state["settings"] = settings
+	main.ai_move_pending = false
+	main.input_locked = false
+	main._render()
+
+	var samples: Dictionary = {}
+	for _index in range(16):
+		var sample: float = main._sample_ai_think_delay()
+		samples["%.8f" % sample] = true
+	var random_jitter_ok: bool = samples.size() > 1
+
+	var board_before: Array = ReversiEngine.clone_board(main.state["board"])
+	main._maybe_play_ai_turn()
+	var pending_started_ok: bool = main.ai_move_pending
+	await get_tree().process_frame
+	main.state["current_turn"] = ReversiEngine.WHITE
+	main.state["valid_moves"] = ReversiEngine.get_valid_moves(
+		main.state["board"],
+		ReversiEngine.WHITE,
+	)
+	await get_tree().create_timer(0.3).timeout
+	var turn_guard_ok: bool = !main.ai_move_pending \
+		and main.state["board"] == board_before \
+		and main.state.get("move_history", []).is_empty() \
+		and int(main.state.get("current_turn", ReversiEngine.NONE)) == ReversiEngine.WHITE
+
+	main.queue_free()
+	return (
+		_assert(ordered_bases_ok, "ai think delay bases increase with difficulty")
+		and _assert(midpoint_ok, "ai think delay midpoint matches the centralized base")
+		and _assert(jitter_range_ok, "ai think delay applies a bounded nonzero jitter")
+		and _assert(random_jitter_ok, "ai think delay samples vary across turns")
+		and _assert(remaining_delay_ok, "ai think delay subtracts elapsed search time")
+		and _assert(pending_started_ok, "ai turn enters the pending state before search")
+		and _assert(turn_guard_ok, "ai turn change guard prevents a stale computed move")
 	)
 
 
