@@ -77,6 +77,8 @@
 - MEDIUM: depth 3
 - HARD: depth 5
 - Evaluation: piece count plus corner, edge, and near-corner weights.
+- MEDIUM/HARD: 최선 평가가 같은 수는 대국별 seed로 균등 선택한다. 같은 seed와 보드 상태는 같은 수를 재현한다.
+- EASY: 기존처럼 정렬된 첫 번째 최선 수를 선택한다.
 
 ## Persistence / Codec
 
@@ -85,6 +87,7 @@
 - Board codec: `LR` magic + codec version + board-size tag + current turn + 셀당 2-bit 가변 payload.
 - Legacy board codec: 기존 8 rows x 16-bit little-endian + 16-bit current turn(18 bytes)은 읽기 호환을 유지한다.
 - Valid move cells can be encoded with `VALID = 3` for review/share payloads.
+- 대국별 AI seed를 game save에 저장한다. seed가 없는 기존 save는 board payload에서 결정론적으로 복원한다.
 
 ## 승인
 

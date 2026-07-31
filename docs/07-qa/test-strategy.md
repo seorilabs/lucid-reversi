@@ -16,6 +16,7 @@
 - 6x6/8x8/10x10 초기 합법수·뒤집기·평가와 board-size 설정 정규화
 - 크기 태그 가변 board codec의 10x10 round trip과 기존 18-byte 8x8 fixture 복원
 - save DTO round trip
+- 고정 seed별 MEDIUM/HARD 동점 최선 수 분산, 동일 seed save/restore 재현, EASY 첫 정렬 수와 최선 평가 유지
 - 게임 save에서 환경설정 제외 및 기존 save 설정의 prefs 마이그레이션
 - 게임 save 손상·삭제와 무관한 prefs 복원, 신규 설치 기본 prefs 생성, 설정 변경 즉시 저장
 - 글자 배율이 score/status/result 텍스트와 설정 컨트롤에 적용·영속화되고 ko/en 접근성 라벨이 존재하는지 확인

@@ -120,11 +120,13 @@ static func create_new_game(
 	player_stone: int = BLACK,
 	difficulty: String = "MEDIUM",
 	board_size: int = DEFAULT_BOARD_SIZE,
+	game_seed: int = -1,
 ) -> Dictionary:
 	var normalized_size := normalize_board_size(board_size)
 	var board := _initial_board(normalized_size)
 	var settings := default_settings()
 	settings["board_size"] = normalized_size
+	var normalized_seed := game_seed if game_seed >= 0 else _generate_game_seed()
 	var state := {
 		"version": 1,
 		"board": board,
@@ -132,6 +134,7 @@ static func create_new_game(
 		"player_stone": player_stone,
 		"ai_stone": opponent(player_stone),
 		"difficulty": difficulty,
+		"game_seed": normalized_seed,
 		"valid_moves": get_valid_moves(board, BLACK),
 		"move_history": [],
 		"settings": settings,
@@ -146,12 +149,19 @@ static func create_new_game(
 	return state
 
 
-static func create_state_from_board(board: Array, current_turn: int = BLACK, player_stone: int = BLACK, difficulty: String = "MEDIUM") -> Dictionary:
+static func create_state_from_board(
+	board: Array,
+	current_turn: int = BLACK,
+	player_stone: int = BLACK,
+	difficulty: String = "MEDIUM",
+	game_seed: int = -1,
+) -> Dictionary:
 	var board_size := get_board_size(board)
 	if board_size == 0:
 		return {}
 	var settings := default_settings()
 	settings["board_size"] = board_size
+	var normalized_seed := game_seed if game_seed >= 0 else _generate_game_seed()
 	var state := {
 		"version": 1,
 		"board": clone_board(board),
@@ -159,6 +169,7 @@ static func create_state_from_board(board: Array, current_turn: int = BLACK, pla
 		"player_stone": player_stone,
 		"ai_stone": opponent(player_stone),
 		"difficulty": difficulty,
+		"game_seed": normalized_seed,
 		"valid_moves": get_valid_moves(board, current_turn),
 		"move_history": [],
 		"settings": settings,
@@ -229,6 +240,7 @@ static func undo_last_round(state: Dictionary) -> Dictionary:
 		player_stone,
 		str(state.get("difficulty", "MEDIUM")),
 		get_board_size(state.get("board", [])),
+		int(state.get("game_seed", -1)),
 	)
 	restored["settings"] = normalize_settings(state.get("settings", default_settings()))
 	restored["stats"] = normalize_stats(state.get("stats", {}))
@@ -302,10 +314,9 @@ static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> 
 
 	var depth := int(DIFFICULTY_DEPTH.get(str(state.get("difficulty", "MEDIUM")), 3))
 	var best_score := SEARCH_MIN
-	var best_move: Dictionary = {}
+	var best_moves: Array = []
 	var alpha := SEARCH_MIN
 	var beta := SEARCH_MAX
-	# 루트는 sort_moves 순서를 유지해 동점일 때 기존 best move를 보존한다.
 	for move in moves:
 		var board_after := clone_board(state["board"])
 		_apply_move(board_after, stone, int(move["x"]), int(move["y"]))
@@ -321,9 +332,22 @@ static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> 
 		)
 		if score > best_score:
 			best_score = score
-			best_move = move
+			best_moves = [move]
+		elif score == best_score:
+			best_moves.append(move)
 		alpha = max(alpha, best_score)
-	return best_move
+
+	if !search_stats.is_empty():
+		search_stats["best_score"] = best_score
+		search_stats["tie_count"] = best_moves.size()
+	if best_moves.is_empty():
+		return {}
+	if str(state.get("difficulty", "MEDIUM")) == "EASY" or best_moves.size() == 1:
+		return best_moves[0]
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _ai_tie_seed(state, stone)
+	return best_moves[rng.randi_range(0, best_moves.size() - 1)]
 
 
 static func encode_board_payload(board: Array, current_turn: int, valid_moves: Array = []) -> PackedByteArray:
@@ -430,6 +454,7 @@ static func state_to_save_dict(state: Dictionary) -> Dictionary:
 		"current_turn": int(state["current_turn"]),
 		"player_stone": int(state.get("player_stone", BLACK)),
 		"ai_stone": int(state.get("ai_stone", WHITE)),
+		"game_seed": int(state.get("game_seed", 0)),
 		"board_codec": Marshalls.raw_to_base64(payload),
 		"move_history": state.get("move_history", []),
 		"pass_count": int(state.get("pass_count", 0)),
@@ -448,12 +473,14 @@ static func state_from_save_dict(saved: Dictionary) -> Dictionary:
 	var decoded := decode_board_payload(payload)
 	if decoded.is_empty():
 		return {}
+	var restored_seed := int(saved.get("game_seed", _seed_from_payload(payload)))
 
 	var state := create_state_from_board(
 		decoded["board"],
 		int(saved.get("current_turn", decoded["current_turn"])),
 		int(saved.get("player_stone", BLACK)),
-		str(saved.get("difficulty", "MEDIUM"))
+		str(saved.get("difficulty", "MEDIUM")),
+		restored_seed,
 	)
 	state["ai_stone"] = int(saved.get("ai_stone", opponent(int(state["player_stone"]))))
 	state["move_history"] = saved.get("move_history", [])
@@ -464,6 +491,29 @@ static func state_from_save_dict(saved: Dictionary) -> Dictionary:
 	state["stats"] = normalize_stats(saved.get("stats", {}))
 	state["last_saved_at"] = int(saved.get("last_saved_at", 0))
 	return state
+
+
+static func _generate_game_seed() -> int:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	return int(rng.randi()) & 0x7fffffff
+
+
+static func _seed_from_payload(payload: PackedByteArray) -> int:
+	var seed := 2166136261 & 0x7fffffff
+	for byte in payload:
+		seed = ((seed ^ int(byte)) * 16777619) & 0x7fffffff
+	return seed
+
+
+static func _ai_tie_seed(state: Dictionary, stone: int) -> int:
+	var seed := int(state.get("game_seed", 0)) & 0x7fffffff
+	seed = (seed * 1103515245 + stone + 12345) & 0x7fffffff
+	var board: Array = state.get("board", [])
+	for row in board:
+		for cell in row:
+			seed = (seed * 31 + int(cell) + 1) & 0x7fffffff
+	return seed
 
 
 static func count_pieces(board: Array) -> Dictionary:
