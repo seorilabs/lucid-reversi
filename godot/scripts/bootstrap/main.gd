@@ -1759,7 +1759,7 @@ func _status_text() -> String:
 		return _t("status_flip")
 	if ai_move_pending:
 		return _t("status_ai_thinking")
-	if int(state.get("pass_count", 0)) > 0:
+	if bool(state.get("last_turn_was_pass", false)):
 		return _t("status_pass")
 	if int(state.get("current_turn", ReversiEngine.NONE)) == player_stone:
 		return _t("status_your_move")

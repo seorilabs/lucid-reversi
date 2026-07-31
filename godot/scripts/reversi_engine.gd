@@ -142,6 +142,7 @@ static func create_new_game(
 		"stats": default_stats(),
 		"last_move": {},
 		"pass_count": 0,
+		"last_turn_was_pass": false,
 		"game_over": false,
 		"winner": NONE,
 		"last_saved_at": 0,
@@ -177,6 +178,7 @@ static func create_state_from_board(
 		"stats": default_stats(),
 		"last_move": {},
 		"pass_count": 0,
+		"last_turn_was_pass": false,
 		"game_over": false,
 		"winner": NONE,
 		"last_saved_at": 0,
@@ -459,6 +461,7 @@ static func state_to_save_dict(state: Dictionary) -> Dictionary:
 		"board_codec": Marshalls.raw_to_base64(payload),
 		"move_history": state.get("move_history", []),
 		"pass_count": int(state.get("pass_count", 0)),
+		"last_turn_was_pass": bool(state.get("last_turn_was_pass", false)),
 		"stats": normalize_stats(state.get("stats", {})),
 		"last_saved_at": int(state.get("last_saved_at", 0)),
 	}
@@ -486,6 +489,7 @@ static func state_from_save_dict(saved: Dictionary) -> Dictionary:
 	state["ai_stone"] = int(saved.get("ai_stone", opponent(int(state["player_stone"]))))
 	state["move_history"] = saved.get("move_history", [])
 	state["pass_count"] = int(saved.get("pass_count", 0))
+	state["last_turn_was_pass"] = bool(saved.get("last_turn_was_pass", false))
 	var settings := normalize_settings(saved.get("settings", default_settings()))
 	settings["board_size"] = get_board_size(decoded["board"])
 	state["settings"] = settings
@@ -633,6 +637,7 @@ static func _direction_flips(board: Array, stone: int, x: int, y: int, direction
 
 
 static func _resolve_next_turn(state: Dictionary, just_played: int) -> void:
+	state["last_turn_was_pass"] = false
 	var board: Array = state["board"]
 	var next := opponent(just_played)
 	var next_moves := get_valid_moves(board, next)
@@ -646,6 +651,7 @@ static func _resolve_next_turn(state: Dictionary, just_played: int) -> void:
 		state["current_turn"] = just_played
 		state["valid_moves"] = same_moves
 		state["pass_count"] = int(state.get("pass_count", 0)) + 1
+		state["last_turn_was_pass"] = true
 		return
 
 	state["current_turn"] = NONE
