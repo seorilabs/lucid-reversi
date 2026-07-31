@@ -44,6 +44,7 @@ const AI_THINK_DELAY_BASE := {
 }
 const AI_THINK_DELAY_JITTER := 0.04
 const DIFFICULTY_IDS := ["EASY", "MEDIUM", "HARD"]
+const OPPONENT_MODE_IDS := ["ai", "local"]
 const BOARD_SIZE_IDS := ["6", "8", "10"]
 const BOARD_SIZE_LABELS := ["6×6", "8×8", "10×10"]
 const THEME_IDS := ["classic", "arctic", "ember", "forest"]
@@ -83,6 +84,11 @@ const TEXT := {
 		"sound": "소리",
 		"haptic": "진동",
 		"difficulty_setting": "난이도",
+		"opponent_mode_setting": "대전 상대",
+		"opponent_ai": "AI",
+		"opponent_local": "2인",
+		"black_player": "흑 플레이어",
+		"white_player": "백 플레이어",
 		"board_size_setting": "보드 크기",
 		"board_theme_title": "보드",
 		"stone_theme_title": "돌",
@@ -127,16 +133,24 @@ const TEXT := {
 		"status_pass": "패스",
 		"status_your_move": "내 차례",
 		"status_ai_turn": "AI 차례",
+		"status_black_turn": "흑 차례",
+		"status_white_turn": "백 차례",
 		"turn_final": "종료",
 		"turn_player": "차례",
 		"turn_ai": "AI",
+		"turn_black": "흑",
+		"turn_white": "백",
 		"focus_even": "균형",
 		"focus_player_leads": "우세 +%d",
 		"focus_ai_leads": "추격 -%d",
+		"focus_black_leads": "흑 우세 +%d",
+		"focus_white_leads": "백 우세 +%d",
 		"focus_valid": "착수 %d",
 		"result_win": "승리",
 		"result_draw": "무승부",
 		"result_lose": "패배",
+		"result_black_wins": "흑 승리",
+		"result_white_wins": "백 승리",
 		"result_detail": "흑 %d / 백 %d",
 		"result_share_text": "%s\n%s\n%s",
 		"stats_summary": "%s %d승 %d무 %d패",
@@ -169,6 +183,11 @@ const TEXT := {
 		"sound": "SOUND",
 		"haptic": "HAPTIC",
 		"difficulty_setting": "LEVEL",
+		"opponent_mode_setting": "OPPONENT",
+		"opponent_ai": "AI",
+		"opponent_local": "2 PLAYERS",
+		"black_player": "BLACK PLAYER",
+		"white_player": "WHITE PLAYER",
 		"board_size_setting": "BOARD SIZE",
 		"board_theme_title": "BOARD",
 		"stone_theme_title": "STONE",
@@ -213,16 +232,24 @@ const TEXT := {
 		"status_pass": "PASS",
 		"status_your_move": "YOUR MOVE",
 		"status_ai_turn": "AI TURN",
+		"status_black_turn": "BLACK TO MOVE",
+		"status_white_turn": "WHITE TO MOVE",
 		"turn_final": "FINAL",
 		"turn_player": "TURN",
 		"turn_ai": "AI",
+		"turn_black": "BLACK",
+		"turn_white": "WHITE",
 		"focus_even": "EVEN",
 		"focus_player_leads": "LEAD +%d",
 		"focus_ai_leads": "CHASE -%d",
+		"focus_black_leads": "BLACK +%d",
+		"focus_white_leads": "WHITE +%d",
 		"focus_valid": "VALID %d",
 		"result_win": "WIN",
 		"result_draw": "DRAW",
 		"result_lose": "LOSE",
+		"result_black_wins": "BLACK WINS",
+		"result_white_wins": "WHITE WINS",
 		"result_detail": "BLACK %d / WHITE %d",
 		"result_share_text": "%s\n%s\n%s",
 		"stats_summary": "%s %dW %dD %dL",
@@ -255,6 +282,11 @@ const TEXT := {
 		"sound": "サウンド",
 		"haptic": "振動",
 		"difficulty_setting": "難易度",
+		"opponent_mode_setting": "対戦相手",
+		"opponent_ai": "AI",
+		"opponent_local": "2人",
+		"black_player": "黒プレイヤー",
+		"white_player": "白プレイヤー",
 		"board_size_setting": "盤面サイズ",
 		"board_theme_title": "盤面",
 		"stone_theme_title": "石",
@@ -299,16 +331,24 @@ const TEXT := {
 		"status_pass": "パス",
 		"status_your_move": "あなたの番",
 		"status_ai_turn": "AIの番",
+		"status_black_turn": "黒の番",
+		"status_white_turn": "白の番",
 		"turn_final": "終了",
 		"turn_player": "手番",
 		"turn_ai": "AI",
+		"turn_black": "黒",
+		"turn_white": "白",
 		"focus_even": "互角",
 		"focus_player_leads": "優勢 +%d",
 		"focus_ai_leads": "劣勢 -%d",
+		"focus_black_leads": "黒優勢 +%d",
+		"focus_white_leads": "白優勢 +%d",
 		"focus_valid": "着手 %d",
 		"result_win": "勝利",
 		"result_draw": "引き分け",
 		"result_lose": "敗北",
+		"result_black_wins": "黒の勝ち",
+		"result_white_wins": "白の勝ち",
 		"result_detail": "黒 %d / 白 %d",
 		"result_share_text": "%s\n%s\n%s",
 		"stats_summary": "%s %d勝 %d分 %d敗",
@@ -398,6 +438,7 @@ var undo_button: Button
 var hint_button: Button
 var new_game_button: Button
 var difficulty_buttons: Array = []
+var opponent_mode_buttons: Array = []
 var board_size_buttons: Array = []
 var board_theme_buttons: Array = []
 var stone_theme_buttons: Array = []
@@ -1191,18 +1232,27 @@ func _build_settings_overlay() -> void:
 	anchor.add_child(row)
 
 	settings_panel = PanelContainer.new()
-	settings_panel.custom_minimum_size = Vector2(420, 0)
+	settings_panel.custom_minimum_size = Vector2(420, 1160)
 	settings_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	settings_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	settings_panel.add_theme_stylebox_override("panel", _make_style(_theme_color("hud_dark"), 2, Color(1, 1, 1, 0.14), 10))
 	row.add_child(settings_panel)
 
+	var scroll := ScrollContainer.new()
+	scroll.name = "SettingsScroll"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	settings_panel.add_child(scroll)
+
 	var margin := MarginContainer.new()
+	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	margin.add_theme_constant_override("margin_left", 14)
 	margin.add_theme_constant_override("margin_top", 12)
 	margin.add_theme_constant_override("margin_right", 14)
 	margin.add_theme_constant_override("margin_bottom", 14)
-	settings_panel.add_child(margin)
+	scroll.add_child(margin)
 
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 9)
@@ -1221,6 +1271,15 @@ func _build_settings_overlay() -> void:
 	_apply_text_visibility(title, 2, _theme_color("text_primary"))
 	header.add_child(title)
 	header.add_child(_make_action_button(_t("close"), func() -> void: _hide_settings_menu(), false))
+
+	box.add_child(_make_choice_section(
+		_t("opponent_mode_setting"),
+		OPPONENT_MODE_IDS,
+		[_t("opponent_ai"), _t("opponent_local")],
+		_current_opponent_mode(),
+		Callable(self, "_set_opponent_mode_from_choice"),
+		opponent_mode_buttons
+	))
 
 	box.add_child(_make_choice_section(
 		_t("difficulty_setting"),
@@ -2107,7 +2166,7 @@ func _start_new_game(stone: int, persist: bool = true) -> void:
 	if persist:
 		_save_state()
 	_render()
-	if analytics != null:
+	if analytics != null and !_is_local_game():
 		analytics.on_game_start(difficulty, player_stone)
 	call_deferred("_maybe_play_ai_turn")
 
@@ -2143,6 +2202,12 @@ static func board_frame_size_for_board(board_size: int) -> int:
 func _sync_identity_labels() -> void:
 	if player_info_label == null:
 		return
+	if _is_local_game():
+		player_info_label.text = _t("black_player")
+		ai_info_label.text = _t("white_player")
+		player_stone_view.texture = _texture_for_stone(ReversiEngine.BLACK)
+		ai_stone_view.texture = _texture_for_stone(ReversiEngine.WHITE)
+		return
 	player_info_label.text = "%s / %s" % [_t("you"), _piece_label(player_stone)]
 	ai_info_label.text = "%s / %s" % [_t("ai"), _piece_label(ReversiEngine.opponent(player_stone))]
 	player_stone_view.texture = _texture_for_stone(player_stone)
@@ -2177,7 +2242,10 @@ func _can_show_hint() -> bool:
 		and !input_locked \
 		and !ai_move_pending \
 		and !bool(state.get("game_over", false)) \
-		and int(state.get("current_turn", ReversiEngine.NONE)) == player_stone \
+		and (
+			_is_local_game()
+			or int(state.get("current_turn", ReversiEngine.NONE)) == player_stone
+		) \
 		and !state.get("valid_moves", []).is_empty()
 
 
@@ -2213,7 +2281,7 @@ func _on_cell_pressed(x: int, y: int) -> void:
 	if bool(state.get("game_over", false)):
 		_update_result_overlay()
 		return
-	if int(state.get("current_turn", ReversiEngine.NONE)) != player_stone:
+	if !_is_local_game() and int(state.get("current_turn", ReversiEngine.NONE)) != player_stone:
 		status_label.text = _t("status_ai_thinking")
 		return
 	_clear_hint_highlight()
@@ -2234,6 +2302,8 @@ func _maybe_play_ai_turn() -> void:
 		return
 	if bool(state.get("game_over", false)):
 		_update_result_overlay()
+		return
+	if _is_local_game():
 		return
 	var ai_stone: int = int(state.get("ai_stone", ReversiEngine.WHITE))
 	if int(state.get("current_turn", ReversiEngine.NONE)) != ai_stone:
@@ -2293,7 +2363,8 @@ func _sample_ai_think_delay() -> float:
 
 
 func _ai_turn_is_current(ai_stone: int, game_seed: int, history_size: int) -> bool:
-	return !bool(state.get("game_over", false)) \
+	return !_is_local_game() \
+		and !bool(state.get("game_over", false)) \
 		and int(state.get("current_turn", ReversiEngine.NONE)) == ai_stone \
 		and int(state.get("game_seed", -1)) == game_seed \
 		and state.get("move_history", []).size() == history_size
@@ -2394,8 +2465,12 @@ func _render() -> void:
 	var counts := ReversiEngine.count_pieces(state.get("board", []))
 	var black_score := int(counts["black"])
 	var white_score := int(counts["white"])
-	player_score_label.text = str(black_score if player_stone == ReversiEngine.BLACK else white_score)
-	ai_score_label.text = str(white_score if player_stone == ReversiEngine.BLACK else black_score)
+	player_score_label.text = str(
+		black_score if _is_local_game() or player_stone == ReversiEngine.BLACK else white_score
+	)
+	ai_score_label.text = str(
+		white_score if _is_local_game() or player_stone == ReversiEngine.BLACK else black_score
+	)
 	var player_score := black_score if player_stone == ReversiEngine.BLACK else white_score
 	var ai_score := white_score if player_stone == ReversiEngine.BLACK else black_score
 
@@ -2406,7 +2481,11 @@ func _render() -> void:
 		state.get("move_history", []).size(),
 		_last_move_text(),
 	]
-	footer_primary_label.text = _advantage_text(player_score, ai_score)
+	footer_primary_label.text = (
+		_local_advantage_text(black_score, white_score)
+		if _is_local_game()
+		else _advantage_text(player_score, ai_score)
+	)
 	footer_secondary_label.text = _t("focus_valid") % state.get("valid_moves", []).size()
 	black_meter.size_flags_stretch_ratio = max(1.0, float(black_score))
 	white_meter.size_flags_stretch_ratio = max(1.0, float(white_score))
@@ -2658,6 +2737,8 @@ func _safe_area_margins() -> Dictionary:
 func _update_mode_buttons() -> void:
 	if black_button == null or white_button == null:
 		return
+	black_button.visible = !_is_local_game()
+	white_button.visible = !_is_local_game()
 	black_button.button_pressed = player_stone == ReversiEngine.BLACK
 	white_button.button_pressed = player_stone == ReversiEngine.WHITE
 	_apply_segment_style(black_button, black_button.button_pressed)
@@ -2665,6 +2746,7 @@ func _update_mode_buttons() -> void:
 
 
 func _update_settings_choice_buttons() -> void:
+	_update_choice_buttons(opponent_mode_buttons, _current_opponent_mode())
 	_update_choice_buttons(difficulty_buttons, difficulty)
 	_update_choice_buttons(board_size_buttons, str(_current_board_size()))
 	_update_choice_buttons(board_theme_buttons, _current_theme_id())
@@ -2697,7 +2779,12 @@ func _apply_segment_style(button: Button, active: bool) -> void:
 
 func _update_turn_badge(current_turn: int) -> void:
 	var border_width := 3 if _high_contrast_enabled() else 1
-	if current_turn == player_stone:
+	var primary_turn := (
+		current_turn == ReversiEngine.BLACK
+		if _is_local_game()
+		else current_turn == player_stone
+	)
+	if primary_turn:
 		turn_badge.add_theme_stylebox_override("normal", _make_style(_theme_color("accent"), border_width, Color(1, 1, 1, 0.2), 8))
 		turn_badge.add_theme_color_override("font_color", Color(0.06, 0.055, 0.035, 1.0))
 		_apply_text_visibility(turn_badge, 1, Color(0.06, 0.055, 0.035, 1.0))
@@ -2717,7 +2804,15 @@ func _update_result_overlay(persist_stats: bool = true) -> void:
 	var white_score := int(counts["white"])
 	var winner := int(state.get("winner", ReversiEngine.NONE))
 	var result_kind := ""
-	if winner == player_stone:
+	if _is_local_game() and winner == ReversiEngine.BLACK:
+		result_title_label.text = _t("result_black_wins")
+		result_title_label.add_theme_color_override("font_color", _theme_color("accent"))
+		_apply_text_visibility(result_title_label, 3, _theme_color("accent"))
+	elif _is_local_game() and winner == ReversiEngine.WHITE:
+		result_title_label.text = _t("result_white_wins")
+		result_title_label.add_theme_color_override("font_color", _theme_color("success"))
+		_apply_text_visibility(result_title_label, 3, _theme_color("success"))
+	elif winner == player_stone:
 		result_kind = "win"
 		result_title_label.text = _t("result_win")
 		result_title_label.add_theme_color_override("font_color", _theme_color("accent"))
@@ -2733,8 +2828,8 @@ func _update_result_overlay(persist_stats: bool = true) -> void:
 		result_title_label.add_theme_color_override("font_color", _theme_color("danger"))
 		_apply_text_visibility(result_title_label, 3, _theme_color("danger"))
 	result_score_label.text = "%d : %d" % [
-		black_score if player_stone == ReversiEngine.BLACK else white_score,
-		white_score if player_stone == ReversiEngine.BLACK else black_score,
+		black_score if _is_local_game() or player_stone == ReversiEngine.BLACK else white_score,
+		white_score if _is_local_game() or player_stone == ReversiEngine.BLACK else black_score,
 	]
 	result_detail_label.text = _t("result_detail") % [black_score, white_score]
 	_show_result_overlay(winner)
@@ -2742,11 +2837,12 @@ func _update_result_overlay(persist_stats: bool = true) -> void:
 	# (오버레이는 게임 종료 후 입력·AI턴 진입마다 재호출되므로 밖에 두면 중복 집계된다.)
 	if not _interstitial_shown_this_game:
 		_interstitial_shown_this_game = true
-		ReversiEngine.record_game_result(state, result_kind)
+		if !_is_local_game():
+			ReversiEngine.record_game_result(state, result_kind)
 		_request_haptic("game_over")
 		if persist_stats:
 			_save_state()
-		if analytics != null:
+		if analytics != null and !_is_local_game():
 			analytics.on_game_over(
 				result_kind,
 				black_score if player_stone == ReversiEngine.BLACK else white_score,
@@ -2755,7 +2851,8 @@ func _update_result_overlay(persist_stats: bool = true) -> void:
 				state.get("move_history", []).size(),
 			)
 		_request_interstitial_ad()
-	result_stats_label.text = _current_difficulty_stats_text()
+	result_stats_label.visible = !_is_local_game()
+	result_stats_label.text = _current_difficulty_stats_text() if !_is_local_game() else ""
 
 
 func _show_result_overlay(winner: int) -> void:
@@ -2878,6 +2975,12 @@ func _status_text() -> String:
 		return _t("status_ai_thinking")
 	if bool(state.get("last_turn_was_pass", false)):
 		return _t("status_pass")
+	if _is_local_game():
+		return (
+			_t("status_black_turn")
+			if int(state.get("current_turn", ReversiEngine.NONE)) == ReversiEngine.BLACK
+			else _t("status_white_turn")
+		)
 	if int(state.get("current_turn", ReversiEngine.NONE)) == player_stone:
 		return _t("status_your_move")
 	return _t("status_ai_turn")
@@ -2886,6 +2989,8 @@ func _status_text() -> String:
 func _turn_text(current_turn: int) -> String:
 	if current_turn == ReversiEngine.NONE:
 		return _t("turn_final")
+	if _is_local_game():
+		return _t("turn_black") if current_turn == ReversiEngine.BLACK else _t("turn_white")
 	if current_turn == player_stone:
 		return _t("turn_player")
 	return _t("turn_ai")
@@ -2946,6 +3051,15 @@ func _advantage_text(player_score: int, ai_score: int) -> String:
 	return _t("focus_even")
 
 
+func _local_advantage_text(black_score: int, white_score: int) -> String:
+	var diff := black_score - white_score
+	if diff > 0:
+		return _t("focus_black_leads") % diff
+	if diff < 0:
+		return _t("focus_white_leads") % abs(diff)
+	return _t("focus_even")
+
+
 func _make_ui_theme() -> Theme:
 	var ui_theme := Theme.new()
 	var ui_font := FontVariation.new()
@@ -2975,6 +3089,16 @@ func _current_settings() -> Dictionary:
 	var defaults := ReversiEngine.default_settings()
 	var current: Dictionary = state.get("settings", {})
 	return ReversiEngine.normalize_settings(current.merged(defaults, false))
+
+
+func _current_opponent_mode() -> String:
+	return ReversiEngine.normalize_opponent_mode(
+		str(_current_settings().get("opponent_mode", "ai"))
+	)
+
+
+func _is_local_game() -> bool:
+	return _current_opponent_mode() == "local"
 
 
 func _current_board_size() -> int:
@@ -3089,6 +3213,24 @@ func _set_difficulty_from_choice(difficulty_id: String) -> void:
 	_save_preferences()
 	_render()
 	call_deferred("_maybe_play_ai_turn")
+
+
+func _set_opponent_mode_from_choice(opponent_mode: String) -> void:
+	if !OPPONENT_MODE_IDS.has(opponent_mode):
+		return
+	if opponent_mode == _current_opponent_mode():
+		_update_settings_choice_buttons()
+		return
+	var keep_settings_open := settings_overlay != null and settings_overlay.visible
+	var settings := _current_settings()
+	settings["opponent_mode"] = opponent_mode
+	state["settings"] = settings
+	if analytics != null:
+		analytics.on_settings_changed("opponent_mode", opponent_mode)
+	_save_preferences()
+	_start_new_game(player_stone)
+	if keep_settings_open:
+		_show_settings_menu()
 
 
 func _set_board_size_from_choice(board_size_id: String) -> void:

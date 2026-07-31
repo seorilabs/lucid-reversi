@@ -74,6 +74,8 @@ func _ready() -> void:
 	ok = _test_phase_aware_mobility_choice() and ok
 	var ai_delay_ok := await _test_ai_think_delay_profile_and_guard()
 	ok = ai_delay_ok and ok
+	var local_two_player_ok := await _test_local_two_player_mode()
+	ok = local_two_player_ok and ok
 	var i18n_ok := await _test_i18n_defaults_and_locale_switch()
 	ok = i18n_ok and ok
 	var japanese_locale_ok := await _test_japanese_locale_and_font_fallback()
@@ -226,6 +228,175 @@ func _test_ai_think_delay_profile_and_guard() -> bool:
 		and _assert(remaining_delay_ok, "ai think delay subtracts elapsed search time")
 		and _assert(pending_started_ok, "ai turn enters the pending state before search")
 		and _assert(turn_guard_ok, "ai turn change guard prevents a stale computed move")
+	)
+
+
+func _test_local_two_player_mode() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var suffix := str(OS.get_process_id())
+	var prefs_path := "user://prefs_local_two_player_%s.json" % suffix
+	var save_path := "user://save_local_two_player_%s.json" % suffix
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+
+	var defaults := ReversiEngine.default_settings()
+	var normalization_ok: bool = str(defaults.get("opponent_mode", "")) == "ai" \
+		and ReversiEngine.normalize_opponent_mode("local") == "local" \
+		and ReversiEngine.normalize_opponent_mode("unknown") == "ai" \
+		and str(ReversiEngine.normalize_settings({"opponent_mode": "unknown"}).get("opponent_mode", "")) == "ai"
+	var catalogs_ok: bool = str(MainScript.TEXT["ko"].get("opponent_mode_setting", "")) == "대전 상대" \
+		and str(MainScript.TEXT["ko"].get("opponent_local", "")) == "2인" \
+		and str(MainScript.TEXT["en"].get("opponent_mode_setting", "")) == "OPPONENT" \
+		and str(MainScript.TEXT["en"].get("opponent_local", "")) == "2 PLAYERS"
+
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	main._prefs_path = prefs_path
+	main._save_path = save_path
+	add_child(main)
+	await get_tree().process_frame
+	main._show_settings_menu()
+	await get_tree().process_frame
+	var local_entry: Dictionary = main.opponent_mode_buttons[1]
+	var local_button := local_entry.get("button") as Button
+	var settings_scroll := main.settings_panel.find_child("SettingsScroll", true, false) as ScrollContainer
+	var settings_entry_ok: bool = main.opponent_mode_buttons.size() == 2 \
+		and local_button != null \
+		and main.settings_panel.is_ancestor_of(local_button) \
+		and local_button.is_visible_in_tree() \
+		and settings_scroll != null \
+		and settings_scroll.horizontal_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED \
+		and settings_scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_AUTO \
+		and _choice_group_has_active_id(main.opponent_mode_buttons, "ai")
+
+	main._set_opponent_mode_from_choice("local")
+	await get_tree().process_frame
+	var local_settings: Dictionary = main.state.get("settings", {})
+	local_settings["reduce_motion"] = true
+	local_settings["sound"] = false
+	main.state["settings"] = local_settings
+	main._save_preferences()
+	main._render()
+	var local_ui_ok: bool = main._is_local_game() \
+		and _choice_group_has_active_id(main.opponent_mode_buttons, "local") \
+		and main.settings_overlay.visible \
+		and !main.black_button.visible \
+		and !main.white_button.visible \
+		and main.player_info_label.text == "흑 플레이어" \
+		and main.ai_info_label.text == "백 플레이어" \
+		and main.status_label.text == "흑 차례" \
+		and main.turn_badge.text == "흑"
+
+	await main._on_cell_pressed(2, 3)
+	await get_tree().create_timer(0.55).timeout
+	var black_move_only_ok: bool = main.state.get("move_history", []).size() == 1 \
+		and int(main.state.get("move_history", [])[0].get("stone", ReversiEngine.NONE)) == ReversiEngine.BLACK \
+		and int(main.state.get("current_turn", ReversiEngine.NONE)) == ReversiEngine.WHITE \
+		and !main.ai_move_pending \
+		and main._status_text() == "백 차례" \
+		and main._turn_text(ReversiEngine.WHITE) == "백"
+	var white_move: Dictionary = main.state.get("valid_moves", [])[0]
+	await main._on_cell_pressed(int(white_move["x"]), int(white_move["y"]))
+	var alternating_ok: bool = main.state.get("move_history", []).size() == 2 \
+		and int(main.state.get("move_history", [])[1].get("stone", ReversiEngine.NONE)) == ReversiEngine.WHITE \
+		and int(main.state.get("current_turn", ReversiEngine.NONE)) == ReversiEngine.BLACK
+
+	main.queue_free()
+	await get_tree().process_frame
+	var restored = main_scene.instantiate()
+	restored._prefs_path = prefs_path
+	restored._save_path = save_path
+	add_child(restored)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var restored_ok: bool = restored._is_local_game() \
+		and restored.state.get("move_history", []).size() == 2 \
+		and int(restored.state.get("current_turn", ReversiEngine.NONE)) == ReversiEngine.BLACK \
+		and restored._status_text() == "흑 차례" \
+		and !restored.ai_move_pending
+
+	restored._set_opponent_mode_from_choice("ai")
+	var ai_settings: Dictionary = restored.state.get("settings", {})
+	ai_settings["reduce_motion"] = true
+	ai_settings["sound"] = false
+	restored.state["settings"] = ai_settings
+	var human_result := ReversiEngine.play_move(restored.state, 2, 3)
+	restored._render()
+	restored._maybe_play_ai_turn()
+	await get_tree().create_timer(0.75).timeout
+	var ai_regression_ok: bool = bool(human_result.get("ok", false)) \
+		and restored._current_opponent_mode() == "ai" \
+		and restored.state.get("move_history", []).size() == 2 \
+		and int(restored.state.get("move_history", [])[1].get("stone", ReversiEngine.NONE)) == ReversiEngine.WHITE \
+		and !restored.ai_move_pending
+
+	restored._set_opponent_mode_from_choice("local")
+	var pass_board := _board_from_strings([
+		"WWBBBBW.",
+		".WWBBBBW",
+		"BWWWBBWW",
+		".WWWBWWW",
+		"BWBWWBWB",
+		"BWBWWWWB",
+		"BWWBBWWB",
+		".WWWWWWW",
+	])
+	var pass_state := ReversiEngine.create_state_from_board(pass_board, ReversiEngine.BLACK)
+	pass_state["settings"] = restored._current_settings()
+	var pass_result := ReversiEngine.play_move(pass_state, 0, 7)
+	restored.state = pass_state
+	restored.ai_move_pending = false
+	restored.input_locked = false
+	var local_pass_ok: bool = bool(pass_result.get("ok", false)) \
+		and restored._status_text() == "패스" \
+		and int(restored.state.get("current_turn", ReversiEngine.NONE)) == ReversiEngine.BLACK
+	var pass_follow_up := ReversiEngine.play_move(restored.state, 1, 0)
+	local_pass_ok = bool(pass_follow_up.get("ok", false)) \
+		and restored._status_text() == "백 차례" \
+		and local_pass_ok
+
+	var full_board: Array = []
+	for _x in range(ReversiEngine.BOARD_SIZE):
+		var row: Array = []
+		for _y in range(ReversiEngine.BOARD_SIZE):
+			row.append(ReversiEngine.BLACK)
+		full_board.append(row)
+	var final_state := ReversiEngine.create_state_from_board(
+		full_board,
+		ReversiEngine.BLACK,
+		ReversiEngine.BLACK,
+		"MEDIUM",
+	)
+	final_state["settings"] = restored._current_settings()
+	var stats_before: Dictionary = final_state.get("stats", {}).duplicate(true)
+	restored.state = final_state
+	restored._interstitial_shown_this_game = false
+	restored._result_animation_played_this_game = true
+	restored._render()
+	var local_result_ok: bool = restored.result_overlay.visible \
+		and restored.result_title_label.text == "흑 승리" \
+		and restored.result_score_label.text == "64 : 0" \
+		and restored.result_detail_label.text == "흑 64 / 백 0" \
+		and !restored.result_stats_label.visible \
+		and restored.state.get("stats", {}) == stats_before
+	var stored: Dictionary = restored._load_preferences()
+	var persistence_ok: bool = str(stored.get("settings", {}).get("opponent_mode", "")) == "local"
+	restored.queue_free()
+	await get_tree().process_frame
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	return (
+		_assert(normalization_ok, "opponent mode defaults to AI and rejects unknown values")
+		and _assert(catalogs_ok, "local opponent labels exist in Korean and English")
+		and _assert(settings_entry_ok, "opponent mode entry stays inside settings")
+		and _assert(local_ui_ok, "local mode uses black and white identity without extra HUD selectors")
+		and _assert(black_move_only_ok, "local mode leaves WHITE for a human without an AI response")
+		and _assert(alternating_ok, "local mode accepts alternating BLACK and WHITE moves")
+		and _assert(restored_ok, "local mode and active game restore after restart")
+		and _assert(ai_regression_ok, "AI mode still responds after switching back")
+		and _assert(local_pass_ok, "local mode preserves pass flow and the next player status")
+		and _assert(local_result_ok, "local result reports BLACK and WHITE without changing AI stats")
+		and _assert(persistence_ok, "local mode selection persists immediately")
 	)
 
 

@@ -1,6 +1,6 @@
 # Lucid Reversi
 
-루시드 리버시는 Godot 기반 싱글플레이 리버시 게임이다. 현재 출시 우선순위는 AppsInToss first이며, Google Play와 Apple App Store는 후속 마켓으로 repo-local inventory를 유지한다.
+루시드 리버시는 Godot 기반 AI·로컬 2인 리버시 게임이다. 현재 출시 우선순위는 AppsInToss first이며, Google Play와 Apple App Store는 후속 마켓으로 repo-local inventory를 유지한다.
 
 이 repo는 `starter-template-game`을 기반으로 시작했다. 마켓 등록값은 확정되지 않은 항목을 `확정 필요` 또는 후보로 남긴다.
 
