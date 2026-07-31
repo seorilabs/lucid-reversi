@@ -45,6 +45,7 @@ static func default_settings() -> Dictionary:
 		"stone_theme": "classic",
 		"font_scale": 1.0,
 		"reduce_motion": false,
+		"high_contrast": false,
 		"show_moves": true,
 		"board_size": DEFAULT_BOARD_SIZE,
 	}
