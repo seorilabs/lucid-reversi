@@ -63,6 +63,7 @@ func _ready() -> void:
 	ok = _test_alpha_beta_matches_full_search() and ok
 	ok = _test_endgame_exact_search() and ok
 	ok = _test_mobility_evaluation_boundaries() and ok
+	ok = _test_phase_aware_mobility_choice() and ok
 	var i18n_ok := await _test_i18n_defaults_and_locale_switch()
 	ok = i18n_ok and ok
 	var japanese_locale_ok := await _test_japanese_locale_and_font_fallback()
@@ -1078,6 +1079,17 @@ func _test_mobility_evaluation_boundaries() -> bool:
 		full_board,
 		ReversiEngine.WHITE,
 	)
+	var opening_board: Array = ReversiEngine.create_new_game()["board"]
+	var middle_board := _board_from_strings([
+		"BBBBBBBB",
+		"WWWWWWWW",
+		"BBBBBBBB",
+		"WWWWWWWW",
+		"........",
+		"........",
+		"........",
+		"........",
+	])
 	return (
 		_assert(
 			ReversiEngine._mobility_score(mobility_board, ReversiEngine.BLACK)
@@ -1092,7 +1104,100 @@ func _test_mobility_evaluation_boundaries() -> bool:
 			black_full_score == -white_full_score and absi(black_full_score) < 10000,
 			"terminal-board evaluation stays finite and symmetric",
 		)
+		and _assert(
+			ReversiEngine._disc_weight_for_board(opening_board)
+				== ReversiEngine.DISC_WEIGHT_OPENING
+				and ReversiEngine._disc_weight_for_board(middle_board)
+					== ReversiEngine.DISC_WEIGHT_MIDDLE
+				and ReversiEngine._disc_weight_for_board(full_board)
+					== ReversiEngine.DISC_WEIGHT_ENDGAME,
+			"disc-count weight increases from opening through endgame",
+		)
 	)
+
+
+func _test_phase_aware_mobility_choice() -> bool:
+	var board := _board_from_strings([
+		"....WB..",
+		"...WWB..",
+		"..BBWB..",
+		"...WWW..",
+		"..WWWW..",
+		"..B.B...",
+		"........",
+		"........",
+	])
+	var medium_state := ReversiEngine.create_state_from_board(
+		board,
+		ReversiEngine.BLACK,
+		ReversiEngine.WHITE,
+		"MEDIUM",
+		620062,
+	)
+	var hard_state: Dictionary = medium_state.duplicate(true)
+	hard_state["difficulty"] = "HARD"
+	var easy_state: Dictionary = medium_state.duplicate(true)
+	easy_state["difficulty"] = "EASY"
+	var easy_stats := {"nodes": 0}
+	var medium_move := ReversiEngine.choose_ai_move(medium_state)
+	var hard_move := ReversiEngine.choose_ai_move(hard_state)
+	ReversiEngine.choose_ai_move(easy_state, easy_stats)
+
+	var greedy_move := {"x": 5, "y": 5}
+	var strategic_move := {"x": 0, "y": 3}
+	var greedy_metrics := _move_flip_and_mobility(board, ReversiEngine.BLACK, greedy_move)
+	var strategic_metrics := _move_flip_and_mobility(
+		board,
+		ReversiEngine.BLACK,
+		strategic_move,
+	)
+	var evaluation_once := ReversiEngine._evaluate_board(board, ReversiEngine.BLACK)
+	var evaluation_twice := ReversiEngine._evaluate_board(board, ReversiEngine.BLACK)
+	return (
+		_assert(
+			int(greedy_metrics["flips"]) == 4
+				and int(strategic_metrics["flips"]) == 3
+				and int(strategic_metrics["mobility"]) > int(greedy_metrics["mobility"]),
+			"fixture contrasts greedy flips with higher resulting mobility",
+		)
+		and _assert(
+			medium_move == strategic_move and hard_move == strategic_move,
+			"medium and hard prefer the lower-flip higher-mobility move",
+		)
+		and _assert(
+			int(easy_stats.get("nodes", -1)) == medium_state["valid_moves"].size()
+				and !bool(easy_stats.get("exact_search", true)),
+			"easy keeps one-ply search without exact endgame escalation",
+		)
+		and _assert(
+			evaluation_once == evaluation_twice,
+			"phase-aware static evaluation is deterministic",
+		)
+	)
+
+
+func _move_flip_and_mobility(
+	board: Array,
+	stone: int,
+	move: Dictionary,
+) -> Dictionary:
+	var board_after := ReversiEngine.clone_board(board)
+	var flipped := ReversiEngine._apply_move(
+		board_after,
+		stone,
+		int(move["x"]),
+		int(move["y"]),
+	)
+	return {
+		"flips": flipped.size(),
+		"mobility": (
+			ReversiEngine.get_valid_moves(board_after, stone).size()
+			- ReversiEngine.get_valid_moves(
+				board_after,
+				ReversiEngine.opponent(stone),
+			).size()
+		),
+	}
 
 
 func _test_ui_hints_return_after_animation() -> bool:
