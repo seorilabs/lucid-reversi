@@ -95,6 +95,8 @@ func _ready() -> void:
 	ok = board_coordinates_ok and ok
 	var accessibility_ok := await _test_accessibility_settings_and_reduced_motion()
 	ok = accessibility_ok and ok
+	var high_contrast_ok := await _test_high_contrast_accessibility()
+	ok = high_contrast_ok and ok
 	var new_game_confirmation_ok := await _test_new_game_confirmation_guard()
 	ok = new_game_confirmation_ok and ok
 	var theme_ok := await _test_visual_theme_switches_are_independent()
@@ -2776,6 +2778,102 @@ func _test_accessibility_settings_and_reduced_motion() -> bool:
 		and _assert(legal_moves_state_ok, "reduced motion renders final legal moves")
 		and _assert(board_state_ok, "reduced motion renders the final board")
 		and _assert(rendered_english_labels_ok, "accessibility controls render English labels")
+	)
+
+
+func _test_high_contrast_accessibility() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var suffix := str(OS.get_process_id())
+	var prefs_path := "user://prefs_high_contrast_%s.json" % suffix
+	var save_path := "user://save_high_contrast_%s.json" % suffix
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+
+	var defaults := ReversiEngine.default_settings()
+	var normalization_ok := !bool(defaults.get("high_contrast", true)) \
+		and !bool(ReversiEngine.normalize_settings({}).get("high_contrast", true)) \
+		and bool(ReversiEngine.normalize_settings({"high_contrast": true}).get("high_contrast", false))
+	var labels_ok := str(MainScript.TEXT["ko"].get("high_contrast", "")) == "고대비 색상" \
+		and str(MainScript.TEXT["en"].get("high_contrast", "")) == "HIGH CONTRAST"
+
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	main._prefs_path = prefs_path
+	main._save_path = save_path
+	add_child(main)
+	await get_tree().process_frame
+	var default_visuals_ok: bool = main._board_cell_color(0, 0) == main._board_cell_color(0, 1) \
+		and !main.black_meter_label.visible \
+		and !main.white_meter_label.visible
+	main._show_settings_menu()
+	await get_tree().process_frame
+	var toggle_ok: bool = main.settings_panel.is_ancestor_of(main.high_contrast_toggle) \
+		and main.high_contrast_toggle.is_visible_in_tree() \
+		and main.high_contrast_toggle.text == "고대비 색상"
+	main.high_contrast_toggle.button_pressed = true
+	await get_tree().process_frame
+
+	var marker_style := main.cell_hint_views[2][3].get_theme_stylebox("panel") as StyleBoxFlat
+	var marker_ok: bool = main.cell_hint_views[2][3].visible \
+		and marker_style != null \
+		and marker_style.border_width_top >= 3 \
+		and marker_style.bg_color.a <= 0.05
+	var meter_ok: bool = main.black_meter_label.visible \
+		and main.white_meter_label.visible \
+		and main.black_meter_label.text == "%s 2" % main._t("black") \
+		and main.white_meter_label.text == "%s 2" % main._t("white")
+
+	var checker_ok := true
+	for theme_id in MainScript.THEME_IDS:
+		var settings: Dictionary = main.state.get("settings", {})
+		settings["theme"] = theme_id
+		main.state["settings"] = settings
+		var dark_cell: Color = main._board_cell_color(0, 0)
+		var light_cell: Color = main._board_cell_color(0, 1)
+		checker_ok = absf(dark_cell.get_luminance() - light_cell.get_luminance()) >= 0.25 \
+			and checker_ok
+
+	main.state["last_move"] = {"x": 3, "y": 3, "stone": ReversiEngine.WHITE}
+	main._render_cell(3, 3, int(main.state["board"][3][3]), false, true)
+	var last_style := main.cell_buttons[3][3].get_theme_stylebox("normal") as StyleBoxFlat
+	var last_move_ok := last_style != null and last_style.border_width_top >= 5
+	var stored: Dictionary = main._load_preferences()
+	var persisted_ok := bool(stored.get("settings", {}).get("high_contrast", false))
+
+	main._set_theme("arctic", false)
+	await get_tree().process_frame
+	main._set_locale("en", false)
+	await get_tree().process_frame
+	var rebuild_ok: bool = main._high_contrast_enabled() \
+		and main.high_contrast_toggle.button_pressed \
+		and main.high_contrast_toggle.text == "HIGH CONTRAST" \
+		and main.black_meter_label.visible
+	main.queue_free()
+	await get_tree().process_frame
+
+	var restored = main_scene.instantiate()
+	restored._prefs_path = prefs_path
+	restored._save_path = save_path
+	add_child(restored)
+	await get_tree().process_frame
+	var restored_ok: bool = restored._high_contrast_enabled() \
+		and restored.high_contrast_toggle.button_pressed \
+		and restored.black_meter_label.visible
+	restored.queue_free()
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	return (
+		_assert(normalization_ok, "high contrast setting defaults off and normalizes saved values")
+		and _assert(labels_ok, "high contrast labels exist in Korean and English")
+		and _assert(default_visuals_ok, "high contrast defaults preserve the standard board and meter")
+		and _assert(toggle_ok, "high contrast toggle is visible inside settings")
+		and _assert(marker_ok, "high contrast legal move uses a hollow thick ring")
+		and _assert(meter_ok, "high contrast meter exposes black and white numeric labels")
+		and _assert(checker_ok, "high contrast checker luminance differs across every board theme")
+		and _assert(last_move_ok, "high contrast last move uses a thick border")
+		and _assert(persisted_ok, "high contrast setting persists immediately")
+		and _assert(rebuild_ok, "high contrast survives theme and locale rebuilds")
+		and _assert(restored_ok, "high contrast restores after restart")
 	)
 
 

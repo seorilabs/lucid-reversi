@@ -110,6 +110,7 @@ const TEXT := {
 		"privacy_policy": "개인정보 처리방침",
 		"font_scale_setting": "글자 크기",
 		"reduce_motion": "모션 줄이기",
+		"high_contrast": "고대비 색상",
 		"show_moves": "착수 표시",
 		"board_theme": "보드 %s",
 		"stone_theme": "돌 %s",
@@ -193,6 +194,7 @@ const TEXT := {
 		"privacy_policy": "PRIVACY POLICY",
 		"font_scale_setting": "TEXT SIZE",
 		"reduce_motion": "REDUCE MOTION",
+		"high_contrast": "HIGH CONTRAST",
 		"show_moves": "MOVES",
 		"board_theme": "BOARD %s",
 		"stone_theme": "STONE %s",
@@ -276,6 +278,7 @@ const TEXT := {
 		"privacy_policy": "プライバシーポリシー",
 		"font_scale_setting": "文字サイズ",
 		"reduce_motion": "動きを減らす",
+		"high_contrast": "ハイコントラスト",
 		"show_moves": "着手表示",
 		"board_theme": "盤面 %s",
 		"stone_theme": "石 %s",
@@ -392,6 +395,7 @@ var stone_theme_buttons: Array = []
 var locale_buttons: Array = []
 var font_scale_buttons: Array = []
 var reduce_motion_toggle: CheckButton
+var high_contrast_toggle: CheckButton
 var show_moves_toggle: CheckButton
 var result_overlay: ColorRect
 var result_panel: PanelContainer
@@ -412,6 +416,8 @@ var footer_primary_label: Label
 var footer_secondary_label: Label
 var black_meter: ColorRect
 var white_meter: ColorRect
+var black_meter_label: Label
+var white_meter_label: Label
 var _shell_open_override := Callable()
 
 
@@ -931,13 +937,16 @@ func _build_play_focus_strip(root: VBoxContainer) -> void:
 	black_meter.color = _stone_theme_color("black_meter")
 	black_meter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	meter.add_child(black_meter)
+	black_meter_label = _make_meter_label(Color.WHITE)
+	black_meter.add_child(black_meter_label)
 
 	white_meter = ColorRect.new()
 	white_meter.custom_minimum_size = Vector2(12, 0)
 	white_meter.color = _stone_theme_color("white_meter")
 	white_meter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	meter.add_child(white_meter)
-
+	white_meter_label = _make_meter_label(Color(0.03, 0.035, 0.045, 1.0))
+	white_meter.add_child(white_meter_label)
 	var controls_strip := PanelContainer.new()
 	controls_strip.name = "PlayControlsStrip"
 	controls_strip.custom_minimum_size = Vector2(0, 74)
@@ -995,6 +1004,18 @@ func _build_play_focus_strip(root: VBoxContainer) -> void:
 	footer_secondary_label.add_theme_color_override("font_color", _theme_color("text_muted"))
 	_apply_text_visibility(footer_secondary_label, 1, _theme_color("text_muted"))
 	right_spacer.add_child(footer_secondary_label)
+
+
+func _make_meter_label(font_color: Color) -> Label:
+	var label := Label.new()
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", _font_size(12))
+	label.add_theme_color_override("font_color", font_color)
+	_apply_text_visibility(label, 1, font_color)
+	return label
 
 
 func _build_result_overlay() -> void:
@@ -1163,6 +1184,8 @@ func _build_settings_overlay() -> void:
 	box.add_child(show_moves_toggle)
 	reduce_motion_toggle = _make_toggle_button(_t("reduce_motion"), "reduce_motion")
 	box.add_child(reduce_motion_toggle)
+	high_contrast_toggle = _make_toggle_button(_t("high_contrast"), "high_contrast")
+	box.add_child(high_contrast_toggle)
 
 	box.add_child(_make_choice_section(
 		_t("font_scale_setting"),
@@ -1763,7 +1786,7 @@ func _make_toggle_button(text: String, key: String) -> CheckButton:
 		current_settings[key] = enabled
 		state["settings"] = current_settings
 		_save_preferences()
-		if key == "show_moves":
+		if key == "show_moves" or key == "high_contrast":
 			_render()
 	)
 	return toggle
@@ -2320,6 +2343,7 @@ func _render() -> void:
 	footer_secondary_label.text = _t("focus_valid") % state.get("valid_moves", []).size()
 	black_meter.size_flags_stretch_ratio = max(1.0, float(black_score))
 	white_meter.size_flags_stretch_ratio = max(1.0, float(white_score))
+	_update_meter_accessibility(black_score, white_score)
 	_update_mode_buttons()
 	_update_settings_choice_buttons()
 	_update_turn_badge(current_turn)
@@ -2351,13 +2375,14 @@ func _render_cell(x: int, y: int, piece: int, is_valid: bool, is_last: bool) -> 
 	var piece_view: TextureRect = cell_piece_views[x][y]
 	var hint_view: PanelContainer = cell_hint_views[x][y]
 	var recommendation_view: PanelContainer = cell_recommendation_views[x][y]
-	var base := _theme_color("board_surface")
-	var border_width := 3 if is_last else 0
+	var base := _board_cell_color(x, y)
+	var border_width := (5 if _high_contrast_enabled() else 3) if is_last else 0
 	var border_color := _theme_color("accent") if is_last else Color.TRANSPARENT
 
 	button.mouse_default_cursor_shape = Control.CURSOR_ARROW
 	button.disabled = false
 	hint_view.visible = false
+	hint_view.add_theme_stylebox_override("panel", _legal_move_hint_style())
 	recommendation_view.visible = false
 	if piece == ReversiEngine.NONE and is_valid and int(state.get("current_turn", ReversiEngine.NONE)) == player_stone and !input_locked:
 		piece_view.texture = null
@@ -2385,6 +2410,31 @@ func _render_cell(x: int, y: int, piece: int, is_valid: bool, is_last: bool) -> 
 	button.add_theme_stylebox_override("hover", _make_style(base.lightened(0.07), max(border_width, 2), _theme_color("accent") if is_valid else border_color))
 	button.add_theme_stylebox_override("pressed", _make_style(base.darkened(0.08), max(border_width, 2), Color(0, 0, 0, 0.32)))
 	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+
+
+func _update_meter_accessibility(black_score: int, white_score: int) -> void:
+	var enabled := _high_contrast_enabled()
+	var black_color := _stone_theme_color("black_meter")
+	var white_color := _stone_theme_color("white_meter")
+	black_meter.color = black_color.darkened(0.55) if enabled else black_color
+	white_meter.color = white_color.lightened(0.22) if enabled else white_color
+	black_meter_label.visible = enabled
+	white_meter_label.visible = enabled
+	black_meter_label.text = "%s %d" % [_t("black"), black_score] if enabled else ""
+	white_meter_label.text = "%s %d" % [_t("white"), white_score] if enabled else ""
+
+
+func _board_cell_color(x: int, y: int) -> Color:
+	var surface := _theme_color("board_surface")
+	if !_high_contrast_enabled():
+		return surface
+	return surface.darkened(0.48) if (x + y) % 2 == 0 else surface.lightened(0.42)
+
+
+func _legal_move_hint_style() -> StyleBoxFlat:
+	if _high_contrast_enabled():
+		return _make_style(Color(1.0, 1.0, 1.0, 0.04), 3, _theme_color("hint_border"), 18)
+	return _make_style(_theme_color("hint"), 1, _theme_color("hint_border"), 14)
 
 
 func _prepare_piece_view(x: int, y: int) -> void:
@@ -2569,16 +2619,17 @@ func _apply_segment_style(button: Button, active: bool) -> void:
 
 
 func _update_turn_badge(current_turn: int) -> void:
+	var border_width := 3 if _high_contrast_enabled() else 1
 	if current_turn == player_stone:
-		turn_badge.add_theme_stylebox_override("normal", _make_style(_theme_color("accent"), 1, Color(1, 1, 1, 0.2), 8))
+		turn_badge.add_theme_stylebox_override("normal", _make_style(_theme_color("accent"), border_width, Color(1, 1, 1, 0.2), 8))
 		turn_badge.add_theme_color_override("font_color", Color(0.06, 0.055, 0.035, 1.0))
 		_apply_text_visibility(turn_badge, 1, Color(0.06, 0.055, 0.035, 1.0))
 	elif current_turn == ReversiEngine.NONE:
-		turn_badge.add_theme_stylebox_override("normal", _make_style(_theme_color("hud"), 1, Color(1, 1, 1, 0.13), 8))
+		turn_badge.add_theme_stylebox_override("normal", _make_style(_theme_color("hud"), border_width, Color(1, 1, 1, 0.13), 8))
 		turn_badge.add_theme_color_override("font_color", _theme_color("text_primary"))
 		_apply_text_visibility(turn_badge, 1, _theme_color("text_primary"))
 	else:
-		turn_badge.add_theme_stylebox_override("normal", _make_style(_theme_color("success"), 1, Color(1, 1, 1, 0.16), 8))
+		turn_badge.add_theme_stylebox_override("normal", _make_style(_theme_color("success"), border_width, Color(1, 1, 1, 0.16), 8))
 		turn_badge.add_theme_color_override("font_color", Color(0.02, 0.05, 0.03, 1.0))
 		_apply_text_visibility(turn_badge, 1, Color(0.02, 0.05, 0.03, 1.0))
 
@@ -2886,6 +2937,10 @@ func _reduce_motion_enabled() -> bool:
 
 func _show_moves_enabled() -> bool:
 	return bool(_current_settings().get("show_moves", true))
+
+
+func _high_contrast_enabled() -> bool:
+	return bool(_current_settings().get("high_contrast", false))
 
 
 func _apply_preferences_to_state() -> void:
