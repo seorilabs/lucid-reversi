@@ -71,6 +71,8 @@ func _ready() -> void:
 	ok = theme_ok and ok
 	var ui_ok := await _test_ui_hints_return_after_animation()
 	ok = ui_ok and ok
+	var show_moves_ok := await _test_show_moves_setting()
+	ok = show_moves_ok and ok
 	var undo_ui_ok := await _test_undo_button_states()
 	ok = undo_ui_ok and ok
 	var result_animation_ok := await _test_result_overlay_animation_once_and_reduce_motion()
@@ -986,6 +988,88 @@ func _test_ui_hints_return_after_animation() -> bool:
 		and _assert(expected_hints > 0, "ui has valid player moves after ai")
 		and _assert(visible_hints == expected_hints, "ui valid hints return after animation")
 		and _assert(ghost_stones == 0, "ui valid hints do not draw ghost stones")
+	)
+
+
+func _test_show_moves_setting() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var suffix := str(OS.get_process_id())
+	var prefs_path := "user://prefs_show_moves_%s.json" % suffix
+	var save_path := "user://save_show_moves_%s.json" % suffix
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+
+	var defaults := ReversiEngine.default_settings()
+	var legacy_normalized := ReversiEngine.normalize_settings({})
+	var disabled_normalized := ReversiEngine.normalize_settings({"show_moves": false})
+	var normalization_ok: bool = bool(defaults.get("show_moves", false)) \
+		and bool(legacy_normalized.get("show_moves", false)) \
+		and !bool(disabled_normalized.get("show_moves", true))
+
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	main._prefs_path = prefs_path
+	main._save_path = save_path
+	add_child(main)
+	await get_tree().process_frame
+	main.player_stone = ReversiEngine.BLACK
+	main.state = ReversiEngine.create_new_game(ReversiEngine.BLACK, "MEDIUM")
+	main._render()
+	await get_tree().process_frame
+
+	var expected_hints := int(main.state.get("valid_moves", []).size())
+	var default_on_ok: bool = main.show_moves_toggle.button_pressed \
+		and _visible_hint_count(main) == expected_hints
+	main._show_settings_menu()
+	await get_tree().process_frame
+	var settings_depth_ok: bool = main.settings_panel.is_ancestor_of(main.show_moves_toggle) \
+		and main.show_moves_toggle.is_visible_in_tree() \
+		and main.show_moves_toggle.text == "착수 표시" \
+		and str(MainScript.TEXT["en"].get("show_moves", "")) == "MOVES"
+
+	main.show_moves_toggle.button_pressed = false
+	await get_tree().process_frame
+	var hidden_ok: bool = !main._show_moves_enabled() \
+		and _visible_hint_count(main) == 0
+	var motion_count_before_invalid: int = main._motion_tween_count
+	main._on_cell_pressed(0, 0)
+	var invalid_feedback_ok: bool = main._motion_tween_count == motion_count_before_invalid + 1
+	var stored: Dictionary = main._load_preferences()
+	var persisted_off_ok: bool = !bool(stored.get("settings", {}).get("show_moves", true))
+	main.queue_free()
+	await get_tree().process_frame
+
+	var restored_main = main_scene.instantiate()
+	restored_main._prefs_path = prefs_path
+	restored_main._save_path = save_path
+	add_child(restored_main)
+	await get_tree().process_frame
+	var restored_off_ok: bool = !restored_main.show_moves_toggle.button_pressed \
+		and !restored_main._show_moves_enabled() \
+		and _visible_hint_count(restored_main) == 0
+	restored_main._set_locale("en", false)
+	await get_tree().process_frame
+	var english_label_ok: bool = restored_main.show_moves_toggle.text == "MOVES"
+	restored_main.show_moves_toggle.button_pressed = true
+	await get_tree().process_frame
+	var restored_on_ok: bool = restored_main._show_moves_enabled() \
+		and _visible_hint_count(restored_main) == int(
+			restored_main.state.get("valid_moves", []).size()
+		)
+
+	restored_main.queue_free()
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	return (
+		_assert(normalization_ok, "show moves defaults on and normalizes saved values")
+		and _assert(default_on_ok, "show moves defaults to visible legal markers")
+		and _assert(settings_depth_ok, "show moves toggle stays inside settings with ko en labels")
+		and _assert(hidden_ok, "show moves off hides legal markers immediately")
+		and _assert(invalid_feedback_ok, "invalid move pulse remains active while markers are hidden")
+		and _assert(persisted_off_ok, "show moves off persists to preferences")
+		and _assert(restored_off_ok, "show moves off restores after restart")
+		and _assert(english_label_ok, "show moves renders the English label")
+		and _assert(restored_on_ok, "show moves on restores legal markers")
 	)
 
 

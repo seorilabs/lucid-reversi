@@ -74,6 +74,7 @@ const TEXT := {
 		"language_setting": "언어",
 		"font_scale_setting": "글자 크기",
 		"reduce_motion": "모션 줄이기",
+		"show_moves": "착수 표시",
 		"board_theme": "보드 %s",
 		"stone_theme": "돌 %s",
 		"locale": "언어 %s",
@@ -131,6 +132,7 @@ const TEXT := {
 		"language_setting": "LANG",
 		"font_scale_setting": "TEXT SIZE",
 		"reduce_motion": "REDUCE MOTION",
+		"show_moves": "MOVES",
 		"board_theme": "BOARD %s",
 		"stone_theme": "STONE %s",
 		"locale": "LANG %s",
@@ -218,6 +220,7 @@ var stone_theme_buttons: Array = []
 var locale_buttons: Array = []
 var font_scale_buttons: Array = []
 var reduce_motion_toggle: CheckButton
+var show_moves_toggle: CheckButton
 var result_overlay: ColorRect
 var result_panel: PanelContainer
 var result_winner_stone_view: TextureRect
@@ -788,6 +791,8 @@ func _build_settings_overlay() -> void:
 	box.add_child(sound_toggle)
 	haptic_toggle = _make_toggle_button(_t("haptic"), "haptic")
 	box.add_child(haptic_toggle)
+	show_moves_toggle = _make_toggle_button(_t("show_moves"), "show_moves")
+	box.add_child(show_moves_toggle)
 	reduce_motion_toggle = _make_toggle_button(_t("reduce_motion"), "reduce_motion")
 	box.add_child(reduce_motion_toggle)
 
@@ -991,6 +996,8 @@ func _make_toggle_button(text: String, key: String) -> CheckButton:
 		current_settings[key] = enabled
 		state["settings"] = current_settings
 		_save_preferences()
+		if key == "show_moves":
+			_render()
 	)
 	return toggle
 
@@ -1336,11 +1343,12 @@ func _render_cell(x: int, y: int, piece: int, is_valid: bool, is_last: bool) -> 
 	button.disabled = false
 	hint_view.visible = false
 	if piece == ReversiEngine.NONE and is_valid and int(state.get("current_turn", ReversiEngine.NONE)) == player_stone and !input_locked:
-		base = base.lightened(0.08)
 		piece_view.texture = null
 		piece_view.modulate = Color.TRANSPARENT
 		piece_view.scale = Vector2.ONE
-		hint_view.visible = true
+		if _show_moves_enabled():
+			base = base.lightened(0.08)
+			hint_view.visible = true
 		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	elif piece == ReversiEngine.BLACK or piece == ReversiEngine.WHITE:
 		piece_view.texture = _texture_for_stone(piece)
@@ -1808,6 +1816,10 @@ func _font_size(base_size: int) -> int:
 
 func _reduce_motion_enabled() -> bool:
 	return bool(_current_settings().get("reduce_motion", false))
+
+
+func _show_moves_enabled() -> bool:
+	return bool(_current_settings().get("show_moves", true))
 
 
 func _apply_preferences_to_state() -> void:
