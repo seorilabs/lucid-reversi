@@ -66,6 +66,7 @@ const TEXT := {
 		"confirm_yes": "확인",
 		"confirm_no": "취소",
 		"undo": "무르기",
+		"hint": "힌트",
 		"restart": "다시",
 		"board": "보드",
 		"settings": "설정",
@@ -146,6 +147,7 @@ const TEXT := {
 		"confirm_yes": "CONFIRM",
 		"confirm_no": "CANCEL",
 		"undo": "UNDO",
+		"hint": "HINT",
 		"restart": "RESTART",
 		"board": "BOARD",
 		"settings": "SET",
@@ -226,6 +228,7 @@ const TEXT := {
 		"confirm_yes": "決定",
 		"confirm_no": "キャンセル",
 		"undo": "一手戻す",
+		"hint": "ヒント",
 		"restart": "もう一度",
 		"board": "盤面",
 		"settings": "設定",
@@ -317,10 +320,12 @@ var _prefs_path := PREFS_PATH
 var _motion_tween_count := 0
 var _result_entry_animation_count := 0
 var _winner_emphasis_animation_count := 0
+var _hinted_move: Dictionary = {}
 
 var cell_buttons: Array = []
 var cell_piece_views: Array = []
 var cell_hint_views: Array = []
+var cell_recommendation_views: Array = []
 var cell_tutorial_views: Array = []
 var board_column_labels: Array = []
 var board_row_labels: Array = []
@@ -362,6 +367,7 @@ var gameplay_strip: PanelContainer
 var black_button: Button
 var white_button: Button
 var undo_button: Button
+var hint_button: Button
 var new_game_button: Button
 var difficulty_buttons: Array = []
 var board_size_buttons: Array = []
@@ -439,6 +445,7 @@ func _load_or_start() -> void:
 
 
 func _build_ui() -> void:
+	_hinted_move.clear()
 	for child in get_children():
 		# GA4 전송기·광고 어댑터 같은 백그라운드 서비스 노드는 UI 재구성 시 삭제하지 않는다.
 		# (_build_ui 는 _ready 외에 테마/난이도/언어 변경에서도 재호출되며 get_children 을 전부 지운다.
@@ -706,11 +713,13 @@ func _build_board(root: VBoxContainer) -> void:
 	cell_buttons.clear()
 	cell_piece_views.clear()
 	cell_hint_views.clear()
+	cell_recommendation_views.clear()
 	cell_tutorial_views.clear()
 	for x in range(board_size):
 		var button_row: Array = []
 		var piece_row: Array = []
 		var hint_row: Array = []
+		var recommendation_row: Array = []
 		var tutorial_row: Array = []
 		for y in range(board_size):
 			var cell_x := x
@@ -744,6 +753,21 @@ func _build_board(root: VBoxContainer) -> void:
 			hint.add_theme_stylebox_override("panel", _make_style(_theme_color("hint"), 1, _theme_color("hint_border"), 14))
 			button.add_child(hint)
 
+			var recommendation := PanelContainer.new()
+			recommendation.name = "HintRecommendation%d_%d" % [x, y]
+			recommendation.visible = false
+			recommendation.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			recommendation.set_anchors_preset(Control.PRESET_FULL_RECT)
+			recommendation.offset_left = 4
+			recommendation.offset_top = 4
+			recommendation.offset_right = -4
+			recommendation.offset_bottom = -4
+			recommendation.add_theme_stylebox_override(
+				"panel",
+				_make_style(Color(1.0, 0.82, 0.18, 0.12), 4, _theme_color("accent"), 8),
+			)
+			button.add_child(recommendation)
+
 			var tutorial_highlight := PanelContainer.new()
 			tutorial_highlight.name = "TutorialHighlight%d_%d" % [x, y]
 			tutorial_highlight.visible = false
@@ -763,10 +787,12 @@ func _build_board(root: VBoxContainer) -> void:
 			button_row.append(button)
 			piece_row.append(piece)
 			hint_row.append(hint)
+			recommendation_row.append(recommendation)
 			tutorial_row.append(tutorial_highlight)
 		cell_buttons.append(button_row)
 		cell_piece_views.append(piece_row)
 		cell_hint_views.append(hint_row)
+		cell_recommendation_views.append(recommendation_row)
 		cell_tutorial_views.append(tutorial_row)
 
 
@@ -840,6 +866,7 @@ func _build_play_focus_strip(root: VBoxContainer) -> void:
 	meter.add_child(white_meter)
 
 	var controls_strip := PanelContainer.new()
+	controls_strip.name = "PlayControlsStrip"
 	controls_strip.custom_minimum_size = Vector2(0, 74)
 	controls_strip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	controls_strip.add_theme_stylebox_override("panel", _make_style(_theme_color("hud"), 1, Color(1, 1, 1, 0.07), 8))
@@ -872,6 +899,11 @@ func _build_play_focus_strip(root: VBoxContainer) -> void:
 	undo_button = _make_action_button(_t("undo"), func() -> void: _on_undo_pressed())
 	undo_button.custom_minimum_size = Vector2(128, PLAY_BUTTON_HEIGHT)
 	controls_row.add_child(undo_button)
+
+	hint_button = _make_action_button(_t("hint"), func() -> void: _on_hint_pressed())
+	hint_button.name = "HintButton"
+	hint_button.custom_minimum_size = Vector2(112, PLAY_BUTTON_HEIGHT)
+	controls_row.add_child(hint_button)
 
 	new_game_button = _make_action_button(_t("new_game"), func() -> void: _request_new_game(player_stone), true)
 	new_game_button.custom_minimum_size = Vector2(172, PLAY_BUTTON_HEIGHT)
@@ -1886,6 +1918,7 @@ func _confirm_new_game() -> void:
 
 
 func _start_new_game(stone: int, persist: bool = true) -> void:
+	_clear_hint_highlight()
 	_hide_move_list()
 	ai_move_pending = false
 	input_locked = false
@@ -1953,6 +1986,7 @@ func _sync_identity_labels() -> void:
 func _on_undo_pressed(persist: bool = true) -> void:
 	if !_can_undo():
 		return
+	_clear_hint_highlight()
 	var result := ReversiEngine.undo_last_round(state)
 	if !bool(result.get("ok", false)):
 		return
@@ -1972,6 +2006,41 @@ func _can_undo() -> bool:
 	return ReversiEngine.can_undo_last_round(state)
 
 
+func _can_show_hint() -> bool:
+	return !state.is_empty() \
+		and !input_locked \
+		and !ai_move_pending \
+		and !bool(state.get("game_over", false)) \
+		and int(state.get("current_turn", ReversiEngine.NONE)) == player_stone \
+		and !state.get("valid_moves", []).is_empty()
+
+
+func _on_hint_pressed() -> void:
+	_clear_hint_highlight()
+	if !_can_show_hint():
+		return
+	var move := ReversiEngine.choose_ai_move(state)
+	if move.is_empty() or !_is_valid_cell(
+		state.get("valid_moves", []),
+		int(move.get("x", -1)),
+		int(move.get("y", -1)),
+	):
+		return
+	_hinted_move = {
+		"x": int(move["x"]),
+		"y": int(move["y"]),
+	}
+	_render()
+	_pulse_cell(int(move["x"]), int(move["y"]), _theme_color("accent"))
+
+
+func _clear_hint_highlight() -> void:
+	_hinted_move.clear()
+	for row in cell_recommendation_views:
+		for highlight in row:
+			(highlight as PanelContainer).visible = false
+
+
 func _on_cell_pressed(x: int, y: int) -> void:
 	if input_locked:
 		return
@@ -1981,6 +2050,7 @@ func _on_cell_pressed(x: int, y: int) -> void:
 	if int(state.get("current_turn", ReversiEngine.NONE)) != player_stone:
 		status_label.text = _t("status_ai_thinking")
 		return
+	_clear_hint_highlight()
 
 	var before_board := ReversiEngine.clone_board(state["board"])
 	var result := ReversiEngine.play_move(state, x, y)
@@ -2143,6 +2213,8 @@ func _render() -> void:
 	_update_turn_badge(current_turn)
 	if undo_button != null:
 		undo_button.disabled = !_can_undo()
+	if hint_button != null:
+		hint_button.disabled = !_can_show_hint()
 
 	var board: Array = state.get("board", [])
 	var valid_moves: Array = state.get("valid_moves", [])
@@ -2166,6 +2238,7 @@ func _render_cell(x: int, y: int, piece: int, is_valid: bool, is_last: bool) -> 
 	var button: Button = cell_buttons[x][y]
 	var piece_view: TextureRect = cell_piece_views[x][y]
 	var hint_view: PanelContainer = cell_hint_views[x][y]
+	var recommendation_view: PanelContainer = cell_recommendation_views[x][y]
 	var base := _theme_color("board_surface")
 	var border_width := 3 if is_last else 0
 	var border_color := _theme_color("accent") if is_last else Color.TRANSPARENT
@@ -2173,6 +2246,7 @@ func _render_cell(x: int, y: int, piece: int, is_valid: bool, is_last: bool) -> 
 	button.mouse_default_cursor_shape = Control.CURSOR_ARROW
 	button.disabled = false
 	hint_view.visible = false
+	recommendation_view.visible = false
 	if piece == ReversiEngine.NONE and is_valid and int(state.get("current_turn", ReversiEngine.NONE)) == player_stone and !input_locked:
 		piece_view.texture = null
 		piece_view.modulate = Color.TRANSPARENT
@@ -2189,6 +2263,10 @@ func _render_cell(x: int, y: int, piece: int, is_valid: bool, is_last: bool) -> 
 		piece_view.texture = null
 		piece_view.modulate = Color.TRANSPARENT
 		piece_view.scale = Vector2.ONE
+	recommendation_view.visible = piece == ReversiEngine.NONE \
+		and is_valid \
+		and _can_show_hint() \
+		and _is_hinted_move(x, y)
 	piece_view.rotation = 0.0
 
 	button.add_theme_stylebox_override("normal", _make_style(base, border_width, border_color))
@@ -2568,6 +2646,12 @@ func _is_last_move(x: int, y: int) -> bool:
 	if last_move.is_empty():
 		return false
 	return int(last_move.get("x", -1)) == x and int(last_move.get("y", -1)) == y
+
+
+func _is_hinted_move(x: int, y: int) -> bool:
+	return !_hinted_move.is_empty() \
+		and int(_hinted_move.get("x", -1)) == x \
+		and int(_hinted_move.get("y", -1)) == y
 
 
 static func move_coordinate(column: int, row: int) -> String:

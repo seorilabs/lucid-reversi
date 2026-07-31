@@ -74,6 +74,8 @@ func _ready() -> void:
 	ok = how_to_play_ok and ok
 	var move_list_ok := await _test_move_list_panel()
 	ok = move_list_ok and ok
+	var hint_button_ok := await _test_hint_button()
+	ok = hint_button_ok and ok
 	var settings_persistence_ok := await _test_settings_persist_immediately()
 	ok = settings_persistence_ok and ok
 	var board_size_ui_ok := await _test_board_size_ui()
@@ -2098,6 +2100,114 @@ func _test_move_list_panel() -> bool:
 		and _assert(reset_ok, "new game hides and clears the move list")
 		and _assert(empty_ok, "empty move list renders a localized empty state")
 		and _assert(i18n_ok, "move list has Korean and English strings")
+	)
+
+
+func _test_hint_button() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+
+	main.player_stone = ReversiEngine.BLACK
+	main.difficulty = "EASY"
+	main.state = ReversiEngine.create_new_game(ReversiEngine.BLACK, "EASY", 8, 77)
+	var settings: Dictionary = main.state.get("settings", {})
+	settings["locale"] = "ko"
+	settings["sound"] = false
+	settings["reduce_motion"] = true
+	main.state["settings"] = settings
+	main.ai_move_pending = false
+	main.input_locked = false
+	main._render()
+	await get_tree().process_frame
+
+	var controls_strip: Node = main.find_child("PlayControlsStrip", true, false)
+	var entry_ok: bool = main.hint_button != null \
+		and main.hint_button.text == "힌트" \
+		and !main.hint_button.disabled \
+		and main.hint_button.custom_minimum_size.y >= 56.0 \
+		and controls_strip != null \
+		and controls_strip.is_ancestor_of(main.hint_button)
+	var expected_move: Dictionary = ReversiEngine.choose_ai_move(main.state)
+	var state_before: Dictionary = main.state.duplicate(true)
+	main.hint_button.pressed.emit()
+	await get_tree().process_frame
+
+	var highlighted_count := 0
+	var highlighted_move := {"x": -1, "y": -1}
+	for x in range(main.cell_recommendation_views.size()):
+		for y in range(main.cell_recommendation_views[x].size()):
+			var highlight: PanelContainer = main.cell_recommendation_views[x][y]
+			if highlight.visible:
+				highlighted_count += 1
+				highlighted_move = {"x": x, "y": y}
+	var player_best_move_ok: bool = !expected_move.is_empty() \
+		and highlighted_count == 1 \
+		and highlighted_move == expected_move \
+		and main._is_valid_cell(
+			main.state.get("valid_moves", []),
+			int(highlighted_move["x"]),
+			int(highlighted_move["y"]),
+		)
+	var state_unchanged_ok: bool = main.state == state_before
+
+	main._on_cell_pressed(0, 0)
+	var move_clears_hint_ok: bool = main._hinted_move.is_empty()
+	for row in main.cell_recommendation_views:
+		for highlight in row:
+			move_clears_hint_ok = move_clears_hint_ok \
+				and !(highlight as PanelContainer).visible
+
+	main.ai_move_pending = true
+	main._render()
+	var ai_pending_disabled_ok: bool = main.hint_button.disabled
+	main.ai_move_pending = false
+	main.input_locked = true
+	main._render()
+	var input_locked_disabled_ok: bool = main.hint_button.disabled
+	main.input_locked = false
+	main.state["game_over"] = true
+	main._render()
+	var game_over_disabled_ok: bool = main.hint_button.disabled
+	main.state["game_over"] = false
+	main.state["current_turn"] = ReversiEngine.WHITE
+	main.state["valid_moves"] = ReversiEngine.get_valid_moves(
+		main.state["board"],
+		ReversiEngine.WHITE,
+	)
+	main._render()
+	var ai_turn_disabled_ok: bool = main.hint_button.disabled
+
+	main.state["current_turn"] = ReversiEngine.BLACK
+	main.state["valid_moves"] = []
+	main._render()
+	main._on_hint_pressed()
+	var no_move_safe_ok: bool = main.hint_button.disabled and main._hinted_move.is_empty()
+
+	main._set_locale("en", false)
+	await get_tree().process_frame
+	var english_label_ok: bool = main.hint_button.text == "HINT"
+	var i18n_ok: bool = true
+	for locale_id in ["ko", "en"]:
+		var locale_texts: Dictionary = MainScript.TEXT[locale_id]
+		i18n_ok = i18n_ok and locale_texts.has("hint") \
+			and !str(locale_texts.get("hint", "")).is_empty()
+
+	main.queue_free()
+	return (
+		_assert(entry_ok, "hint button stays in play controls with a Korean label")
+		and _assert(player_best_move_ok, "hint highlights exactly one legal best move for the player")
+		and _assert(state_unchanged_ok, "hint search leaves the game state unchanged")
+		and _assert(move_clears_hint_ok, "the next board interaction clears the one-shot hint")
+		and _assert(ai_pending_disabled_ok, "hint disables while ai move is pending")
+		and _assert(input_locked_disabled_ok, "hint disables while input is locked")
+		and _assert(game_over_disabled_ok, "hint disables after game over")
+		and _assert(ai_turn_disabled_ok, "hint disables outside the player turn")
+		and _assert(no_move_safe_ok, "hint safely ignores a pass state without legal moves")
+		and _assert(english_label_ok, "hint renders the English label")
+		and _assert(i18n_ok, "hint has Korean and English strings")
 	)
 
 
