@@ -45,8 +45,8 @@ const AI_THINK_DELAY_JITTER := 0.04
 const DIFFICULTY_IDS := ["EASY", "MEDIUM", "HARD"]
 const BOARD_SIZE_IDS := ["6", "8", "10"]
 const BOARD_SIZE_LABELS := ["6×6", "8×8", "10×10"]
-const THEME_IDS := ["classic", "arctic", "ember"]
-const THEME_LABELS := ["CLASSIC", "ARCTIC", "EMBER"]
+const THEME_IDS := ["classic", "arctic", "ember", "forest"]
+const THEME_LABELS := ["CLASSIC", "ARCTIC", "EMBER", "FOREST"]
 const STONE_THEME_IDS := ["classic", "arctic", "ember"]
 const STONE_THEME_LABELS := ["CLASSIC", "ARCTIC", "EMBER"]
 const LOCALE_IDS := ["ko", "en", "ja"]
@@ -118,6 +118,7 @@ const TEXT := {
 		"theme_classic": "기본",
 		"theme_arctic": "빙하",
 		"theme_ember": "노을",
+		"theme_forest": "숲",
 		"status_game_over": "게임 종료",
 		"status_flip": "뒤집는 중",
 		"status_ai_thinking": "AI 생각 중",
@@ -202,6 +203,7 @@ const TEXT := {
 		"theme_classic": "CLASSIC",
 		"theme_arctic": "ARCTIC",
 		"theme_ember": "EMBER",
+		"theme_forest": "FOREST",
 		"status_game_over": "GAME OVER",
 		"status_flip": "FLIP",
 		"status_ai_thinking": "AI THINKING",
@@ -286,6 +288,7 @@ const TEXT := {
 		"theme_classic": "クラシック",
 		"theme_arctic": "氷河",
 		"theme_ember": "夕焼け",
+		"theme_forest": "フォレスト",
 		"status_game_over": "対局終了",
 		"status_flip": "反転中",
 		"status_ai_thinking": "AI思考中",
@@ -2425,10 +2428,11 @@ func _update_meter_accessibility(black_score: int, white_score: int) -> void:
 
 
 func _board_cell_color(x: int, y: int) -> Color:
-	var surface := _theme_color("board_surface")
+	var config: Dictionary = _theme_config()
+	var surface: Color = config["board_surface"]
 	if !_high_contrast_enabled():
 		return surface
-	return surface.darkened(0.48) if (x + y) % 2 == 0 else surface.lightened(0.42)
+	return Color(config["board_dark"]) if (x + y) % 2 == 0 else Color(config["board_light"])
 
 
 func _legal_move_hint_style() -> StyleBoxFlat:
@@ -3218,6 +3222,24 @@ func _theme_config(theme_id: String = "") -> Dictionary:
 				"hint": Color(1.0, 0.58, 0.20, 0.92),
 				"hint_border": Color(1.0, 0.86, 0.55, 0.62),
 			}
+		"forest":
+			config = {
+				"bg": Color(0.018, 0.035, 0.024, 1.0),
+				"hud": Color(0.055, 0.105, 0.070, 1.0),
+				"hud_dark": Color(0.025, 0.060, 0.038, 1.0),
+				"board_frame": Color(0.008, 0.014, 0.010, 1.0),
+				"board_frame_border": Color(0.34, 0.45, 0.30, 0.72),
+				"board_surface": Color(0.055, 0.31, 0.135, 1.0),
+				"board_grid": Color(0.006, 0.055, 0.018, 0.96),
+				"meter_bg": Color(0.012, 0.032, 0.020, 1.0),
+				"text_primary": Color(0.96, 0.99, 0.94, 1.0),
+				"text_muted": Color(0.76, 0.86, 0.73, 1.0),
+				"accent": Color(1.0, 0.84, 0.24, 1.0),
+				"danger": DANGER,
+				"success": Color(0.42, 0.91, 0.52, 1.0),
+				"hint": Color(0.80, 1.0, 0.72, 0.94),
+				"hint_border": Color(0.96, 1.0, 0.90, 0.88),
+			}
 		_:
 			config = {
 				"bg": BG_COLOR,
@@ -3236,6 +3258,8 @@ func _theme_config(theme_id: String = "") -> Dictionary:
 				"hint": Color(1.0, 0.82, 0.18, 0.92),
 				"hint_border": Color(1.0, 0.95, 0.68, 0.58),
 			}
+	config["board_dark"] = Color(config["board_surface"]).darkened(0.48)
+	config["board_light"] = Color(config["board_surface"]).lightened(0.42)
 	config.merge(board_depth_palette(config["board_surface"], config["text_muted"]))
 	return config
 
