@@ -25,6 +25,7 @@ const CELL_GAP := 2
 const BOARD_PADDING := 4
 const BOARD_COORDINATE_GUTTER := 20
 const BOARD_COORDINATE_GAP := 2
+const BOARD_GUIDE_POINT_SIZE := 7
 const BOARD_TARGET_CONTENT_SIZE := CELL_SIZE * ReversiEngine.DEFAULT_BOARD_SIZE + CELL_GAP * (ReversiEngine.DEFAULT_BOARD_SIZE - 1)
 const PLAY_BUTTON_HEIGHT := 58
 const ACTION_BUTTON_HEIGHT := 52
@@ -333,6 +334,8 @@ var cell_piece_views: Array = []
 var cell_hint_views: Array = []
 var cell_recommendation_views: Array = []
 var cell_tutorial_views: Array = []
+var cell_surface_depth_views: Array = []
+var board_guide_points: Array = []
 var board_column_labels: Array = []
 var board_row_labels: Array = []
 var player_score_label: Label
@@ -721,12 +724,15 @@ func _build_board(root: VBoxContainer) -> void:
 	cell_hint_views.clear()
 	cell_recommendation_views.clear()
 	cell_tutorial_views.clear()
+	cell_surface_depth_views.clear()
+	board_guide_points.clear()
 	for x in range(board_size):
 		var button_row: Array = []
 		var piece_row: Array = []
 		var hint_row: Array = []
 		var recommendation_row: Array = []
 		var tutorial_row: Array = []
+		var depth_row: Array = []
 		for y in range(board_size):
 			var cell_x := x
 			var cell_y := y
@@ -736,6 +742,17 @@ func _build_board(root: VBoxContainer) -> void:
 			button.clip_contents = true
 			button.text = ""
 			button.pressed.connect(func() -> void: _on_cell_pressed(cell_x, cell_y))
+
+			var surface_depth := PanelContainer.new()
+			surface_depth.name = "CellSurfaceDepth%d_%d" % [x, y]
+			surface_depth.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			surface_depth.set_anchors_preset(Control.PRESET_FULL_RECT)
+			surface_depth.offset_left = 1
+			surface_depth.offset_top = 1
+			surface_depth.offset_right = -2
+			surface_depth.offset_bottom = -2
+			surface_depth.add_theme_stylebox_override("panel", _make_board_cell_depth_style())
+			button.add_child(surface_depth)
 
 			var piece := TextureRect.new()
 			piece.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -795,11 +812,53 @@ func _build_board(root: VBoxContainer) -> void:
 			hint_row.append(hint)
 			recommendation_row.append(recommendation)
 			tutorial_row.append(tutorial_highlight)
+			depth_row.append(surface_depth)
 		cell_buttons.append(button_row)
 		cell_piece_views.append(piece_row)
 		cell_hint_views.append(hint_row)
 		cell_recommendation_views.append(recommendation_row)
 		cell_tutorial_views.append(tutorial_row)
+		cell_surface_depth_views.append(depth_row)
+
+	var guide_layer := Control.new()
+	guide_layer.name = "BoardGuideLayer"
+	guide_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	guide_layer.z_index = 2
+	guide_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	board_surface.add_child(guide_layer)
+	var board_span := float(board_size * cell_size + (board_size - 1) * CELL_GAP)
+	for guide_x in board_guide_intersections(board_size):
+		for guide_y in board_guide_intersections(board_size):
+			var guide_point := PanelContainer.new()
+			guide_point.name = "BoardGuidePoint%d_%d" % [guide_x, guide_y]
+			guide_point.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			guide_point.custom_minimum_size = Vector2(BOARD_GUIDE_POINT_SIZE, BOARD_GUIDE_POINT_SIZE)
+			guide_point.size = Vector2(BOARD_GUIDE_POINT_SIZE, BOARD_GUIDE_POINT_SIZE)
+			guide_point.position = Vector2(
+				float(guide_y * (cell_size + CELL_GAP)) - float(CELL_GAP) * 0.5,
+				float(guide_x * (cell_size + CELL_GAP)) - float(CELL_GAP) * 0.5,
+			) - Vector2.ONE * float(BOARD_GUIDE_POINT_SIZE) * 0.5
+			guide_point.position.x = clampf(guide_point.position.x, 0.0, board_span - BOARD_GUIDE_POINT_SIZE)
+			guide_point.position.y = clampf(guide_point.position.y, 0.0, board_span - BOARD_GUIDE_POINT_SIZE)
+			guide_point.add_theme_stylebox_override(
+				"panel",
+				_make_style(_theme_color("board_guide"), 1, _theme_color("board_highlight"), 4),
+			)
+			guide_layer.add_child(guide_point)
+			board_guide_points.append(guide_point)
+
+
+static func board_guide_intersections(board_size: int) -> PackedInt32Array:
+	var near_intersection := maxi(1, board_size / 4)
+	return PackedInt32Array([near_intersection, board_size - near_intersection])
+
+
+func _make_board_cell_depth_style() -> StyleBoxFlat:
+	var style := _make_style(Color.TRANSPARENT, 1, _theme_color("board_highlight"), 1)
+	style.shadow_color = _theme_color("board_shadow")
+	style.shadow_size = 2
+	style.shadow_offset = Vector2(1, 1)
+	return style
 
 
 func _make_board_coordinate_label(text: String, minimum_size: Vector2) -> Label:
@@ -3027,10 +3086,11 @@ func _theme_config(theme_id: String = "") -> Dictionary:
 	var id := theme_id
 	if id.is_empty():
 		id = _current_theme_id()
+	var config: Dictionary
 
 	match id:
 		"arctic":
-			return {
+			config = {
 				"bg": Color(0.018, 0.034, 0.052, 1.0),
 				"hud": Color(0.055, 0.095, 0.125, 1.0),
 				"hud_dark": Color(0.032, 0.055, 0.08, 1.0),
@@ -3048,7 +3108,7 @@ func _theme_config(theme_id: String = "") -> Dictionary:
 				"hint_border": Color(0.86, 1.0, 1.0, 0.68),
 			}
 		"ember":
-			return {
+			config = {
 				"bg": Color(0.045, 0.031, 0.024, 1.0),
 				"hud": Color(0.135, 0.09, 0.055, 1.0),
 				"hud_dark": Color(0.075, 0.047, 0.032, 1.0),
@@ -3066,7 +3126,7 @@ func _theme_config(theme_id: String = "") -> Dictionary:
 				"hint_border": Color(1.0, 0.86, 0.55, 0.62),
 			}
 		_:
-			return {
+			config = {
 				"bg": BG_COLOR,
 				"hud": HUD_COLOR,
 				"hud_dark": HUD_DARK,
@@ -3083,6 +3143,22 @@ func _theme_config(theme_id: String = "") -> Dictionary:
 				"hint": Color(1.0, 0.82, 0.18, 0.92),
 				"hint_border": Color(1.0, 0.95, 0.68, 0.58),
 			}
+	config.merge(board_depth_palette(config["board_surface"], config["text_muted"]))
+	return config
+
+
+static func board_depth_palette(surface: Color, muted: Color) -> Dictionary:
+	var highlight := surface.lightened(0.18)
+	highlight.a = 0.48
+	var shadow := surface.darkened(0.34)
+	shadow.a = 0.55
+	var guide := muted
+	guide.a = 0.44
+	return {
+		"board_highlight": highlight,
+		"board_shadow": shadow,
+		"board_guide": guide,
+	}
 
 
 func _theme_color(key: String) -> Color:

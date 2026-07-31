@@ -2871,6 +2871,7 @@ func _test_new_game_confirmation_guard() -> bool:
 
 
 func _test_visual_theme_switches_are_independent() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
 	var main_scene = load("res://scenes/main.tscn")
 	var main = main_scene.instantiate()
 	add_child(main)
@@ -2891,12 +2892,35 @@ func _test_visual_theme_switches_are_independent() -> bool:
 	var board_surface_panel := main.find_child("BoardSurface", true, false) as PanelContainer
 	var classic_grid_style := board_surface_panel.get_theme_stylebox("panel") as StyleBoxFlat
 	var classic_config: Dictionary = main._theme_config("classic")
+	var classic_depth_style := main.cell_surface_depth_views[0][0].get_theme_stylebox("panel") as StyleBoxFlat
+	var guide_layer := main.find_child("BoardGuideLayer", true, false) as Control
+	var classic_guide_style := main.board_guide_points[0].get_theme_stylebox("panel") as StyleBoxFlat
+	var classic_depth_palette: Dictionary = MainScript.board_depth_palette(
+		classic_config["board_surface"],
+		classic_config["text_muted"],
+	)
 	var classic_surface_ok: bool = classic_color == classic_adjacent_style.bg_color \
 		and classic_color == classic_config["board_surface"] \
 		and classic_grid_style.bg_color == classic_config["board_grid"] \
 		and classic_color != classic_grid_style.bg_color \
 		and classic_color.g > classic_color.r \
 		and classic_color.g > classic_color.b
+	var classic_depth_ok: bool = classic_depth_style.bg_color == Color.TRANSPARENT \
+		and classic_depth_style.border_color == classic_depth_palette["board_highlight"] \
+		and classic_depth_style.shadow_color == classic_depth_palette["board_shadow"] \
+		and classic_depth_style.shadow_size == 2 \
+		and classic_depth_style.shadow_offset == Vector2(1, 1)
+	var guide_points_ok: bool = MainScript.board_guide_intersections(8) == PackedInt32Array([2, 6]) \
+		and main.board_guide_points.size() == 4 \
+		and guide_layer != null \
+		and guide_layer.mouse_filter == Control.MOUSE_FILTER_IGNORE \
+		and classic_guide_style.bg_color == classic_depth_palette["board_guide"]
+	for guide_point_value in main.board_guide_points:
+		var guide_point: PanelContainer = guide_point_value
+		guide_points_ok = guide_points_ok \
+			and guide_point.mouse_filter == Control.MOUSE_FILTER_IGNORE \
+			and guide_point.position.x >= 0.0 \
+			and guide_point.position.y >= 0.0
 	var valid_normal_style := main.cell_buttons[2][3].get_theme_stylebox("normal") as StyleBoxFlat
 	var valid_hover_style := main.cell_buttons[2][3].get_theme_stylebox("hover") as StyleBoxFlat
 	var hint_and_hover_ok: bool = _visible_hint_count(main) == 4 \
@@ -2941,6 +2965,7 @@ func _test_visual_theme_switches_are_independent() -> bool:
 		)
 	var theme_surface_colors: Array[Color] = []
 	var all_board_themes_use_grid_ok := true
+	var all_board_themes_use_depth_ok := true
 	for theme_value in ["classic", "arctic", "ember"]:
 		var board_theme_id := str(theme_value)
 		main._set_theme(board_theme_id, false)
@@ -2950,16 +2975,33 @@ func _test_visual_theme_switches_are_independent() -> bool:
 		var surface_panel := main.find_child("BoardSurface", true, false) as PanelContainer
 		var grid_style := surface_panel.get_theme_stylebox("panel") as StyleBoxFlat
 		var config: Dictionary = main._theme_config(board_theme_id)
+		var depth_style := main.cell_surface_depth_views[0][0].get_theme_stylebox("panel") as StyleBoxFlat
+		var guide_style := main.board_guide_points[0].get_theme_stylebox("panel") as StyleBoxFlat
+		var depth_palette: Dictionary = MainScript.board_depth_palette(
+			config["board_surface"],
+			config["text_muted"],
+		)
 		all_board_themes_use_grid_ok = all_board_themes_use_grid_ok \
 			and first_style.bg_color == adjacent_style.bg_color \
 			and first_style.bg_color == config["board_surface"] \
 			and grid_style.bg_color == config["board_grid"] \
 			and first_style.bg_color != grid_style.bg_color
+		all_board_themes_use_depth_ok = all_board_themes_use_depth_ok \
+			and depth_style.border_color == depth_palette["board_highlight"] \
+			and depth_style.shadow_color == depth_palette["board_shadow"] \
+			and guide_style.bg_color == depth_palette["board_guide"] \
+			and main.board_guide_points.size() == 4
 		if !theme_surface_colors.has(first_style.bg_color):
 			theme_surface_colors.append(first_style.bg_color)
 
 	main._set_theme("classic", false)
 	await get_tree().process_frame
+	var guide_instance_before_locale: int = main.board_guide_points[0].get_instance_id()
+	main._set_locale("en", false)
+	await get_tree().process_frame
+	var locale_rebuild_ok: bool = main.board_guide_points.size() == 4 \
+		and main.board_guide_points[0].get_instance_id() != guide_instance_before_locale \
+		and main.cell_surface_depth_views.size() == 8
 	var move_result := ReversiEngine.play_move(main.state, 2, 3)
 	main._render()
 	var last_move_style := main.cell_buttons[2][3].get_theme_stylebox("normal") as StyleBoxFlat
@@ -2970,6 +3012,8 @@ func _test_visual_theme_switches_are_independent() -> bool:
 	return (
 		_assert(selected_theme_ok, "ui theme setting changes")
 		and _assert(classic_surface_ok, "ui classic board uses one green surface with grid lines")
+		and _assert(classic_depth_ok, "ui board cells add an inner highlight and shadow")
+		and _assert(guide_points_ok, "ui board guide points ignore cell input")
 		and _assert(hint_and_hover_ok, "ui keeps legal hints and hover feedback on the grid board")
 		and _assert(classic_color != arctic_board_color, "ui board theme switches board color")
 		and _assert(classic_texture == board_only_texture, "ui board theme does not switch stone texture")
@@ -2980,7 +3024,9 @@ func _test_visual_theme_switches_are_independent() -> bool:
 		and _assert(stone_buttons_ok, "ui stone theme buttons track selected theme")
 		and _assert(all_stone_themes_render_ok, "ui renders black and white discs for every stone theme")
 		and _assert(all_board_themes_use_grid_ok, "ui derives surface and grid colors for every board theme")
+		and _assert(all_board_themes_use_depth_ok, "ui derives depth and guide colors for every board theme")
 		and _assert(theme_surface_colors.size() == 3, "ui keeps board theme surfaces visually distinct")
+		and _assert(locale_rebuild_ok, "ui rebuilds board depth and guide points after locale changes")
 		and _assert(last_move_ok, "ui keeps the last-move border on the grid board")
 	)
 

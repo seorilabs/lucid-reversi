@@ -65,6 +65,7 @@
 - Piece enum: `NONE = 0`, `BLACK = 1`, `WHITE = 2`, `VALID = 3`
 - Coordinate: `x = row`, `y = col`
 - Display coordinate: `y = A..`, `x = 1..`이며 좌상단 `(0, 0)`은 `A1`이다.
+- 보드 셀은 테마 서피스에서 파생한 내부 하이라이트·그림자를 사용하고, 기본 8x8은 2·6번째 격자 교차점 조합 4곳에 입력을 가로채지 않는 muted 가이드 점을 표시한다. 6x6/10x10은 같은 1/4 비율 위치로 확장한다.
 - Start position: `N/2`를 기준으로 중앙 4칸에 WHITE/BLACK 교차 배치
   - `(N/2-1,N/2-1) WHITE`
   - `(N/2-1,N/2) BLACK`
