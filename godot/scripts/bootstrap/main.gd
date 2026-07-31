@@ -14,6 +14,7 @@ const ARCTIC_WHITE_TEXTURE = preload("res://assets/reversi/themes/arctic_white.s
 const EMBER_BLACK_TEXTURE = preload("res://assets/reversi/themes/ember_black.svg")
 const EMBER_WHITE_TEXTURE = preload("res://assets/reversi/themes/ember_white.svg")
 const UI_FONT = preload("res://assets/fonts/DoHyeon-Regular.ttf")
+const JAPANESE_FONT = preload("res://assets/fonts/MPLUSRounded1c-Regular.ttf")
 
 const SAVE_PATH := "user://save_v1.json"
 const PREFS_PATH := "user://prefs_v1.json"
@@ -37,8 +38,8 @@ const THEME_IDS := ["classic", "arctic", "ember"]
 const THEME_LABELS := ["CLASSIC", "ARCTIC", "EMBER"]
 const STONE_THEME_IDS := ["classic", "arctic", "ember"]
 const STONE_THEME_LABELS := ["CLASSIC", "ARCTIC", "EMBER"]
-const LOCALE_IDS := ["ko", "en"]
-const LOCALE_LABELS := ["한국어", "EN"]
+const LOCALE_IDS := ["ko", "en", "ja"]
+const LOCALE_LABELS := ["한국어", "EN", "日本語"]
 const FONT_SCALE_IDS := ["1.0", "1.15", "1.3"]
 const FONT_SCALE_LABELS := ["100%", "115%", "130%"]
 const TEXT := {
@@ -157,6 +158,64 @@ const TEXT := {
 		"result_lose": "LOSE",
 		"result_detail": "BLACK %d / WHITE %d",
 		"stats_summary": "%s %dW %dD %dL",
+	},
+	"ja": {
+		"app_title": "ルーシッドリバーシ",
+		"you": "あなた",
+		"ai": "AI",
+		"black": "黒",
+		"white": "白",
+		"none": "なし",
+		"easy": "かんたん",
+		"medium": "ふつう",
+		"hard": "むずかしい",
+		"easy_short": "かんたん",
+		"medium_short": "ふつう",
+		"hard_short": "むずかしい",
+		"new_game": "新しい対局",
+		"confirm_new_game_title": "新しい対局を始めますか？",
+		"confirm_new_game_body": "進行中の対局は保存されません。",
+		"confirm_yes": "決定",
+		"confirm_no": "キャンセル",
+		"undo": "一手戻す",
+		"restart": "もう一度",
+		"board": "盤面",
+		"settings": "設定",
+		"close": "閉じる",
+		"sound": "サウンド",
+		"haptic": "振動",
+		"difficulty_setting": "難易度",
+		"board_size_setting": "盤面サイズ",
+		"board_theme_title": "盤面",
+		"stone_theme_title": "石",
+		"language_setting": "言語",
+		"font_scale_setting": "文字サイズ",
+		"reduce_motion": "動きを減らす",
+		"show_moves": "着手表示",
+		"board_theme": "盤面 %s",
+		"stone_theme": "石 %s",
+		"locale": "言語 %s",
+		"theme_classic": "クラシック",
+		"theme_arctic": "氷河",
+		"theme_ember": "夕焼け",
+		"status_game_over": "対局終了",
+		"status_flip": "反転中",
+		"status_ai_thinking": "AI思考中",
+		"status_pass": "パス",
+		"status_your_move": "あなたの番",
+		"status_ai_turn": "AIの番",
+		"turn_final": "終了",
+		"turn_player": "手番",
+		"turn_ai": "AI",
+		"focus_even": "互角",
+		"focus_player_leads": "優勢 +%d",
+		"focus_ai_leads": "劣勢 -%d",
+		"focus_valid": "着手 %d",
+		"result_win": "勝利",
+		"result_draw": "引き分け",
+		"result_lose": "敗北",
+		"result_detail": "黒 %d / 白 %d",
+		"stats_summary": "%s %d勝 %d分 %d敗",
 	},
 }
 
@@ -1757,7 +1816,10 @@ func _advantage_text(player_score: int, ai_score: int) -> String:
 
 func _make_ui_theme() -> Theme:
 	var ui_theme := Theme.new()
-	ui_theme.default_font = UI_FONT
+	var ui_font := FontVariation.new()
+	ui_font.base_font = UI_FONT
+	ui_font.set_fallbacks([JAPANESE_FONT])
+	ui_theme.default_font = ui_font
 	ui_theme.default_font_size = _font_size(17)
 	for theme_type in ["Label", "Button", "CheckButton"]:
 		ui_theme.set_color("font_outline_color", theme_type, Color(0.0, 0.0, 0.0, 0.58))
@@ -1845,11 +1907,20 @@ func _sync_preferences_from_state() -> void:
 
 
 func _device_default_locale() -> String:
-	# 기기 언어가 한국어면 ko, 그 외엔 en. 최초 실행 시 기본 로케일 결정에 쓴다.
+	# 최초 실행 시 지원하는 기기 로케일을 선택하고, 그 외에는 영어로 돌아간다.
 	# 헤드리스(스모크 테스트/CI)에는 UI가 없고 테스트가 한글 UI를 전제하므로 ko 로 고정한다.
 	if DisplayServer.get_name() == "headless":
 		return "ko"
-	return "ko" if OS.get_locale().begins_with("ko") else "en"
+	return locale_id_from_device_locale(OS.get_locale())
+
+
+static func locale_id_from_device_locale(device_locale: String) -> String:
+	var normalized := device_locale.strip_edges().to_lower().replace("-", "_")
+	if normalized.begins_with("ko"):
+		return "ko"
+	if normalized.begins_with("ja"):
+		return "ja"
+	return "en"
 
 
 func _current_locale_id() -> String:
@@ -1933,9 +2004,16 @@ func _set_locale(locale_id: String, persist: bool = true) -> void:
 
 func _t(key: String) -> String:
 	var locale_texts: Dictionary = TEXT.get(_current_locale_id(), TEXT["ko"])
+	return resolve_localized_text(key, locale_texts, TEXT["ko"])
+
+
+static func resolve_localized_text(
+	key: String,
+	locale_texts: Dictionary,
+	fallback_texts: Dictionary,
+) -> String:
 	if locale_texts.has(key):
 		return str(locale_texts[key])
-	var fallback_texts: Dictionary = TEXT["ko"]
 	if fallback_texts.has(key):
 		return str(fallback_texts[key])
 	return key

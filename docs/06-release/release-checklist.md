@@ -7,8 +7,8 @@
 - [x] Reversi rules/AI/codec/save DTO implemented
 - [x] Godot smoke tests cover initial moves, flip, pass, game over, codec, save round trip
 - [x] Playable Godot single-player shell exists
-- [x] Korean default UI with English secondary locale
-- [x] Bundled game-readable Korean font for Godot Web/AIT
+- [x] Korean default UI with English and Japanese secondary locales
+- [x] Bundled game-readable Korean font and Japanese glyph fallback for Godot Web/AIT
 - [x] `npm run test`
 - [x] `npm run build:godot:web`
 
@@ -28,7 +28,9 @@
 
 - [x] Default locale is Korean
 - [x] In-app English secondary locale exists
+- [x] In-app Japanese secondary locale and Japanese-device first-install selection exist
 - [x] Korean game font is bundled for Web/AIT
+- [x] Japanese fallback font is bundled for Web/AIT
 - [x] Korean HUD text uses outline and higher contrast
 - [ ] AppsInToss appName confirmed
 - [x] AppsInToss brand icon local asset generated and validated

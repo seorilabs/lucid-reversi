@@ -17,6 +17,12 @@
 - `actions/upload-pages-artifact@v5`
 - `actions/deploy-pages@v5`
 
+## Bundled Fonts
+
+- Do Hyeon Regular: Korean/Latin UI primary font, SIL Open Font License 1.1.
+- M PLUS Rounded 1c Regular: Japanese UI fallback font, SIL Open Font License 1.1.
+- Font binaries and license texts are kept together under `godot/assets/fonts/`.
+
 ## Policy
 
 - 템플릿에는 검증하지 않은 SDK 버전을 고정하지 않는다.
