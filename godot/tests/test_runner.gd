@@ -70,6 +70,8 @@ func _ready() -> void:
 	ok = japanese_locale_ok and ok
 	var settings_menu_ok := await _test_settings_menu_keeps_playfield_focused()
 	ok = settings_menu_ok and ok
+	var how_to_play_ok := await _test_how_to_play_sheet()
+	ok = how_to_play_ok and ok
 	var settings_persistence_ok := await _test_settings_persist_immediately()
 	ok = settings_persistence_ok and ok
 	var board_size_ui_ok := await _test_board_size_ui()
@@ -1853,14 +1855,18 @@ func _test_settings_menu_keeps_playfield_focused() -> bool:
 		and _choice_group_first_button_visible(main.board_size_buttons) \
 		and _choice_group_first_button_visible(main.board_theme_buttons)
 	var language_section: Node = main.settings_panel.find_child("LanguageSection", true, false)
+	var how_to_play_entry: Node = main.settings_panel.find_child("HowToPlayEntryButton", true, false)
 	var about_section: Node = main.settings_panel.find_child("AboutSection", true, false)
 	var about_app_version := main.settings_panel.find_child("AboutAppVersion", true, false) as Label
 	var support_email_button := main.settings_panel.find_child("SupportEmailButton", true, false) as Button
 	var privacy_policy_button: Node = main.settings_panel.find_child("PrivacyPolicyButton", true, false)
 	var about_location_ok: bool = language_section != null \
+		and how_to_play_entry != null \
 		and about_section != null \
-		and about_section.get_parent() == language_section.get_parent() \
-		and about_section.get_index() == language_section.get_index() + 1 \
+		and how_to_play_entry.get_parent() == language_section.get_parent() \
+		and how_to_play_entry.get_index() == language_section.get_index() + 1 \
+		and about_section.get_parent() == how_to_play_entry.get_parent() \
+		and about_section.get_index() == how_to_play_entry.get_index() + 1 \
 		and main.settings_panel.is_ancestor_of(about_section)
 	var settings_panel_fits_ok: bool = main.settings_overlay.get_global_rect().encloses(
 		main.settings_panel.get_global_rect(),
@@ -1947,7 +1953,7 @@ func _test_settings_menu_keeps_playfield_focused() -> bool:
 		and _assert(sound_disabled_ok, "ui sound setting suppresses move sound")
 		and _assert(unsupported_setting_pruned_ok, "ui prunes unsupported saved vibration setting")
 		and _assert(menu_open_ok, "ui settings menu reveals settings controls")
-		and _assert(about_location_ok, "ui nests about section directly after language settings")
+		and _assert(about_location_ok, "ui nests how-to entry and about section after language settings")
 		and _assert(settings_panel_fits_ok, "ui keeps the about section inside the settings overlay")
 		and _assert(about_identity_ok, "ui displays app name and export-matched version")
 		and _assert(about_i18n_ok, "ui provides Korean and English about labels")
@@ -1960,6 +1966,114 @@ func _test_settings_menu_keeps_playfield_focused() -> bool:
 		and _assert(inside_tap_keeps_open_ok, "ui settings panel tap keeps menu open")
 		and _assert(outside_tap_closes_ok, "ui settings background tap closes menu")
 		and _assert(menu_close_ok, "ui settings menu closes")
+	)
+
+
+func _test_how_to_play_sheet() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var main_scene = load("res://scenes/main.tscn")
+	var suffix := str(OS.get_process_id())
+	var prefs_path := "user://prefs_how_to_play_%s.json" % suffix
+	var save_path := "user://save_how_to_play_%s.json" % suffix
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+
+	var first = main_scene.instantiate()
+	first._prefs_path = prefs_path
+	first._save_path = save_path
+	add_child(first)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var state_before := JSON.stringify(ReversiEngine.state_to_save_dict(first.state))
+	var stored_after_first_show: Dictionary = first._load_preferences()
+	var first_show_once_ok: bool = first.how_to_play_overlay != null \
+		and first.how_to_play_overlay.visible \
+		and bool(first.preferences.get("how_to_play_seen", false)) \
+		and bool(stored_after_first_show.get("how_to_play_seen", false))
+	var settings_only_entry_ok: bool = first.how_to_play_entry_button != null \
+		and first.settings_panel.is_ancestor_of(first.how_to_play_entry_button) \
+		and !first.gameplay_strip.is_ancestor_of(first.how_to_play_entry_button)
+	var rule_content_ok: bool = true
+	for rule_name in ["Place", "Flip", "Pass", "Finish"]:
+		rule_content_ok = rule_content_ok \
+			and first.how_to_play_content.find_child("HowToPlayStep%s" % rule_name, true, false) != null
+	var i18n_ok: bool = true
+	for locale_id in ["ko", "en"]:
+		var locale_texts: Dictionary = MainScript.TEXT[locale_id]
+		for key in [
+			"how_to_play_entry",
+			"how_to_play_title",
+			"how_to_play_place_title",
+			"how_to_play_place_body",
+			"how_to_play_flip_title",
+			"how_to_play_flip_body",
+			"how_to_play_pass_title",
+			"how_to_play_pass_body",
+			"how_to_play_finish_title",
+			"how_to_play_finish_body",
+		]:
+			i18n_ok = i18n_ok and locale_texts.has(key) and !str(locale_texts[key]).is_empty()
+	var scroll_ok: bool = first.how_to_play_scroll != null \
+		and first.how_to_play_scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_AUTO \
+		and first.how_to_play_scroll.horizontal_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED \
+		and first.how_to_play_scroll.is_ancestor_of(first.how_to_play_content) \
+		and first.how_to_play_content.custom_minimum_size.y \
+			> first.how_to_play_scroll.custom_minimum_size.y
+
+	first.how_to_play_close_button.pressed.emit()
+	await get_tree().process_frame
+	var close_button_ok: bool = !first.how_to_play_overlay.visible
+	first._show_settings_menu()
+	first.how_to_play_entry_button.pressed.emit()
+	await get_tree().process_frame
+	var settings_reopen_ok: bool = first.how_to_play_overlay.visible \
+		and !first.settings_overlay.visible
+	var panel_rect: Rect2 = first.how_to_play_panel.get_global_rect()
+	first._on_how_to_play_overlay_gui_input(_make_left_click(panel_rect.get_center()))
+	await get_tree().process_frame
+	var inside_tap_ok: bool = first.how_to_play_overlay.visible
+	first._on_how_to_play_overlay_gui_input(_make_left_click(Vector2(
+		maxf(0.0, panel_rect.position.x - 12.0),
+		panel_rect.position.y + 12.0,
+	)))
+	await get_tree().process_frame
+	var outside_tap_ok: bool = !first.how_to_play_overlay.visible
+	var state_unchanged_ok: bool = state_before \
+		== JSON.stringify(ReversiEngine.state_to_save_dict(first.state))
+	first.queue_free()
+	await get_tree().process_frame
+
+	var restored = main_scene.instantiate()
+	restored._prefs_path = prefs_path
+	restored._save_path = save_path
+	add_child(restored)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var no_repeat_ok: bool = restored.how_to_play_overlay != null \
+		and !restored.how_to_play_overlay.visible
+	restored._show_settings_menu()
+	restored.how_to_play_entry_button.pressed.emit()
+	await get_tree().process_frame
+	var later_reopen_ok: bool = restored.how_to_play_overlay.visible \
+		and !restored.settings_overlay.visible
+	restored.queue_free()
+	await get_tree().process_frame
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	return (
+		_assert(first_show_once_ok, "how-to opens once on the first game and persists the flag")
+		and _assert(settings_only_entry_ok, "how-to entry stays inside settings instead of the main HUD")
+		and _assert(rule_content_ok, "how-to contains placement flip pass and winner steps")
+		and _assert(i18n_ok, "how-to provides complete Korean and English copy")
+		and _assert(scroll_ok, "how-to content scrolls vertically on constrained screens")
+		and _assert(close_button_ok, "how-to close button hides the sheet")
+		and _assert(settings_reopen_ok, "how-to reopens from settings")
+		and _assert(inside_tap_ok, "how-to panel tap keeps the sheet open")
+		and _assert(outside_tap_ok, "how-to outside tap closes the sheet")
+		and _assert(state_unchanged_ok, "how-to interactions preserve the current game state")
+		and _assert(no_repeat_ok, "how-to does not auto-open after the first game")
+		and _assert(later_reopen_ok, "how-to remains available from settings after first launch")
 	)
 
 

@@ -2,6 +2,7 @@
 
 ## 2026-07-31
 
+- Added a localized, vertically scrollable How to Play sheet covering placement, flipping, pass, and winner rules; it opens once on the first game and remains available from settings without changing game state.
 - Allowed the existing round Undo action after game over so it closes the result overlay and resumes the restored match.
 - Added phase-aware AI evaluation that prioritizes mobility over early disc count, with exact root-candidate scoring for reliable seeded tie-breaking.
 - Replaced checkerboard cells with a classic green single surface and thin grid lines, retaining theme-derived Arctic/Ember palettes, hints, hover, and last-move emphasis.

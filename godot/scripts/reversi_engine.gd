@@ -78,6 +78,7 @@ static func default_preferences(default_locale: String = "ko") -> Dictionary:
 	return {
 		"version": 1,
 		"difficulty": "MEDIUM",
+		"how_to_play_seen": false,
 		"settings": settings,
 	}
 
@@ -87,6 +88,7 @@ static func normalize_preferences(raw_preferences: Dictionary, default_locale: S
 	var difficulty := str(raw_preferences.get("difficulty", "MEDIUM"))
 	if DIFFICULTY_DEPTH.has(difficulty):
 		normalized["difficulty"] = difficulty
+	normalized["how_to_play_seen"] = bool(raw_preferences.get("how_to_play_seen", false))
 	var raw_settings_value = raw_preferences.get("settings", {})
 	if typeof(raw_settings_value) == TYPE_DICTIONARY:
 		normalized["settings"] = normalize_settings(raw_settings_value)

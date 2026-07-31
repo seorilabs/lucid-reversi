@@ -75,6 +75,16 @@ const TEXT := {
 		"board_theme_title": "보드",
 		"stone_theme_title": "돌",
 		"language_setting": "언어",
+		"how_to_play_entry": "플레이 방법",
+		"how_to_play_title": "플레이 방법",
+		"how_to_play_place_title": "1. 착수",
+		"how_to_play_place_body": "상대 돌을 하나 이상 뒤집을 수 있는 빈칸에 내 돌을 놓습니다.",
+		"how_to_play_flip_title": "2. 뒤집기",
+		"how_to_play_flip_body": "새 돌과 기존 내 돌 사이에 가로·세로·대각선으로 낀 상대 돌을 모두 내 색으로 뒤집습니다.",
+		"how_to_play_pass_title": "3. 패스",
+		"how_to_play_pass_body": "둘 수 있는 합법수가 없으면 자동으로 패스하고 상대가 계속 둡니다.",
+		"how_to_play_finish_title": "4. 종료와 승패",
+		"how_to_play_finish_body": "보드가 가득 차거나 양쪽 모두 둘 곳이 없으면 끝납니다. 내 색 돌이 더 많으면 승리합니다.",
 		"about_title": "정보",
 		"about_app_version": "%s · 버전 %s",
 		"support_email": "지원 이메일 · %s",
@@ -137,6 +147,16 @@ const TEXT := {
 		"board_theme_title": "BOARD",
 		"stone_theme_title": "STONE",
 		"language_setting": "LANG",
+		"how_to_play_entry": "HOW TO PLAY",
+		"how_to_play_title": "HOW TO PLAY",
+		"how_to_play_place_title": "1. PLACE",
+		"how_to_play_place_body": "Place a disc on an empty square only when it flips at least one opponent disc.",
+		"how_to_play_flip_title": "2. FLIP",
+		"how_to_play_flip_body": "Flip every opponent disc bracketed horizontally, vertically, or diagonally by your new disc and another of your discs.",
+		"how_to_play_pass_title": "3. PASS",
+		"how_to_play_pass_body": "If you have no legal move, your turn passes automatically and your opponent continues.",
+		"how_to_play_finish_title": "4. END AND WINNER",
+		"how_to_play_finish_body": "The game ends when the board is full or neither player can move. The player with more discs wins.",
 		"about_title": "ABOUT",
 		"about_app_version": "%s · VERSION %s",
 		"support_email": "SUPPORT · %s",
@@ -199,6 +219,16 @@ const TEXT := {
 		"board_theme_title": "盤面",
 		"stone_theme_title": "石",
 		"language_setting": "言語",
+		"how_to_play_entry": "遊び方",
+		"how_to_play_title": "遊び方",
+		"how_to_play_place_title": "1. 石を置く",
+		"how_to_play_place_body": "相手の石を1つ以上返せる空きマスに自分の石を置きます。",
+		"how_to_play_flip_title": "2. 石を返す",
+		"how_to_play_flip_body": "新しい石と自分の石で縦・横・斜めに挟んだ相手の石をすべて自分の色に返します。",
+		"how_to_play_pass_title": "3. パス",
+		"how_to_play_pass_body": "置ける場所がない場合は自動でパスし、相手の手番になります。",
+		"how_to_play_finish_title": "4. 終了と勝敗",
+		"how_to_play_finish_body": "盤面が埋まるか両者とも置けなくなると終了し、石が多い方の勝ちです。",
 		"about_title": "情報",
 		"about_app_version": "%s · バージョン %s",
 		"support_email": "サポート · %s",
@@ -277,6 +307,12 @@ var move_count_label: Label
 var settings_button: Button
 var settings_overlay: ColorRect
 var settings_panel: PanelContainer
+var how_to_play_entry_button: Button
+var how_to_play_overlay: ColorRect
+var how_to_play_panel: PanelContainer
+var how_to_play_scroll: ScrollContainer
+var how_to_play_content: VBoxContainer
+var how_to_play_close_button: Button
 var sound_toggle: CheckButton
 var haptic_toggle: CheckButton
 var gameplay_strip: PanelContainer
@@ -328,6 +364,7 @@ func _ready() -> void:
 	_load_or_start()
 	_build_ui()
 	_render()
+	call_deferred("_show_first_game_how_to_play")
 	call_deferred("_maybe_play_ai_turn")
 
 
@@ -395,6 +432,7 @@ func _build_ui() -> void:
 	_build_play_focus_strip(root)
 	_build_result_overlay()
 	_build_settings_overlay()
+	_build_how_to_play_overlay()
 	_build_new_game_confirmation_overlay()
 
 
@@ -920,7 +958,133 @@ func _build_settings_overlay() -> void:
 	)
 	language_section.name = "LanguageSection"
 	box.add_child(language_section)
+	how_to_play_entry_button = _make_action_button(
+		_t("how_to_play_entry"),
+		func() -> void: _show_how_to_play(),
+	)
+	how_to_play_entry_button.name = "HowToPlayEntryButton"
+	how_to_play_entry_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(how_to_play_entry_button)
 	box.add_child(_make_about_section(PRIVACY_POLICY_URL))
+
+
+func _build_how_to_play_overlay() -> void:
+	how_to_play_overlay = ColorRect.new()
+	how_to_play_overlay.name = "HowToPlayOverlay"
+	how_to_play_overlay.visible = false
+	how_to_play_overlay.color = Color(0.005, 0.008, 0.014, 0.78)
+	how_to_play_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	how_to_play_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	how_to_play_overlay.gui_input.connect(_on_how_to_play_overlay_gui_input)
+	add_child(how_to_play_overlay)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.offset_left = 18
+	center.offset_top = 28
+	center.offset_right = -18
+	center.offset_bottom = -28
+	how_to_play_overlay.add_child(center)
+
+	how_to_play_panel = PanelContainer.new()
+	how_to_play_panel.name = "HowToPlayPanel"
+	how_to_play_panel.custom_minimum_size = Vector2(560, 720)
+	how_to_play_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	how_to_play_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	how_to_play_panel.add_theme_stylebox_override(
+		"panel",
+		_make_style(_theme_color("hud_dark"), 2, Color(1, 1, 1, 0.14), 12),
+	)
+	center.add_child(how_to_play_panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_top", 18)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_bottom", 18)
+	how_to_play_panel.add_child(margin)
+
+	var layout := VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 14)
+	margin.add_child(layout)
+
+	var header := HBoxContainer.new()
+	header.alignment = BoxContainer.ALIGNMENT_CENTER
+	header.add_theme_constant_override("separation", 10)
+	layout.add_child(header)
+
+	var title := Label.new()
+	title.name = "HowToPlayTitle"
+	title.text = _t("how_to_play_title")
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.add_theme_font_size_override("font_size", _font_size(28))
+	title.add_theme_color_override("font_color", _theme_color("text_primary"))
+	_apply_text_visibility(title, 2, _theme_color("text_primary"))
+	header.add_child(title)
+
+	how_to_play_close_button = _make_action_button(
+		_t("close"),
+		func() -> void: _hide_how_to_play(),
+	)
+	how_to_play_close_button.name = "HowToPlayCloseButton"
+	header.add_child(how_to_play_close_button)
+
+	how_to_play_scroll = ScrollContainer.new()
+	how_to_play_scroll.name = "HowToPlayScroll"
+	how_to_play_scroll.custom_minimum_size = Vector2(0, 620)
+	how_to_play_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	how_to_play_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	how_to_play_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	how_to_play_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	layout.add_child(how_to_play_scroll)
+
+	how_to_play_content = VBoxContainer.new()
+	how_to_play_content.name = "HowToPlayContent"
+	how_to_play_content.custom_minimum_size = Vector2(500, 760)
+	how_to_play_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	how_to_play_content.add_theme_constant_override("separation", 12)
+	how_to_play_scroll.add_child(how_to_play_content)
+
+	var rule_keys := ["place", "flip", "pass", "finish"]
+	for rule_key in rule_keys:
+		how_to_play_content.add_child(_make_how_to_play_step(str(rule_key)))
+
+
+func _make_how_to_play_step(rule_key: String) -> PanelContainer:
+	var card := PanelContainer.new()
+	card.name = "HowToPlayStep%s" % rule_key.capitalize()
+	card.custom_minimum_size = Vector2(0, 160)
+	card.add_theme_stylebox_override(
+		"panel",
+		_make_style(_theme_color("hud"), 1, Color(1, 1, 1, 0.10), 8),
+	)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_bottom", 14)
+	card.add_child(margin)
+
+	var text_box := VBoxContainer.new()
+	text_box.add_theme_constant_override("separation", 8)
+	margin.add_child(text_box)
+
+	var title := Label.new()
+	title.text = _t("how_to_play_%s_title" % rule_key)
+	title.add_theme_font_size_override("font_size", _font_size(22))
+	title.add_theme_color_override("font_color", _theme_color("accent"))
+	_apply_text_visibility(title, 1, _theme_color("accent"))
+	text_box.add_child(title)
+
+	var body := Label.new()
+	body.text = _t("how_to_play_%s_body" % rule_key)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_theme_font_size_override("font_size", _font_size(18))
+	body.add_theme_color_override("font_color", _theme_color("text_primary"))
+	_apply_text_visibility(body, 1, _theme_color("text_primary"))
+	text_box.add_child(body)
+	return card
 
 
 func _build_new_game_confirmation_overlay() -> void:
@@ -1145,6 +1309,53 @@ func _show_settings_menu() -> void:
 func _hide_settings_menu() -> void:
 	if settings_overlay != null:
 		settings_overlay.visible = false
+
+
+func _show_first_game_how_to_play() -> void:
+	if !bool(preferences.get("how_to_play_seen", false)):
+		_show_how_to_play()
+
+
+func _show_how_to_play() -> void:
+	_hide_settings_menu()
+	if how_to_play_overlay == null:
+		return
+	how_to_play_overlay.visible = true
+	if !bool(preferences.get("how_to_play_seen", false)):
+		preferences["how_to_play_seen"] = true
+		_save_preferences()
+
+
+func _hide_how_to_play() -> void:
+	if how_to_play_overlay != null:
+		how_to_play_overlay.visible = false
+
+
+func _on_how_to_play_overlay_gui_input(event: InputEvent) -> void:
+	if !_how_to_play_overlay_tap_should_close(event):
+		return
+	_hide_how_to_play()
+	how_to_play_overlay.accept_event()
+
+
+func _how_to_play_overlay_tap_should_close(event: InputEvent) -> bool:
+	if how_to_play_overlay == null or !how_to_play_overlay.visible:
+		return false
+	var position := Vector2.ZERO
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		if !mouse_event.pressed or mouse_event.button_index != MOUSE_BUTTON_LEFT:
+			return false
+		position = mouse_event.position
+	elif event is InputEventScreenTouch:
+		var touch_event := event as InputEventScreenTouch
+		if !touch_event.pressed:
+			return false
+		position = touch_event.position
+	else:
+		return false
+	return how_to_play_panel == null \
+		or !how_to_play_panel.get_global_rect().has_point(position)
 
 
 func _on_settings_overlay_gui_input(event: InputEvent) -> void:
@@ -1979,6 +2190,7 @@ func _sync_preferences_from_state() -> void:
 	preferences = ReversiEngine.normalize_preferences({
 		"version": 1,
 		"difficulty": difficulty,
+		"how_to_play_seen": bool(preferences.get("how_to_play_seen", false)),
 		"settings": _current_settings(),
 	}, _device_default_locale())
 
