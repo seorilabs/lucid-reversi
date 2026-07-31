@@ -11,6 +11,9 @@ const VALID := 3
 const SEARCH_MIN := -9223372036854775807
 const SEARCH_MAX := 9223372036854775807
 const MOBILITY_WEIGHT := DEFAULT_BOARD_SIZE
+const DISC_WEIGHT_OPENING := 0
+const DISC_WEIGHT_MIDDLE := 1
+const DISC_WEIGHT_ENDGAME := 4
 const CODEC_MAGIC_0 := 0x4c
 const CODEC_MAGIC_1 := 0x52
 const CODEC_VERSION := 2
@@ -327,8 +330,6 @@ static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> 
 	var use_exact_search := exact_threshold >= 0 and empty_count <= exact_threshold
 	var best_score := SEARCH_MIN
 	var best_moves: Array = []
-	var alpha := SEARCH_MIN
-	var beta := SEARCH_MAX
 	for move in moves:
 		var board_after := clone_board(board)
 		_apply_move(board_after, stone, int(move["x"]), int(move["y"]))
@@ -348,8 +349,8 @@ static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> 
 				next_turn,
 				stone,
 				depth - 1,
-				alpha,
-				beta,
+				SEARCH_MIN,
+				SEARCH_MAX,
 				search_stats,
 			)
 		)
@@ -358,7 +359,6 @@ static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> 
 			best_moves = [move]
 		elif score == best_score:
 			best_moves.append(move)
-		alpha = max(alpha, best_score)
 
 	if !search_stats.is_empty():
 		search_stats["best_score"] = best_score
@@ -849,6 +849,7 @@ static func _evaluate_board(board: Array, stone: int) -> int:
 	var score := int(counts["black"]) - int(counts["white"])
 	if stone == WHITE:
 		score *= -1
+	score *= _disc_weight_for_board(board)
 
 	score += _mobility_score(board, stone)
 
@@ -882,6 +883,19 @@ static func _evaluate_board(board: Array, stone: int) -> int:
 			score += _weighted_cell(board, point, stone, corner_path_value)
 
 	return score
+
+
+static func _disc_weight_for_board(board: Array) -> int:
+	var board_size := get_board_size(board)
+	if board_size == 0:
+		return DISC_WEIGHT_OPENING
+	var total_cells := board_size * board_size
+	var empty_cells := _count_empty_cells(board)
+	if empty_cells * 3 >= total_cells * 2:
+		return DISC_WEIGHT_OPENING
+	if empty_cells * 3 >= total_cells:
+		return DISC_WEIGHT_MIDDLE
+	return DISC_WEIGHT_ENDGAME
 
 
 static func _mobility_score(board: Array, stone: int) -> int:
