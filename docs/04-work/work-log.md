@@ -2,6 +2,7 @@
 
 ## 2026-07-31
 
+- Added conservative MEDIUM/HARD endgame thresholds that replace heuristic cutoff with pass-aware exact terminal disc-difference search.
 - Added an in-settings About section with export-matched app version, support mail link, and fail-closed optional privacy-policy link.
 - Fixed the status bar to show PASS only for the latest pass transition, then return to the current-turn label after the next normal move.
 - Added a complete Japanese locale, Japanese-device first-install selection, persisted language choice, Korean missing-key fallback, and bundled M PLUS Rounded 1c glyph fallback.

@@ -61,6 +61,7 @@ func _ready() -> void:
 	ok = _test_search_score_alpha_beta_cutoff_branches() and ok
 	ok = _test_choose_ai_move_alpha_beta_and_seeded_ties() and ok
 	ok = _test_alpha_beta_matches_full_search() and ok
+	ok = _test_endgame_exact_search() and ok
 	ok = _test_mobility_evaluation_boundaries() and ok
 	var i18n_ok := await _test_i18n_defaults_and_locale_switch()
 	ok = i18n_ok and ok
@@ -860,6 +861,119 @@ func _test_choose_ai_move_alpha_beta_and_seeded_ties() -> bool:
 				and easy_choices.has("%d,%d" % [first_sorted_move["x"], first_sorted_move["y"]]),
 			"EASY keeps the first sorted move for every game seed",
 		)
+	)
+
+
+func _test_endgame_exact_search() -> bool:
+	var board := _board_from_strings([
+		"WWWWWWW.",
+		"BBBBBWWB",
+		"B.WWWBW.",
+		"BBWWWBWB",
+		"BBBBWWW.",
+		"BBBWBWWW",
+		".WWBBBW.",
+		".W.WBWWW",
+	])
+	var hard_state := ReversiEngine.create_state_from_board(
+		board,
+		ReversiEngine.BLACK,
+		ReversiEngine.WHITE,
+		"HARD",
+		580058,
+	)
+	var exact_stats := {
+		"exact_nodes": 0,
+		"exact_terminals": 0,
+		"exact_passes": 0,
+		"exact_max_cutoffs": 0,
+		"exact_min_cutoffs": 0,
+	}
+	var started_usec := Time.get_ticks_usec()
+	var exact_move := ReversiEngine.choose_ai_move(hard_state, exact_stats)
+	var elapsed_usec := Time.get_ticks_usec() - started_usec
+	var exact_win_ok: bool = int(exact_move.get("x", -1)) == 2 \
+		and int(exact_move.get("y", -1)) == 1 \
+		and int(exact_stats.get("best_score", 0)) == 12 \
+		and int(exact_stats.get("tie_count", 0)) == 1
+	var exact_branch_ok: bool = bool(exact_stats.get("exact_search", false)) \
+		and int(exact_stats.get("empty_count", -1)) == 8 \
+		and int(exact_stats.get("exact_nodes", 0)) > 0 \
+		and int(exact_stats.get("exact_terminals", 0)) > 0
+	var response_budget_ok: bool = elapsed_usec < 5_000_000
+
+	var pass_board := _board_from_strings([
+		"WWBBBBW.",
+		".WWBBBBW",
+		"BWWWBBWW",
+		".WWWBWWW",
+		"BWBWWBWB",
+		"BWBWWWWB",
+		"BWWBBWWB",
+		".WWWWWWW",
+	])
+	ReversiEngine._apply_move(pass_board, ReversiEngine.BLACK, 0, 7)
+	var pass_stats := {
+		"exact_nodes": 0,
+		"exact_terminals": 0,
+		"exact_passes": 0,
+	}
+	var score_through_pass := ReversiEngine._search_exact_score(
+		pass_board,
+		ReversiEngine.WHITE,
+		ReversiEngine.BLACK,
+		ReversiEngine.SEARCH_MIN,
+		ReversiEngine.SEARCH_MAX,
+		pass_stats,
+	)
+	var score_after_pass := ReversiEngine._search_exact_score(
+		pass_board,
+		ReversiEngine.BLACK,
+		ReversiEngine.BLACK,
+		ReversiEngine.SEARCH_MIN,
+		ReversiEngine.SEARCH_MAX,
+	)
+	var exact_pass_ok: bool = score_through_pass == score_after_pass \
+		and int(pass_stats.get("exact_passes", 0)) > 0
+
+	var easy_state := ReversiEngine.create_state_from_board(
+		pass_board,
+		ReversiEngine.BLACK,
+		ReversiEngine.WHITE,
+		"EASY",
+		580058,
+	)
+	var easy_stats := {"nodes": 0}
+	var easy_move := ReversiEngine.choose_ai_move(easy_state, easy_stats)
+	var expected_easy_move := _choose_ai_move_full_search(easy_state)
+	var easy_unchanged_ok: bool = !bool(easy_stats.get("exact_search", true)) \
+		and int(easy_move.get("x", -1)) == int(expected_easy_move.get("x", -1)) \
+		and int(easy_move.get("y", -1)) == int(expected_easy_move.get("y", -1))
+
+	var thresholds_ok: bool = !ReversiEngine.ENDGAME_EXACT_EMPTIES.has("EASY") \
+		and int(ReversiEngine.ENDGAME_EXACT_EMPTIES["MEDIUM"]) == 6 \
+		and int(ReversiEngine.ENDGAME_EXACT_EMPTIES["HARD"]) == 8
+	var terminal_score_ok: bool = ReversiEngine._terminal_piece_difference(
+		_board_from_strings([
+			"BBBBBBBB",
+			"BBBBBBBB",
+			"BBBBBBBB",
+			"BBBBBBBB",
+			"BBBBBBBB",
+			"BBBBBBBB",
+			"BBBBBBBB",
+			"BBBBWWWW",
+		]),
+		ReversiEngine.BLACK,
+	) == 56
+	return (
+		_assert(thresholds_ok, "endgame thresholds apply only to MEDIUM and HARD")
+		and _assert(exact_branch_ok, "hard AI switches to exact search at eight empties")
+		and _assert(exact_win_ok, "exact search selects the unique terminal win")
+		and _assert(exact_pass_ok, "exact search handles a forced pass without heuristic fallback")
+		and _assert(terminal_score_ok, "exact terminal score is the final disc difference")
+		and _assert(easy_unchanged_ok, "easy AI keeps its depth-one first-move behavior")
+		and _assert(response_budget_ok, "eight-empty exact search stays within five seconds")
 	)
 
 
