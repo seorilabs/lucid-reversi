@@ -32,6 +32,7 @@
 - Sandbox QA: passed(게임 렌더/조작) — 실기기 `intoss://lucid-reversi` 로딩·동작 확인 완료(`granite dev`, Metro `8081` + vite `5173`, Android USB `adb reverse`). 인앱 광고는 샌드박스 테스트 불가 → 콘솔 출시하기 QR로 실 토스앱 검증 필요
 - Registration images: local assets generated and validated
 - Ads/live SDK status: 사용함 — AppsInToss **전면(Interstitial)** 광고(`loadFullScreenAd`/`showFullScreenAd`). 한 판 종료 시 1회 노출(Godot `_request_interstitial_ad` → `JavaScriptBridge.get_interface("__aitBridge").showInterstitialAd()` → `src/ads.ts`). AppsInToss 보안 정책상 `JavaScriptBridge.eval`(외부 코드 문자열 실행)은 금지되어 eval 없는 `get_interface` 브리지를 사용한다.
+- Result share: 결과 오버레이의 공유 버튼이 Godot `__aitBridge.shareResult(text)` → wrapper `src/share.ts` → AppsInToss `setClipboardText`로 로컬라이즈된 승패·최종 점수를 복사한다. `granite.config.ts`에는 clipboard write 권한만 선언하며 권한 거부·채널 부재는 no-op 한다.
   - 광고 ID는 **마켓별로 다름**. AIT 전용 live `adGroupId` `ait.v2.live.f2389330c1ce431a`는 `apps/ait/.env.production`에 설정 → `vite build`(=`ait build`) production 빌드에만 주입. dev/샌드박스(`granite dev`)는 `.env.production`을 안 읽어 테스트 ID `ait-ad-test-interstitial-id`로 동작(live ID의 dev 사용은 정책 위반 방지).
   - Google Play / App Store 광고는 이 wrapper가 아니라 각 마켓 네이티브 연동(예: Godot AdMob)에서 별도 ID로 관리. AIT 브리지는 web export에서만 발동(`OS.has_feature("web")`).
   - 출시용 `.ait`에는 live ID 임베드 검증 완료(production 번들 grep: live ID 포함, 테스트 ID 없음).

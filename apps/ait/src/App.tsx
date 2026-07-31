@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import GodotCanvas from './GodotCanvas';
 import { isAdSupported, preloadInterstitialAd, showInterstitialAd } from './ads';
+import { shareResult } from './share';
 
 export default function App() {
   useEffect(() => {
@@ -10,7 +11,10 @@ export default function App() {
     // AppsInToss 보안 정책상 JavaScriptBridge.eval 은 금지되므로, 게임은 eval 대신
     // JavaScriptBridge.get_interface("__aitBridge") 로 이 전역 객체를 받아 메서드를 직접 호출한다.
     // (godot/scripts/bootstrap/main.gd 의 _request_interstitial_ad)
-    window.__aitBridge = { showInterstitialAd: () => showInterstitialAd() };
+    window.__aitBridge = {
+      showInterstitialAd: () => showInterstitialAd(),
+      shareResult: (text: string) => void shareResult(text),
+    };
 
     return () => {
       delete window.__aitBridge;

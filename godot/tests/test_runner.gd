@@ -45,6 +45,13 @@ class _ShellOpenProbe:
 		uris.append(uri)
 
 
+class _ShareResultProbe:
+	extends RefCounted
+	var messages: Array[String] = []
+	func share(text: String) -> void:
+		messages.append(text)
+
+
 func _ready() -> void:
 	var ok := true
 	ok = _test_main_scene_exists() and ok
@@ -76,6 +83,8 @@ func _ready() -> void:
 	ok = how_to_play_ok and ok
 	var move_list_ok := await _test_move_list_panel()
 	ok = move_list_ok and ok
+	var result_share_ok := await _test_result_share_button()
+	ok = result_share_ok and ok
 	var hint_button_ok := await _test_hint_button()
 	ok = hint_button_ok and ok
 	var settings_persistence_ok := await _test_settings_persist_immediately()
@@ -3028,6 +3037,64 @@ func _test_visual_theme_switches_are_independent() -> bool:
 		and _assert(theme_surface_colors.size() == 3, "ui keeps board theme surfaces visually distinct")
 		and _assert(locale_rebuild_ok, "ui rebuilds board depth and guide points after locale changes")
 		and _assert(last_move_ok, "ui keeps the last-move border on the grid board")
+	)
+
+
+func _test_result_share_button() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+
+	var settings := ReversiEngine.default_settings()
+	settings["locale"] = "ko"
+	settings["sound"] = false
+	settings["reduce_motion"] = true
+	var full_board: Array = []
+	for _x in range(ReversiEngine.BOARD_SIZE):
+		var row: Array = []
+		for _y in range(ReversiEngine.BOARD_SIZE):
+			row.append(ReversiEngine.BLACK)
+		full_board.append(row)
+	main.player_stone = ReversiEngine.BLACK
+	main.state = ReversiEngine.create_state_from_board(full_board, ReversiEngine.BLACK)
+	main.state["settings"] = settings
+	main._interstitial_shown_this_game = true
+	main._render()
+	await get_tree().process_frame
+
+	var button_ok: bool = main.result_share_button != null \
+		and main.result_share_button.text == "공유" \
+		and main.result_overlay.is_ancestor_of(main.result_share_button)
+	var probe := _ShareResultProbe.new()
+	main._share_result_probe = Callable(probe, "share")
+	main.result_share_button.pressed.emit()
+	var korean_text_ok: bool = probe.messages.size() == 1 \
+		and probe.messages[0] == "루시드 리버시\n승리\n흑 64 / 백 0"
+
+	main._set_locale("en", false)
+	await get_tree().process_frame
+	main.result_share_button.pressed.emit()
+	var english_ok: bool = main.result_share_button.text == "SHARE" \
+		and probe.messages.size() == 2 \
+		and probe.messages[1] == "LUCID REVERSI\nWIN\nBLACK 64 / WHITE 0"
+	var i18n_ok := true
+	for locale_id in ["ko", "en", "ja"]:
+		var locale_texts: Dictionary = MainScript.TEXT[locale_id]
+		i18n_ok = i18n_ok \
+			and !str(locale_texts.get("share_result", "")).is_empty() \
+			and !str(locale_texts.get("result_share_text", "")).is_empty()
+
+	main._share_result_probe = Callable()
+	var unavailable_noop_ok: bool = !main._share_result()
+	main.queue_free()
+	return (
+		_assert(button_ok, "result overlay exposes the localized share button")
+		and _assert(korean_text_ok, "result share text contains the Korean outcome and final score")
+		and _assert(english_ok, "result share button and payload localize to English")
+		and _assert(i18n_ok, "result share strings cover every supported locale")
+		and _assert(unavailable_noop_ok, "result share safely no-ops without a channel")
 	)
 
 
