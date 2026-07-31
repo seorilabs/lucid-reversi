@@ -13,7 +13,8 @@
 - first BLACK move flip and score
 - opponent pass handling
 - full-board game over and winner
-- 18-byte board codec fixture and round trip
+- 6x6/8x8/10x10 초기 합법수·뒤집기·평가와 board-size 설정 정규화
+- 크기 태그 가변 board codec의 10x10 round trip과 기존 18-byte 8x8 fixture 복원
 - save DTO round trip
 - 게임 save에서 환경설정 제외 및 기존 save 설정의 prefs 마이그레이션
 - 게임 save 손상·삭제와 무관한 prefs 복원, 신규 설치 기본 prefs 생성, 설정 변경 즉시 저장
@@ -42,6 +43,7 @@
 - 전면 광고 smoke는 종료 세이브 복원 시 가드가 소진되어 있고 결과 오버레이 재진입에서 요청하지 않으며, 새 게임 후 다음 종료에서만 정확히 1회 요청하는지 프로브로 확인한다.
 - 플립 smoke는 착수 원점에서의 거리 증가에 따라 연쇄 지연이 커지고, 회전 tilt 방향이 교차하는지 확인한다. 3개 돌 테마의 중간 색 전환·잔상·깜빡임은 Web 또는 실기기에서 육안 확인한다.
 - 설정 smoke는 manual load와 미구현 힌트 toggle이 노출되지 않고, 진동 toggle이 ko/en으로 노출·저장되며, 설정 패널 내부 터치는 열린 상태를 유지하고 패널 외부 터치는 닫히는지 확인한다.
+- 보드 크기 smoke는 6x6/8x8/10x10 세그먼트가 설정 패널 안에만 있고, 선택 즉시 해당 크기의 새 대국·동적 셀 크기·save/prefs를 재구성하는지 확인한다.
 - 접근성 smoke는 100/115/130% 글자 배율과 모션 줄이기 toggle의 prefs 영속화, ko/en 라벨, tween 없는 최종 상태 렌더를 확인한다.
 - 새 게임 확인 smoke는 진행 중 대국에서 새 게임·흑·백 버튼이 동일한 가드를 사용하고, 취소와 확인 결과 및 첫 수 전·종료 후 예외를 검증한다.
 - 사운드 smoke는 `sound=false` 설정에서 착수 사운드가 생성되지 않는지 확인한다. 실제 음색은 Web smoke에서 착수/뒤집힘/대량 뒤집힘 상황으로 확인한다.

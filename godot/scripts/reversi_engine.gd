@@ -1,13 +1,20 @@
 extends RefCounted
 
-const BOARD_SIZE := 8
+const DEFAULT_BOARD_SIZE := 8
+# 기존 8×8 fixture와 외부 호출의 호환용 별칭. 실제 규칙은 board 배열 크기를 사용한다.
+const BOARD_SIZE := DEFAULT_BOARD_SIZE
+const SUPPORTED_BOARD_SIZES := [6, 8, 10]
 const NONE := 0
 const BLACK := 1
 const WHITE := 2
 const VALID := 3
 const SEARCH_MIN := -9223372036854775807
 const SEARCH_MAX := 9223372036854775807
-const MOBILITY_WEIGHT := BOARD_SIZE
+const MOBILITY_WEIGHT := DEFAULT_BOARD_SIZE
+const CODEC_MAGIC_0 := 0x4c
+const CODEC_MAGIC_1 := 0x52
+const CODEC_VERSION := 2
+const CODEC_HEADER_SIZE := 5
 
 const DIFFICULTY_DEPTH := {
 	"EASY": 1,
@@ -31,6 +38,7 @@ static func default_settings() -> Dictionary:
 		"stone_theme": "classic",
 		"font_scale": 1.0,
 		"reduce_motion": false,
+		"board_size": DEFAULT_BOARD_SIZE,
 	}
 
 
@@ -40,7 +48,20 @@ static func normalize_settings(raw_settings: Dictionary) -> Dictionary:
 	for key in raw_settings.keys():
 		if defaults.has(key):
 			normalized[key] = raw_settings[key]
+	normalized["board_size"] = normalize_board_size(
+		int(raw_settings.get("board_size", DEFAULT_BOARD_SIZE))
+	)
 	return normalized
+
+
+static func normalize_board_size(value: int) -> int:
+	if SUPPORTED_BOARD_SIZES.has(value):
+		return value
+	if value <= 6:
+		return 6
+	if value >= 10:
+		return 10
+	return DEFAULT_BOARD_SIZE
 
 
 static func default_preferences(default_locale: String = "ko") -> Dictionary:
@@ -95,8 +116,15 @@ static func normalize_stats(raw_stats: Dictionary) -> Dictionary:
 	return normalized
 
 
-static func create_new_game(player_stone: int = BLACK, difficulty: String = "MEDIUM") -> Dictionary:
-	var board := _initial_board()
+static func create_new_game(
+	player_stone: int = BLACK,
+	difficulty: String = "MEDIUM",
+	board_size: int = DEFAULT_BOARD_SIZE,
+) -> Dictionary:
+	var normalized_size := normalize_board_size(board_size)
+	var board := _initial_board(normalized_size)
+	var settings := default_settings()
+	settings["board_size"] = normalized_size
 	var state := {
 		"version": 1,
 		"board": board,
@@ -106,7 +134,7 @@ static func create_new_game(player_stone: int = BLACK, difficulty: String = "MED
 		"difficulty": difficulty,
 		"valid_moves": get_valid_moves(board, BLACK),
 		"move_history": [],
-		"settings": default_settings(),
+		"settings": settings,
 		"stats": default_stats(),
 		"last_move": {},
 		"pass_count": 0,
@@ -119,6 +147,11 @@ static func create_new_game(player_stone: int = BLACK, difficulty: String = "MED
 
 
 static func create_state_from_board(board: Array, current_turn: int = BLACK, player_stone: int = BLACK, difficulty: String = "MEDIUM") -> Dictionary:
+	var board_size := get_board_size(board)
+	if board_size == 0:
+		return {}
+	var settings := default_settings()
+	settings["board_size"] = board_size
 	var state := {
 		"version": 1,
 		"board": clone_board(board),
@@ -128,7 +161,7 @@ static func create_state_from_board(board: Array, current_turn: int = BLACK, pla
 		"difficulty": difficulty,
 		"valid_moves": get_valid_moves(board, current_turn),
 		"move_history": [],
-		"settings": default_settings(),
+		"settings": settings,
 		"stats": default_stats(),
 		"last_move": {},
 		"pass_count": 0,
@@ -195,6 +228,7 @@ static func undo_last_round(state: Dictionary) -> Dictionary:
 	var restored := create_new_game(
 		player_stone,
 		str(state.get("difficulty", "MEDIUM")),
+		get_board_size(state.get("board", [])),
 	)
 	restored["settings"] = normalize_settings(state.get("settings", default_settings()))
 	restored["stats"] = normalize_stats(state.get("stats", {}))
@@ -248,10 +282,13 @@ static func record_game_result(state: Dictionary, result_kind: String) -> bool:
 static func get_valid_moves(board: Array, stone: int) -> Array:
 	if stone != BLACK and stone != WHITE:
 		return []
+	var board_size := get_board_size(board)
+	if board_size == 0:
+		return []
 
 	var moves: Array = []
-	for x in range(BOARD_SIZE):
-		for y in range(BOARD_SIZE):
+	for x in range(board_size):
+		for y in range(board_size):
 			if _is_valid_move(board, stone, x, y):
 				moves.append({"x": x, "y": y})
 	return sort_moves(moves)
@@ -290,31 +327,87 @@ static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> 
 
 
 static func encode_board_payload(board: Array, current_turn: int, valid_moves: Array = []) -> PackedByteArray:
+	var board_size := get_board_size(board)
+	if board_size == 0:
+		return PackedByteArray()
+
 	var payload := PackedByteArray()
-	for x in range(BOARD_SIZE):
-		var row_value := 0
-		for y in range(BOARD_SIZE):
+	payload.append(CODEC_MAGIC_0)
+	payload.append(CODEC_MAGIC_1)
+	payload.append(CODEC_VERSION)
+	payload.append(board_size)
+	payload.append(current_turn & 0xff)
+
+	var packed_byte := 0
+	var packed_count := 0
+	for x in range(board_size):
+		for y in range(board_size):
 			var cell := int(board[x][y])
 			if cell == NONE and _move_list_has(valid_moves, x, y):
 				cell = VALID
-			var shift := (BOARD_SIZE - 1 - y) * 2
-			row_value |= (cell & 3) << shift
-		_append_u16_le(payload, row_value)
-	_append_u16_le(payload, current_turn)
+			var shift := (3 - packed_count) * 2
+			packed_byte |= (cell & 3) << shift
+			packed_count += 1
+			if packed_count == 4:
+				payload.append(packed_byte)
+				packed_byte = 0
+				packed_count = 0
+	if packed_count > 0:
+		payload.append(packed_byte)
 	return payload
 
 
 static func decode_board_payload(payload: PackedByteArray) -> Dictionary:
-	if payload.size() != 18:
+	if payload.size() == 18:
+		return _decode_legacy_board_payload(payload)
+	if payload.size() < CODEC_HEADER_SIZE:
+		return {}
+	if (
+		int(payload[0]) != CODEC_MAGIC_0
+		or int(payload[1]) != CODEC_MAGIC_1
+		or int(payload[2]) != CODEC_VERSION
+	):
+		return {}
+
+	var board_size := int(payload[3])
+	if !SUPPORTED_BOARD_SIZES.has(board_size):
+		return {}
+	var packed_size := int(ceili(float(board_size * board_size) / 4.0))
+	if payload.size() != CODEC_HEADER_SIZE + packed_size:
 		return {}
 
 	var board: Array = []
 	var valid_moves: Array = []
-	for x in range(BOARD_SIZE):
+	var cell_index := 0
+	for x in range(board_size):
+		var row: Array = []
+		for y in range(board_size):
+			var packed_byte := int(payload[CODEC_HEADER_SIZE + int(cell_index / 4)])
+			var shift := (3 - cell_index % 4) * 2
+			var cell := (packed_byte >> shift) & 3
+			if cell == VALID:
+				row.append(NONE)
+				valid_moves.append({"x": x, "y": y})
+			else:
+				row.append(cell)
+			cell_index += 1
+		board.append(row)
+
+	return {
+		"board": board,
+		"current_turn": int(payload[4]),
+		"valid_moves": sort_moves(valid_moves),
+	}
+
+
+static func _decode_legacy_board_payload(payload: PackedByteArray) -> Dictionary:
+	var board: Array = []
+	var valid_moves: Array = []
+	for x in range(DEFAULT_BOARD_SIZE):
 		var row_value := _read_u16_le(payload, x * 2)
 		var row: Array = []
-		for y in range(BOARD_SIZE):
-			var shift := (BOARD_SIZE - 1 - y) * 2
+		for y in range(DEFAULT_BOARD_SIZE):
+			var shift := (DEFAULT_BOARD_SIZE - 1 - y) * 2
 			var cell := (row_value >> shift) & 3
 			if cell == VALID:
 				row.append(NONE)
@@ -365,7 +458,9 @@ static func state_from_save_dict(saved: Dictionary) -> Dictionary:
 	state["ai_stone"] = int(saved.get("ai_stone", opponent(int(state["player_stone"]))))
 	state["move_history"] = saved.get("move_history", [])
 	state["pass_count"] = int(saved.get("pass_count", 0))
-	state["settings"] = normalize_settings(saved.get("settings", default_settings()))
+	var settings := normalize_settings(saved.get("settings", default_settings()))
+	settings["board_size"] = get_board_size(decoded["board"])
+	state["settings"] = settings
 	state["stats"] = normalize_stats(saved.get("stats", {}))
 	state["last_saved_at"] = int(saved.get("last_saved_at", 0))
 	return state
@@ -408,6 +503,16 @@ static func clone_board(board: Array) -> Array:
 	return cloned
 
 
+static func get_board_size(board: Array) -> int:
+	var size := board.size()
+	if !SUPPORTED_BOARD_SIZES.has(size):
+		return 0
+	for row_value in board:
+		if typeof(row_value) != TYPE_ARRAY or row_value.size() != size:
+			return 0
+	return size
+
+
 static func sort_moves(moves: Array) -> Array:
 	moves.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		if int(a["x"]) == int(b["x"]):
@@ -417,23 +522,25 @@ static func sort_moves(moves: Array) -> Array:
 	return moves
 
 
-static func _initial_board() -> Array:
+static func _initial_board(board_size: int = DEFAULT_BOARD_SIZE) -> Array:
+	var normalized_size := normalize_board_size(board_size)
 	var board: Array = []
-	for _x in range(BOARD_SIZE):
+	for _x in range(normalized_size):
 		var row: Array = []
-		for _y in range(BOARD_SIZE):
+		for _y in range(normalized_size):
 			row.append(NONE)
 		board.append(row)
 
-	board[3][3] = WHITE
-	board[3][4] = BLACK
-	board[4][3] = BLACK
-	board[4][4] = WHITE
+	var center := int(normalized_size / 2)
+	board[center - 1][center - 1] = WHITE
+	board[center - 1][center] = BLACK
+	board[center][center - 1] = BLACK
+	board[center][center] = WHITE
 	return board
 
 
 static func _is_valid_move(board: Array, stone: int, x: int, y: int) -> bool:
-	if !_in_bounds(x, y):
+	if !_in_bounds(board, x, y):
 		return false
 	if int(board[x][y]) != NONE:
 		return false
@@ -460,14 +567,14 @@ static func _direction_flips(board: Array, stone: int, x: int, y: int, direction
 	var cy := y + direction.y
 	var other := opponent(stone)
 
-	while _in_bounds(cx, cy) and int(board[cx][cy]) == other:
+	while _in_bounds(board, cx, cy) and int(board[cx][cy]) == other:
 		flipped.append(Vector2i(cx, cy))
 		cx += direction.x
 		cy += direction.y
 
 	if flipped.is_empty():
 		return []
-	if !_in_bounds(cx, cy):
+	if !_in_bounds(board, cx, cy):
 		return []
 	if int(board[cx][cy]) != stone:
 		return []
@@ -555,7 +662,7 @@ static func _search_score(
 
 	var maximizing := turn == root_stone
 	var best := SEARCH_MIN if maximizing else SEARCH_MAX
-	for move in _order_search_moves(moves):
+	for move in _order_search_moves(moves, get_board_size(board)):
 		var next_board := clone_board(board)
 		_apply_move(next_board, turn, int(move["x"]), int(move["y"]))
 		var next_turn := _next_turn_for_board(next_board, turn)
@@ -584,6 +691,9 @@ static func _search_score(
 
 
 static func _evaluate_board(board: Array, stone: int) -> int:
+	var board_size := get_board_size(board)
+	if board_size == 0:
+		return 0
 	var counts := count_pieces(board)
 	var score := int(counts["black"]) - int(counts["white"])
 	if stone == WHITE:
@@ -591,31 +701,34 @@ static func _evaluate_board(board: Array, stone: int) -> int:
 
 	score += _mobility_score(board, stone)
 
-	var corner_value := BOARD_SIZE * 3
-	var edge_value := BOARD_SIZE * 2
-	var pre_corner_value := -BOARD_SIZE * 2
-	var corner_path_value := -BOARD_SIZE
+	var corner_value := board_size * 3
+	var edge_value := board_size * 2
+	var pre_corner_value := -board_size * 2
+	var corner_path_value := -board_size
+	var last := board_size - 1
+	var near_last := board_size - 2
 
-	for point in [Vector2i(0, 0), Vector2i(0, 7), Vector2i(7, 0), Vector2i(7, 7)]:
+	for point in [Vector2i(0, 0), Vector2i(0, last), Vector2i(last, 0), Vector2i(last, last)]:
 		score += _weighted_cell(board, point, stone, corner_value)
 
-	for point in [Vector2i(1, 1), Vector2i(1, 6), Vector2i(6, 1), Vector2i(6, 6)]:
+	for point in [Vector2i(1, 1), Vector2i(1, near_last), Vector2i(near_last, 1), Vector2i(near_last, near_last)]:
 		score += _weighted_cell(board, point, stone, pre_corner_value)
 
-	for x in range(BOARD_SIZE):
-		for y in range(BOARD_SIZE):
-			var is_edge := x == 0 or y == 0 or x == 7 or y == 7
-			var is_corner := (x == 0 or x == 7) and (y == 0 or y == 7)
+	for x in range(board_size):
+		for y in range(board_size):
+			var is_edge := x == 0 or y == 0 or x == last or y == last
+			var is_corner := (x == 0 or x == last) and (y == 0 or y == last)
 			if is_edge and !is_corner:
 				score += _weighted_cell(board, Vector2i(x, y), stone, edge_value)
 
-	for point in [
-		Vector2i(1, 2), Vector2i(1, 3), Vector2i(1, 4), Vector2i(1, 5),
-		Vector2i(2, 1), Vector2i(3, 1), Vector2i(4, 1), Vector2i(5, 1),
-		Vector2i(6, 2), Vector2i(6, 3), Vector2i(6, 4), Vector2i(6, 5),
-		Vector2i(2, 6), Vector2i(3, 6), Vector2i(4, 6), Vector2i(5, 6),
-	]:
-		score += _weighted_cell(board, point, stone, corner_path_value)
+	for offset in range(2, board_size - 2):
+		for point in [
+			Vector2i(1, offset),
+			Vector2i(offset, 1),
+			Vector2i(near_last, offset),
+			Vector2i(offset, near_last),
+		]:
+			score += _weighted_cell(board, point, stone, corner_path_value)
 
 	return score
 
@@ -623,10 +736,10 @@ static func _evaluate_board(board: Array, stone: int) -> int:
 static func _mobility_score(board: Array, stone: int) -> int:
 	var own_moves := get_valid_moves(board, stone).size()
 	var opponent_moves := get_valid_moves(board, opponent(stone)).size()
-	return (own_moves - opponent_moves) * MOBILITY_WEIGHT
+	return (own_moves - opponent_moves) * get_board_size(board)
 
 
-static func _order_search_moves(moves: Array) -> Array:
+static func _order_search_moves(moves: Array, board_size: int = DEFAULT_BOARD_SIZE) -> Array:
 	# 모서리와 가장자리를 먼저 탐색하되 각 버킷 안에서는 sort_moves 순서를 유지한다.
 	var corners: Array = []
 	var edges: Array = []
@@ -634,8 +747,8 @@ static func _order_search_moves(moves: Array) -> Array:
 	for move in moves:
 		var x := int(move["x"])
 		var y := int(move["y"])
-		var is_edge := x == 0 or x == BOARD_SIZE - 1 or y == 0 or y == BOARD_SIZE - 1
-		var is_corner := (x == 0 or x == BOARD_SIZE - 1) and (y == 0 or y == BOARD_SIZE - 1)
+		var is_edge := x == 0 or x == board_size - 1 or y == 0 or y == board_size - 1
+		var is_corner := (x == 0 or x == board_size - 1) and (y == 0 or y == board_size - 1)
 		if is_corner:
 			corners.append(move)
 		elif is_edge:
@@ -653,6 +766,8 @@ static func _record_search_stat(search_stats: Dictionary, key: String) -> void:
 
 
 static func _weighted_cell(board: Array, point: Vector2i, stone: int, value: int) -> int:
+	if !_in_bounds(board, point.x, point.y):
+		return 0
 	var cell := int(board[point.x][point.y])
 	if cell == stone:
 		return value
@@ -661,8 +776,13 @@ static func _weighted_cell(board: Array, point: Vector2i, stone: int, value: int
 	return 0
 
 
-static func _in_bounds(x: int, y: int) -> bool:
-	return x >= 0 and x < BOARD_SIZE and y >= 0 and y < BOARD_SIZE
+static func _in_bounds(board: Array, x: int, y: int) -> bool:
+	return (
+		x >= 0
+		and x < board.size()
+		and y >= 0
+		and y < board[x].size()
+	)
 
 
 static func _move_list_has(moves: Array, x: int, y: int) -> bool:
