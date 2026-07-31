@@ -27,7 +27,7 @@
 
 - Mobile playfield-first: 게임판, 점수, 차례, 착수 가능 위치, 돌 뒤집힘 애니메이션을 화면 중심 경험으로 둔다.
 - Board-adjacent feedback starts immediately under the board: full-width advantage meter first, then one compact row for 새 게임, 선공/후공, 착수 가능 수.
-- Non-gameplay controls live in the top-right settings menu: 난이도, 보드 크기, 사운드, 진동, 착수 표시, 보드/돌 테마, 언어, 글자 크기, 모션 줄이기, 플레이 방법, 정보. 플레이 방법은 착수·뒤집기·패스·종료/승패를 설명하는 별도 스크롤 시트이며 최초 대국에서 한 번 자동 표시한 뒤 설정에서 다시 열 수 있다. 정보 섹션은 앱 이름·export와 동기화된 버전·지원 이메일을 표시하고, 개인정보 처리방침 URL이 확정되어 주입된 경우에만 링크를 노출한다. Mobile settings use large segmented buttons instead of select boxes, and tapping outside the settings panel closes it.
+- Non-gameplay controls live in the top-right settings menu: 난이도, 보드 크기, 사운드, 진동, 착수 표시, 보드/돌 테마, 언어, 글자 크기, 모션 줄이기, 플레이 방법, 정보. 플레이 방법은 착수·뒤집기·패스·종료/승패를 설명하는 4단계 스크롤 시트이며, 단계 이동 때 실제 보드 셀을 강조한다. 최초 대국에서 자동 표시하고 완료·건너뛰기·닫기를 한 뒤에는 다시 자동 표시하지 않으며 설정에서 언제든 다시 열 수 있다. 정보 섹션은 앱 이름·export와 동기화된 버전·지원 이메일을 표시하고, 개인정보 처리방침 URL이 확정되어 주입된 경우에만 링크를 노출한다. Mobile settings use large segmented buttons instead of select boxes, and tapping outside the settings panel closes it.
 - In-play fun feedback should stay close to the board: a single theme-derived board surface with thin grid lines, last-move highlight, default-on legal move markers, midpoint color-swap disc flip with a placement-origin wave, placement sound, flip sound, big-flip sound, and a full-width advantage meter. Classic uses the traditional green Othello surface while Arctic and Ember derive their own surface/grid pair.
 - 보드 상단과 왼쪽에는 셀 중심에 맞춘 열 문자와 행 숫자 좌표를 표시한다. 기본 8x8은 좌상단 A1부터 우하단 H8이며 6x6/10x10 보드에서는 A-F/1-6, A-J/1-10으로 확장한다. 좌표는 셀 버튼 밖에서 입력을 무시한다.
 - 한 수 무르기는 보드 하단 컨트롤에서 플레이어 착수와 이어진 AI 응수를 되돌리며, 게임 종료 뒤에도 결과 오버레이를 닫고 대국을 재개할 수 있다.
@@ -89,7 +89,7 @@
 
 - Local save path: `user://save_v1.json`
 - User preferences path: `user://prefs_v1.json`
-- 플레이 방법 최초 자동 표시 여부는 `how_to_play_seen`으로 환경설정에 저장하며 게임 save와 분리한다.
+- 플레이 방법 완료·건너뛰기 여부는 `how_to_play_seen`으로 환경설정에 저장하며 게임 save와 분리한다. 단순 자동 표시만으로 완료 처리하지 않는다.
 - Board codec: `LR` magic + codec version + board-size tag + current turn + 셀당 2-bit 가변 payload.
 - Legacy board codec: 기존 8 rows x 16-bit little-endian + 16-bit current turn(18 bytes)은 읽기 호환을 유지한다.
 - Valid move cells can be encoded with `VALID = 3` for review/share payloads.
