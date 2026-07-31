@@ -31,6 +31,7 @@
 - 착수 표시 기본값·기존 prefs 보정, 설정 내부 ko/en 토글, OFF 즉시 숨김, 재실행 영속화, ON 복원, OFF 중 잘못된 착수 펄스 유지
 - 일본어 번역 키 완전성, 일본어 기기 로케일 선택, 설정 세그먼트 전환·재실행 영속화, 한국어 missing-key fallback, 일본어 번들 폰트의 실제 글리프 범위
 - 설정 내부 정보 섹션 위치, 앱 이름·iOS export 버전 일치, ko/en 라벨, 지원 이메일 URI, 미설정 개인정보 처리방침 숨김과 설정 시 외부 URI 호출
+- classic/arctic/ember 단색 보드 서피스·격자선 분리, classic 그린 우세, 테마별 색 구분, 힌트·hover·마지막 수 테두리 유지
 
 ## Architecture
 

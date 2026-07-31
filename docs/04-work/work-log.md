@@ -2,6 +2,7 @@
 
 ## 2026-07-31
 
+- Replaced checkerboard cells with a classic green single surface and thin grid lines, retaining theme-derived Arctic/Ember palettes, hints, hover, and last-move emphasis.
 - Added conservative MEDIUM/HARD endgame thresholds that replace heuristic cutoff with pass-aware exact terminal disc-difference search.
 - Added an in-settings About section with export-matched app version, support mail link, and fail-closed optional privacy-policy link.
 - Fixed the status bar to show PASS only for the latest pass transition, then return to the current-turn label after the next normal move.

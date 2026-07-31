@@ -2181,6 +2181,23 @@ func _test_visual_theme_switches_are_independent() -> bool:
 	var classic_texture: Texture2D = main._texture_for_stone(ReversiEngine.BLACK)
 	var classic_style := main.cell_buttons[0][0].get_theme_stylebox("normal") as StyleBoxFlat
 	var classic_color := classic_style.bg_color
+	var classic_adjacent_style := main.cell_buttons[0][1].get_theme_stylebox("normal") as StyleBoxFlat
+	var board_surface_panel := main.find_child("BoardSurface", true, false) as PanelContainer
+	var classic_grid_style := board_surface_panel.get_theme_stylebox("panel") as StyleBoxFlat
+	var classic_config: Dictionary = main._theme_config("classic")
+	var classic_surface_ok: bool = classic_color == classic_adjacent_style.bg_color \
+		and classic_color == classic_config["board_surface"] \
+		and classic_grid_style.bg_color == classic_config["board_grid"] \
+		and classic_color != classic_grid_style.bg_color \
+		and classic_color.g > classic_color.r \
+		and classic_color.g > classic_color.b
+	var valid_normal_style := main.cell_buttons[2][3].get_theme_stylebox("normal") as StyleBoxFlat
+	var valid_hover_style := main.cell_buttons[2][3].get_theme_stylebox("hover") as StyleBoxFlat
+	var hint_and_hover_ok: bool = _visible_hint_count(main) == 4 \
+		and main.cell_hint_views[2][3].visible \
+		and valid_hover_style.bg_color != valid_normal_style.bg_color \
+		and valid_hover_style.border_color == main._theme_color("accent") \
+		and valid_hover_style.get_border_width(SIDE_TOP) >= 2
 
 	main._set_theme("arctic", false)
 	await get_tree().process_frame
@@ -2216,9 +2233,38 @@ func _test_visual_theme_switches_are_independent() -> bool:
 			and main.cell_piece_views[3][3].texture == white_texture
 			and main.cell_piece_views[3][4].texture == black_texture
 		)
+	var theme_surface_colors: Array[Color] = []
+	var all_board_themes_use_grid_ok := true
+	for theme_value in ["classic", "arctic", "ember"]:
+		var board_theme_id := str(theme_value)
+		main._set_theme(board_theme_id, false)
+		await get_tree().process_frame
+		var first_style := main.cell_buttons[0][0].get_theme_stylebox("normal") as StyleBoxFlat
+		var adjacent_style := main.cell_buttons[0][1].get_theme_stylebox("normal") as StyleBoxFlat
+		var surface_panel := main.find_child("BoardSurface", true, false) as PanelContainer
+		var grid_style := surface_panel.get_theme_stylebox("panel") as StyleBoxFlat
+		var config: Dictionary = main._theme_config(board_theme_id)
+		all_board_themes_use_grid_ok = all_board_themes_use_grid_ok \
+			and first_style.bg_color == adjacent_style.bg_color \
+			and first_style.bg_color == config["board_surface"] \
+			and grid_style.bg_color == config["board_grid"] \
+			and first_style.bg_color != grid_style.bg_color
+		if !theme_surface_colors.has(first_style.bg_color):
+			theme_surface_colors.append(first_style.bg_color)
+
+	main._set_theme("classic", false)
+	await get_tree().process_frame
+	var move_result := ReversiEngine.play_move(main.state, 2, 3)
+	main._render()
+	var last_move_style := main.cell_buttons[2][3].get_theme_stylebox("normal") as StyleBoxFlat
+	var last_move_ok: bool = bool(move_result.get("ok", false)) \
+		and last_move_style.border_color == main._theme_color("accent") \
+		and last_move_style.get_border_width(SIDE_TOP) == 3
 	main.queue_free()
 	return (
 		_assert(selected_theme_ok, "ui theme setting changes")
+		and _assert(classic_surface_ok, "ui classic board uses one green surface with grid lines")
+		and _assert(hint_and_hover_ok, "ui keeps legal hints and hover feedback on the grid board")
 		and _assert(classic_color != arctic_board_color, "ui board theme switches board color")
 		and _assert(classic_texture == board_only_texture, "ui board theme does not switch stone texture")
 		and _assert(board_buttons_ok, "ui board theme buttons track selected theme")
@@ -2227,6 +2273,9 @@ func _test_visual_theme_switches_are_independent() -> bool:
 		and _assert(arctic_board_color == after_stone_color, "ui stone theme does not switch board color")
 		and _assert(stone_buttons_ok, "ui stone theme buttons track selected theme")
 		and _assert(all_stone_themes_render_ok, "ui renders black and white discs for every stone theme")
+		and _assert(all_board_themes_use_grid_ok, "ui derives surface and grid colors for every board theme")
+		and _assert(theme_surface_colors.size() == 3, "ui keeps board theme surfaces visually distinct")
+		and _assert(last_move_ok, "ui keeps the last-move border on the grid board")
 	)
 
 

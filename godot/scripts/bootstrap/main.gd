@@ -236,8 +236,6 @@ const TEXT := {
 const BG_COLOR := Color(0.025, 0.035, 0.055, 1.0)
 const HUD_COLOR := Color(0.075, 0.095, 0.14, 1.0)
 const HUD_DARK := Color(0.045, 0.06, 0.09, 1.0)
-const BOARD_DARK := Color(0.0, 0.39, 0.95, 1.0)
-const BOARD_LIGHT := Color(0.24, 0.56, 1.0, 1.0)
 const TEXT_PRIMARY := Color(0.96, 0.98, 1.0, 1.0)
 const TEXT_MUTED := Color(0.74, 0.80, 0.88, 1.0)
 const ACCENT := Color(1.0, 0.82, 0.18, 1.0)
@@ -553,11 +551,20 @@ func _build_board(root: VBoxContainer) -> void:
 	board_margin.add_theme_constant_override("margin_bottom", BOARD_PADDING)
 	board_frame.add_child(board_margin)
 
+	var board_surface := PanelContainer.new()
+	board_surface.name = "BoardSurface"
+	board_surface.add_theme_stylebox_override(
+		"panel",
+		_make_style(_theme_color("board_grid"), 0, Color.TRANSPARENT, 2),
+	)
+	board_margin.add_child(board_surface)
+
 	var board := GridContainer.new()
+	board.name = "BoardGrid"
 	board.columns = board_size
 	board.add_theme_constant_override("h_separation", CELL_GAP)
 	board.add_theme_constant_override("v_separation", CELL_GAP)
-	board_margin.add_child(board)
+	board_surface.add_child(board)
 
 	cell_buttons.clear()
 	cell_piece_views.clear()
@@ -1463,7 +1470,7 @@ func _render_cell(x: int, y: int, piece: int, is_valid: bool, is_last: bool) -> 
 	var button: Button = cell_buttons[x][y]
 	var piece_view: TextureRect = cell_piece_views[x][y]
 	var hint_view: PanelContainer = cell_hint_views[x][y]
-	var base := _theme_color("board_dark") if (x + y) % 2 == 0 else _theme_color("board_light")
+	var base := _theme_color("board_surface")
 	var border_width := 3 if is_last else 0
 	var border_color := _theme_color("accent") if is_last else Color.TRANSPARENT
 
@@ -1488,9 +1495,9 @@ func _render_cell(x: int, y: int, piece: int, is_valid: bool, is_last: bool) -> 
 		piece_view.scale = Vector2.ONE
 	piece_view.rotation = 0.0
 
-	button.add_theme_stylebox_override("normal", _make_style(base, border_width, border_color, 2))
-	button.add_theme_stylebox_override("hover", _make_style(base.lightened(0.07), max(border_width, 2), _theme_color("accent") if is_valid else border_color, 2))
-	button.add_theme_stylebox_override("pressed", _make_style(base.darkened(0.08), max(border_width, 2), Color(0, 0, 0, 0.32), 2))
+	button.add_theme_stylebox_override("normal", _make_style(base, border_width, border_color))
+	button.add_theme_stylebox_override("hover", _make_style(base.lightened(0.07), max(border_width, 2), _theme_color("accent") if is_valid else border_color))
+	button.add_theme_stylebox_override("pressed", _make_style(base.darkened(0.08), max(border_width, 2), Color(0, 0, 0, 0.32)))
 	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 
 
@@ -2197,8 +2204,8 @@ func _theme_config(theme_id: String = "") -> Dictionary:
 				"hud_dark": Color(0.032, 0.055, 0.08, 1.0),
 				"board_frame": Color(0.0, 0.045, 0.078, 1.0),
 				"board_frame_border": Color(0.22, 0.72, 0.86, 0.45),
-				"board_dark": Color(0.02, 0.39, 0.50, 1.0),
-				"board_light": Color(0.25, 0.68, 0.78, 1.0),
+				"board_surface": Color(0.055, 0.42, 0.48, 1.0),
+				"board_grid": Color(0.008, 0.11, 0.15, 0.92),
 				"meter_bg": Color(0.01, 0.03, 0.052, 1.0),
 				"text_primary": Color(0.94, 0.99, 1.0, 1.0),
 				"text_muted": Color(0.76, 0.90, 0.96, 1.0),
@@ -2215,8 +2222,8 @@ func _theme_config(theme_id: String = "") -> Dictionary:
 				"hud_dark": Color(0.075, 0.047, 0.032, 1.0),
 				"board_frame": Color(0.045, 0.022, 0.012, 1.0),
 				"board_frame_border": Color(0.76, 0.36, 0.12, 0.45),
-				"board_dark": Color(0.24, 0.22, 0.15, 1.0),
-				"board_light": Color(0.54, 0.34, 0.18, 1.0),
+				"board_surface": Color(0.31, 0.34, 0.15, 1.0),
+				"board_grid": Color(0.10, 0.085, 0.035, 0.92),
 				"meter_bg": Color(0.045, 0.024, 0.016, 1.0),
 				"text_primary": Color(1.0, 0.96, 0.86, 1.0),
 				"text_muted": Color(0.90, 0.76, 0.60, 1.0),
@@ -2231,10 +2238,10 @@ func _theme_config(theme_id: String = "") -> Dictionary:
 				"bg": BG_COLOR,
 				"hud": HUD_COLOR,
 				"hud_dark": HUD_DARK,
-				"board_frame": Color(0.005, 0.012, 0.022, 1.0),
-				"board_frame_border": Color(0, 0, 0, 0.55),
-				"board_dark": BOARD_DARK,
-				"board_light": BOARD_LIGHT,
+				"board_frame": Color(0.12, 0.055, 0.025, 1.0),
+				"board_frame_border": Color(0.58, 0.28, 0.10, 0.78),
+				"board_surface": Color(0.045, 0.45, 0.22, 1.0),
+				"board_grid": Color(0.012, 0.105, 0.045, 0.94),
 				"meter_bg": Color(0.015, 0.02, 0.035, 1.0),
 				"text_primary": TEXT_PRIMARY,
 				"text_muted": TEXT_MUTED,
