@@ -21,6 +21,10 @@ const DIFFICULTY_DEPTH := {
 	"MEDIUM": 3,
 	"HARD": 5,
 }
+const ENDGAME_EXACT_EMPTIES := {
+	"MEDIUM": 6,
+	"HARD": 8,
+}
 
 const DIRECTIONS := [
 	Vector2i(-1, -1), Vector2i(-1, 0), Vector2i(-1, 1),
@@ -311,27 +315,43 @@ static func get_valid_moves(board: Array, stone: int) -> Array:
 
 static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> Dictionary:
 	var stone: int = int(state.get("current_turn", NONE))
-	var moves := get_valid_moves(state.get("board", []), stone)
+	var board: Array = state.get("board", [])
+	var moves := get_valid_moves(board, stone)
 	if moves.is_empty():
 		return {}
 
-	var depth := int(DIFFICULTY_DEPTH.get(str(state.get("difficulty", "MEDIUM")), 3))
+	var difficulty := str(state.get("difficulty", "MEDIUM"))
+	var depth := int(DIFFICULTY_DEPTH.get(difficulty, 3))
+	var empty_count := _count_empty_cells(board)
+	var exact_threshold := int(ENDGAME_EXACT_EMPTIES.get(difficulty, -1))
+	var use_exact_search := exact_threshold >= 0 and empty_count <= exact_threshold
 	var best_score := SEARCH_MIN
 	var best_moves: Array = []
 	var alpha := SEARCH_MIN
 	var beta := SEARCH_MAX
 	for move in moves:
-		var board_after := clone_board(state["board"])
+		var board_after := clone_board(board)
 		_apply_move(board_after, stone, int(move["x"]), int(move["y"]))
 		var next_turn := _next_turn_for_board(board_after, stone)
-		var score := _search_score(
-			board_after,
-			next_turn,
-			stone,
-			depth - 1,
-			alpha,
-			beta,
-			search_stats,
+		var score := (
+			_search_exact_score(
+				board_after,
+				next_turn,
+				stone,
+				SEARCH_MIN,
+				SEARCH_MAX,
+				search_stats,
+			)
+			if use_exact_search
+			else _search_score(
+				board_after,
+				next_turn,
+				stone,
+				depth - 1,
+				alpha,
+				beta,
+				search_stats,
+			)
 		)
 		if score > best_score:
 			best_score = score
@@ -343,6 +363,8 @@ static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> 
 	if !search_stats.is_empty():
 		search_stats["best_score"] = best_score
 		search_stats["tie_count"] = best_moves.size()
+		search_stats["empty_count"] = empty_count
+		search_stats["exact_search"] = use_exact_search
 	if best_moves.is_empty():
 		return {}
 	if str(state.get("difficulty", "MEDIUM")) == "EASY" or best_moves.size() == 1:
@@ -531,6 +553,14 @@ static func count_pieces(board: Array) -> Dictionary:
 			elif int(cell) == WHITE:
 				white += 1
 	return {"black": black, "white": white}
+
+
+static func _count_empty_cells(board: Array) -> int:
+	var board_size := get_board_size(board)
+	if board_size == 0:
+		return 0
+	var counts := count_pieces(board)
+	return board_size * board_size - int(counts["black"]) - int(counts["white"])
 
 
 static func piece_name(stone: int) -> String:
@@ -745,6 +775,70 @@ static func _search_score(
 				_record_search_stat(search_stats, "min_cutoffs")
 				break
 	return best
+
+
+static func _search_exact_score(
+	board: Array,
+	turn: int,
+	root_stone: int,
+	alpha: int,
+	beta: int,
+	search_stats: Dictionary = {},
+) -> int:
+	_record_search_stat(search_stats, "exact_nodes")
+	if turn == NONE:
+		_record_search_stat(search_stats, "exact_terminals")
+		return _terminal_piece_difference(board, root_stone)
+
+	var moves := get_valid_moves(board, turn)
+	if moves.is_empty():
+		var other := opponent(turn)
+		if get_valid_moves(board, other).is_empty():
+			_record_search_stat(search_stats, "exact_terminals")
+			return _terminal_piece_difference(board, root_stone)
+		_record_search_stat(search_stats, "exact_passes")
+		return _search_exact_score(
+			board,
+			other,
+			root_stone,
+			alpha,
+			beta,
+			search_stats,
+		)
+
+	var maximizing := turn == root_stone
+	var best := SEARCH_MIN if maximizing else SEARCH_MAX
+	for move in _order_search_moves(moves, get_board_size(board)):
+		var next_board := clone_board(board)
+		_apply_move(next_board, turn, int(move["x"]), int(move["y"]))
+		var next_turn := _next_turn_for_board(next_board, turn)
+		var score := _search_exact_score(
+			next_board,
+			next_turn,
+			root_stone,
+			alpha,
+			beta,
+			search_stats,
+		)
+		if maximizing:
+			best = max(best, score)
+			alpha = max(alpha, best)
+			if best >= beta:
+				_record_search_stat(search_stats, "exact_max_cutoffs")
+				break
+		else:
+			best = min(best, score)
+			beta = min(beta, best)
+			if best <= alpha:
+				_record_search_stat(search_stats, "exact_min_cutoffs")
+				break
+	return best
+
+
+static func _terminal_piece_difference(board: Array, stone: int) -> int:
+	var counts := count_pieces(board)
+	var score := int(counts["black"]) - int(counts["white"])
+	return score if stone == BLACK else -score
 
 
 static func _evaluate_board(board: Array, stone: int) -> int:
