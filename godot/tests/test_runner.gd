@@ -38,6 +38,13 @@ class _InterstitialProbe:
 		requests += 1
 
 
+class _ShellOpenProbe:
+	extends RefCounted
+	var uris: Array[String] = []
+	func open(uri: String) -> void:
+		uris.append(uri)
+
+
 func _ready() -> void:
 	var ok := true
 	ok = _test_main_scene_exists() and ok
@@ -1561,10 +1568,13 @@ func _test_japanese_locale_and_font_fallback() -> bool:
 
 
 func _test_settings_menu_keeps_playfield_focused() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
 	var main_scene = load("res://scenes/main.tscn")
 	var main = main_scene.instantiate()
 	add_child(main)
 	await get_tree().process_frame
+	var shell_probe := _ShellOpenProbe.new()
+	main._shell_open_override = Callable(shell_probe, "open")
 
 	main.ai_move_pending = false
 	main.input_locked = false
@@ -1618,6 +1628,59 @@ func _test_settings_menu_keeps_playfield_focused() -> bool:
 		and _choice_group_first_button_visible(main.difficulty_buttons) \
 		and _choice_group_first_button_visible(main.board_size_buttons) \
 		and _choice_group_first_button_visible(main.board_theme_buttons)
+	var language_section: Node = main.settings_panel.find_child("LanguageSection", true, false)
+	var about_section: Node = main.settings_panel.find_child("AboutSection", true, false)
+	var about_app_version := main.settings_panel.find_child("AboutAppVersion", true, false) as Label
+	var support_email_button := main.settings_panel.find_child("SupportEmailButton", true, false) as Button
+	var privacy_policy_button: Node = main.settings_panel.find_child("PrivacyPolicyButton", true, false)
+	var about_location_ok: bool = language_section != null \
+		and about_section != null \
+		and about_section.get_parent() == language_section.get_parent() \
+		and about_section.get_index() == language_section.get_index() + 1 \
+		and main.settings_panel.is_ancestor_of(about_section)
+	var settings_panel_fits_ok: bool = main.settings_overlay.get_global_rect().encloses(
+		main.settings_panel.get_global_rect(),
+	)
+	var export_config := ConfigFile.new()
+	var export_config_ok: bool = export_config.load("res://export_presets.cfg") == OK
+	var export_version := str(export_config.get_value(
+		"preset.1.options",
+		"application/short_version",
+		"",
+	))
+	var project_version := str(ProjectSettings.get_setting("application/config/version", ""))
+	var about_identity_ok: bool = about_app_version != null \
+		and !project_version.is_empty() \
+		and export_config_ok \
+		and project_version == export_version \
+		and about_app_version.text.contains(main._t("app_title")) \
+		and about_app_version.text.contains(project_version)
+	var about_i18n_ok: bool = true
+	for locale_id in ["ko", "en"]:
+		var locale_texts: Dictionary = MainScript.TEXT[locale_id]
+		for key in ["about_title", "about_app_version", "support_email", "privacy_policy"]:
+			about_i18n_ok = about_i18n_ok and locale_texts.has(key)
+	var privacy_empty_hidden_ok: bool = MainScript.PRIVACY_POLICY_URL.is_empty() \
+		and privacy_policy_button == null
+	if support_email_button != null:
+		support_email_button.pressed.emit()
+	var support_email_open_ok: bool = support_email_button != null \
+		and support_email_button.text.contains(MainScript.SUPPORT_EMAIL) \
+		and shell_probe.uris == ["mailto:%s" % MainScript.SUPPORT_EMAIL]
+	var configured_about_section = main._make_about_section("https://example.invalid/privacy")
+	var configured_privacy_button := configured_about_section.find_child(
+		"PrivacyPolicyButton",
+		true,
+		false,
+	) as Button
+	if configured_privacy_button != null:
+		configured_privacy_button.pressed.emit()
+	var configured_privacy_open_ok: bool = configured_privacy_button != null \
+		and shell_probe.uris == [
+			"mailto:%s" % MainScript.SUPPORT_EMAIL,
+			"https://example.invalid/privacy",
+		]
+	configured_about_section.free()
 	var hint_toggle_removed_ok: bool = !_visible_button_text_exists(main.settings_overlay, "힌트") \
 		and !_visible_button_text_exists(main.settings_overlay, "HINT")
 	var haptic_toggle_visible_ok: bool = main.haptic_toggle != null \
@@ -1660,6 +1723,13 @@ func _test_settings_menu_keeps_playfield_focused() -> bool:
 		and _assert(sound_disabled_ok, "ui sound setting suppresses move sound")
 		and _assert(unsupported_setting_pruned_ok, "ui prunes unsupported saved vibration setting")
 		and _assert(menu_open_ok, "ui settings menu reveals settings controls")
+		and _assert(about_location_ok, "ui nests about section directly after language settings")
+		and _assert(settings_panel_fits_ok, "ui keeps the about section inside the settings overlay")
+		and _assert(about_identity_ok, "ui displays app name and export-matched version")
+		and _assert(about_i18n_ok, "ui provides Korean and English about labels")
+		and _assert(privacy_empty_hidden_ok, "ui hides privacy action when URL is empty")
+		and _assert(support_email_open_ok, "ui opens the support mailto URI")
+		and _assert(configured_privacy_open_ok, "ui opens configured privacy policy URI")
 		and _assert(hint_toggle_removed_ok, "ui settings menu omits hint toggle")
 		and _assert(haptic_toggle_visible_ok, "ui settings menu exposes Korean haptic toggle")
 		and _assert(haptic_toggle_saves_ok, "ui haptic toggle updates saved settings")
