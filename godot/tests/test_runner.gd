@@ -73,6 +73,8 @@ func _ready() -> void:
 	ok = ui_ok and ok
 	var undo_ui_ok := await _test_undo_button_states()
 	ok = undo_ui_ok and ok
+	var result_animation_ok := await _test_result_overlay_animation_once_and_reduce_motion()
+	ok = result_animation_ok and ok
 	var stats_ui_ok := await _test_result_stats_once_and_i18n()
 	ok = stats_ui_ok and ok
 	var interstitial_restore_ok := await _test_interstitial_restore_guard()
@@ -1110,6 +1112,135 @@ func _test_result_stats_once_and_i18n() -> bool:
 		and _assert(english_text_ok, "ui shows English difficulty stats")
 		and _assert(no_locale_duplicate_ok, "ui locale rebuild does not duplicate stats")
 		and _assert(restart_preserves_ok, "ui new game preserves cumulative stats")
+	)
+
+
+func _test_result_overlay_animation_once_and_reduce_motion() -> bool:
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+
+	var black_board: Array = []
+	var white_board: Array = []
+	var draw_board: Array = []
+	for x in range(ReversiEngine.BOARD_SIZE):
+		var black_row: Array = []
+		var white_row: Array = []
+		var draw_row: Array = []
+		for y in range(ReversiEngine.BOARD_SIZE):
+			black_row.append(ReversiEngine.BLACK)
+			white_row.append(ReversiEngine.WHITE)
+			draw_row.append(
+				ReversiEngine.BLACK if (x + y) % 2 == 0 else ReversiEngine.WHITE
+			)
+		black_board.append(black_row)
+		white_board.append(white_row)
+		draw_board.append(draw_row)
+
+	main.player_stone = ReversiEngine.BLACK
+	main.state = ReversiEngine.create_state_from_board(
+		black_board,
+		ReversiEngine.BLACK,
+		ReversiEngine.BLACK,
+		"EASY",
+	)
+	var animated_settings: Dictionary = main.state.get("settings", {})
+	animated_settings["locale"] = "ko"
+	animated_settings["sound"] = false
+	animated_settings["haptic"] = false
+	animated_settings["reduce_motion"] = false
+	main.state["settings"] = animated_settings
+	main._interstitial_shown_this_game = true
+	main._result_animation_played_this_game = false
+	main._motion_tween_count = 0
+	main._result_entry_animation_count = 0
+	main._winner_emphasis_animation_count = 0
+	main._update_result_overlay(false)
+	main._update_result_overlay(false)
+	var win_guard_ok: bool = main._result_entry_animation_count == 1 \
+		and main._winner_emphasis_animation_count == 1 \
+		and main._motion_tween_count == 2
+	var win_content_ok: bool = main.result_overlay.visible \
+		and main.result_winner_stone_view.visible \
+		and main.result_winner_stone_view.texture == main._texture_for_stone(ReversiEngine.BLACK) \
+		and main.result_title_label.text == main._t("result_win") \
+		and main.result_score_label.text == "64 : 0" \
+		and main.result_detail_label.text == main._t("result_detail") % [64, 0]
+	await get_tree().create_timer(0.55).timeout
+	var win_motion_finishes_ok: bool = is_equal_approx(main.result_overlay.modulate.a, 1.0) \
+		and main.result_panel.scale.is_equal_approx(Vector2.ONE) \
+		and main.result_winner_stone_view.scale.is_equal_approx(Vector2.ONE)
+
+	main._start_new_game(ReversiEngine.BLACK, false)
+	main.state = ReversiEngine.create_state_from_board(
+		white_board,
+		ReversiEngine.BLACK,
+		ReversiEngine.BLACK,
+		"EASY",
+	)
+	var reduced_settings: Dictionary = main.state.get("settings", {})
+	reduced_settings["locale"] = "ko"
+	reduced_settings["sound"] = false
+	reduced_settings["haptic"] = false
+	reduced_settings["reduce_motion"] = true
+	main.state["settings"] = reduced_settings
+	main._interstitial_shown_this_game = true
+	var before_reduced_motion_count: int = main._motion_tween_count
+	var before_reduced_entry_count: int = main._result_entry_animation_count
+	var before_reduced_winner_count: int = main._winner_emphasis_animation_count
+	main._update_result_overlay(false)
+	main._update_result_overlay(false)
+	var reduced_motion_ok: bool = main.result_overlay.visible \
+		and main._result_animation_played_this_game \
+		and main._motion_tween_count == before_reduced_motion_count \
+		and main._result_entry_animation_count == before_reduced_entry_count \
+		and main._winner_emphasis_animation_count == before_reduced_winner_count \
+		and main.result_overlay.modulate == Color.WHITE \
+		and main.result_panel.scale == Vector2.ONE \
+		and main.result_winner_stone_view.scale == Vector2.ONE
+	var lose_content_ok: bool = main.result_winner_stone_view.visible \
+		and main.result_winner_stone_view.texture == main._texture_for_stone(ReversiEngine.WHITE) \
+		and main.result_title_label.text == main._t("result_lose") \
+		and main.result_score_label.text == "0 : 64" \
+		and main.result_detail_label.text == main._t("result_detail") % [0, 64]
+
+	main._start_new_game(ReversiEngine.BLACK, false)
+	main.state = ReversiEngine.create_state_from_board(
+		draw_board,
+		ReversiEngine.BLACK,
+		ReversiEngine.BLACK,
+		"EASY",
+	)
+	var draw_settings: Dictionary = main.state.get("settings", {})
+	draw_settings["locale"] = "ko"
+	draw_settings["sound"] = false
+	draw_settings["haptic"] = false
+	draw_settings["reduce_motion"] = false
+	main.state["settings"] = draw_settings
+	main._interstitial_shown_this_game = true
+	var before_draw_entry_count: int = main._result_entry_animation_count
+	var before_draw_winner_count: int = main._winner_emphasis_animation_count
+	main._update_result_overlay(false)
+	main._update_result_overlay(false)
+	var draw_ok: bool = main._result_entry_animation_count == before_draw_entry_count + 1 \
+		and main._winner_emphasis_animation_count == before_draw_winner_count \
+		and !main.result_winner_stone_view.visible \
+		and main.result_title_label.text == main._t("result_draw") \
+		and main.result_score_label.text == "32 : 32" \
+		and main.result_detail_label.text == main._t("result_detail") % [32, 32]
+	var overlay_depth_ok: bool = main.result_overlay.is_ancestor_of(main.result_panel) \
+		and main.result_overlay.is_ancestor_of(main.result_winner_stone_view)
+
+	main.queue_free()
+	return (
+		_assert(win_guard_ok, "result entry and winner emphasis animate once per game")
+		and _assert(win_content_ok, "win result keeps verdict scores and winning stone")
+		and _assert(win_motion_finishes_ok, "result entry and winner pulse finish at neutral transforms")
+		and _assert(reduced_motion_ok, "reduced motion shows result without result tweens")
+		and _assert(lose_content_ok, "loss result keeps verdict scores and winning stone")
+		and _assert(draw_ok, "draw animates the card once without winner emphasis")
+		and _assert(overlay_depth_ok, "result animation stays inside the existing overlay")
 	)
 
 

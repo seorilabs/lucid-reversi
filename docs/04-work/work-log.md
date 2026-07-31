@@ -2,6 +2,7 @@
 
 ## 2026-07-31
 
+- Added a once-per-game result-card entrance and winning-stone pulse inside the existing overlay, with static win/draw/loss rendering when reduced motion is enabled.
 - Added per-game seeded tie-breaking for MEDIUM/HARD AI, preserving EASY and best-score behavior while making save/restore and Undo reproduce the same choice.
 - Added 6x6/8x8/10x10 board-size preferences, size-derived rules/evaluation/UI layout, a tagged variable-length board codec with legacy 18-byte restore compatibility, and automatic new-game rebuilds when the size changes.
 - Split theme, stone theme, locale, sound, haptic, and difficulty preferences into `user://prefs_v1.json`, migrated legacy save settings once, and made preferences authoritative when game saves are missing or invalid.
