@@ -20,6 +20,11 @@ export default defineConfig({
       build: 'tsc --noEmit && vite build',
     },
   },
-  permissions: [],
+  permissions: [
+    {
+      name: 'clipboard',
+      access: 'write',
+    },
+  ],
   outdir: 'dist',
 });

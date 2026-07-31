@@ -97,6 +97,7 @@
 - Board codec: `LR` magic + codec version + board-size tag + current turn + 셀당 2-bit 가변 payload.
 - Legacy board codec: 기존 8 rows x 16-bit little-endian + 16-bit current turn(18 bytes)은 읽기 호환을 유지한다.
 - Valid move cells can be encoded with `VALID = 3` for review/share payloads.
+- 결과 오버레이의 공유 버튼은 현재 로케일의 앱 이름·승패·최종 흑백 점수 텍스트를 만든다. AppsInToss Web은 `__aitBridge.shareResult`와 공식 `setClipboardText`를 사용하고, 네이티브는 OS 클립보드로 폴백하며 채널 부재 시 no-op 한다.
 - 대국별 AI seed를 game save에 저장한다. seed가 없는 기존 save는 board payload에서 결정론적으로 복원한다.
 
 ## 승인

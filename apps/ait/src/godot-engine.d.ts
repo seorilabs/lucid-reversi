@@ -30,7 +30,10 @@ declare global {
   interface Window {
     Engine?: typeof Engine;
     // Godot → JS 브리지: 게임이 JavaScriptBridge.get_interface("__aitBridge") 로 받아
-    // showInterstitialAd() 를 직접 호출해 전면 광고를 띄운다. (eval 미사용)
-    __aitBridge?: { showInterstitialAd: () => void };
+    // showInterstitialAd() 로 광고를 띄우고 shareResult() 로 결과 텍스트를 복사한다.
+    __aitBridge?: {
+      showInterstitialAd: () => void;
+      shareResult: (text: string) => void;
+    };
   }
 }

@@ -76,6 +76,7 @@ const TEXT := {
 		"hint": "힌트",
 		"restart": "다시",
 		"board": "보드",
+		"share_result": "공유",
 		"settings": "설정",
 		"close": "닫기",
 		"sound": "소리",
@@ -133,6 +134,7 @@ const TEXT := {
 		"result_draw": "무승부",
 		"result_lose": "패배",
 		"result_detail": "흑 %d / 백 %d",
+		"result_share_text": "%s\n%s\n%s",
 		"stats_summary": "%s %d승 %d무 %d패",
 	},
 	"en": {
@@ -157,6 +159,7 @@ const TEXT := {
 		"hint": "HINT",
 		"restart": "RESTART",
 		"board": "BOARD",
+		"share_result": "SHARE",
 		"settings": "SET",
 		"close": "CLOSE",
 		"sound": "SOUND",
@@ -214,6 +217,7 @@ const TEXT := {
 		"result_draw": "DRAW",
 		"result_lose": "LOSE",
 		"result_detail": "BLACK %d / WHITE %d",
+		"result_share_text": "%s\n%s\n%s",
 		"stats_summary": "%s %dW %dD %dL",
 	},
 	"ja": {
@@ -238,6 +242,7 @@ const TEXT := {
 		"hint": "ヒント",
 		"restart": "もう一度",
 		"board": "盤面",
+		"share_result": "共有",
 		"settings": "設定",
 		"close": "閉じる",
 		"sound": "サウンド",
@@ -295,6 +300,7 @@ const TEXT := {
 		"result_draw": "引き分け",
 		"result_lose": "敗北",
 		"result_detail": "黒 %d / 白 %d",
+		"result_share_text": "%s\n%s\n%s",
 		"stats_summary": "%s %d勝 %d分 %d敗",
 	},
 }
@@ -328,6 +334,7 @@ var _motion_tween_count := 0
 var _result_entry_animation_count := 0
 var _winner_emphasis_animation_count := 0
 var _hinted_move: Dictionary = {}
+var _share_result_probe: Callable
 
 var cell_buttons: Array = []
 var cell_piece_views: Array = []
@@ -394,6 +401,7 @@ var result_score_label: Label
 var result_detail_label: Label
 var result_stats_label: Label
 var result_move_list_button: Button
+var result_share_button: Button
 var new_game_confirmation_overlay: ColorRect
 var new_game_confirmation_title_label: Label
 var new_game_confirmation_body_label: Label
@@ -1070,6 +1078,9 @@ func _build_result_overlay() -> void:
 	box.add_child(buttons)
 
 	buttons.add_child(_make_action_button(_t("restart"), func() -> void: _start_new_game(player_stone), true))
+	result_share_button = _make_action_button(_t("share_result"), func() -> void: _share_result())
+	result_share_button.name = "ResultShareButton"
+	buttons.add_child(result_share_button)
 	buttons.add_child(_make_action_button(_t("board"), func() -> void: result_overlay.visible = false, false))
 
 
@@ -2684,6 +2695,33 @@ func _current_difficulty_stats_text() -> String:
 		int(bucket.get("draws", 0)),
 		int(bucket.get("losses", 0)),
 	]
+
+
+func _result_share_text() -> String:
+	return _t("result_share_text") % [
+		_t("app_title"),
+		result_title_label.text,
+		result_detail_label.text,
+	]
+
+
+func _share_result() -> bool:
+	var share_text := _result_share_text().strip_edges()
+	if share_text.is_empty():
+		return false
+	if _share_result_probe.is_valid():
+		_share_result_probe.call(share_text)
+		return true
+	if OS.has_feature("web"):
+		var bridge: JavaScriptObject = JavaScriptBridge.get_interface("__aitBridge")
+		if bridge != null and bridge.shareResult != null:
+			bridge.shareResult(share_text)
+			return true
+		return false
+	if DisplayServer.get_name() == "headless":
+		return false
+	DisplayServer.clipboard_set(share_text)
+	return true
 
 
 func _request_interstitial_ad() -> void:

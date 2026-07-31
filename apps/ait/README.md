@@ -10,6 +10,7 @@ Godot Web export를 AppsInToss(Granite `@apps-in-toss/web-framework`)로 패키�
 - Godot Web export 원본: `build/pages/` → `npm run sync:godot`로 `public/godot/`에 복사. 이때 AppsInToss 보안 정책(eval 금지)에 맞춰 엔진 로더 `index.js`의 `_godot_js_eval` 본문 eval 호출을 제거한다(`scripts/sync-godot-web.mjs`).
 - Web export 렌더: `src/GodotCanvas.tsx`가 `index.js`의 `Engine`을 직접 로드해 canvas에 렌더
 - 인앱 광고: `src/ads.ts` (AppsInToss 전면/Interstitial). 한 판 종료 시 Godot `_request_interstitial_ad`가 `JavaScriptBridge.get_interface("__aitBridge").showInterstitialAd()`(eval 미사용)로 노출. wrapper는 `App.tsx`에서 `window.__aitBridge`를 등록한다.
+- 결과 공유: Godot 결과 버튼이 `__aitBridge.shareResult(text)`를 호출하면 wrapper의 `src/share.ts`가 AppsInToss `setClipboardText`로 복사한다. 클립보드 쓰기 권한이 없거나 SDK가 지원되지 않으면 안전하게 no-op 한다.
 
 ## 명령어
 
