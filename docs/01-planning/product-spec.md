@@ -82,8 +82,8 @@
 - HARD: depth 5
 - MEDIUM switches to exact terminal search at 6 or fewer empty cells; HARD switches at 8 or fewer. EASY always keeps depth 1.
 - Evaluation: mobility 차이와 corner/edge/near-corner 위치 가중을 반영하고, 돌 개수 차이는 빈칸 비율에 따라 개시 0·중반 1·종반 4 가중을 적용한다.
-- MEDIUM/HARD: 최선 평가가 같은 수는 대국별 seed로 균등 선택한다. 같은 seed와 보드 상태는 같은 수를 재현한다.
-- EASY: 기존처럼 정렬된 첫 번째 최선 수를 선택한다.
+- 모든 난이도에서 최선 평가가 같은 수는 대국별 seed로 균등 선택한다. 같은 seed와 보드 상태는 같은 수를 재현하며, 서로 다른 EASY 대국은 동점 최선 수 사이에서 전개가 달라질 수 있다.
+- EASY는 depth 1을 유지하고 차선 수를 선택하지 않으며, 동점 최선 수에만 seed 변주를 적용한다.
 
 ## Persistence / Codec
 
