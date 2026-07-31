@@ -47,6 +47,7 @@ static func default_settings() -> Dictionary:
 		"reduce_motion": false,
 		"high_contrast": false,
 		"show_moves": true,
+		"show_flip_counts": false,
 		"board_size": DEFAULT_BOARD_SIZE,
 	}
 
@@ -317,6 +318,18 @@ static func get_valid_moves(board: Array, stone: int) -> Array:
 			if _is_valid_move(board, stone, x, y):
 				moves.append({"x": x, "y": y})
 	return sort_moves(moves)
+
+
+static func count_flips(board: Array, stone: int, x: int, y: int) -> int:
+	if stone != BLACK and stone != WHITE:
+		return 0
+	if !_in_bounds(board, x, y) or int(board[x][y]) != NONE:
+		return 0
+
+	var total := 0
+	for direction in DIRECTIONS:
+		total += _direction_flips(board, stone, x, y, direction).size()
+	return total
 
 
 static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> Dictionary:

@@ -57,6 +57,7 @@ func _ready() -> void:
 	ok = _test_main_scene_exists() and ok
 	ok = _test_initial_valid_moves() and ok
 	ok = _test_first_move_flip() and ok
+	ok = _test_flip_count_is_pure() and ok
 	ok = _test_pass_turn_fixture() and ok
 	ok = _test_game_over_full_board() and ok
 	ok = _test_board_size_settings_and_rules() and ok
@@ -107,6 +108,8 @@ func _ready() -> void:
 	ok = ui_ok and ok
 	var show_moves_ok := await _test_show_moves_setting()
 	ok = show_moves_ok and ok
+	var flip_count_ok := await _test_flip_count_overlay()
+	ok = flip_count_ok and ok
 	var undo_ui_ok := await _test_undo_button_states()
 	ok = undo_ui_ok and ok
 	var result_animation_ok := await _test_result_overlay_animation_once_and_reduce_motion()
@@ -387,6 +390,24 @@ func _test_first_move_flip() -> bool:
 		and _assert(int(result["flipped"][0]["x"]) == 3 and int(result["flipped"][0]["y"]) == 3, "first move flip coordinate")
 		and _assert(int(counts["black"]) == 4 and int(counts["white"]) == 1, "first move score")
 		and _assert(_moves_equal(state["valid_moves"], expected_white), "WHITE valid moves after first move")
+	)
+
+
+func _test_flip_count_is_pure() -> bool:
+	var state := ReversiEngine.create_new_game()
+	var board: Array = state["board"]
+	var board_before := ReversiEngine.clone_board(board)
+	var preview_count := ReversiEngine.count_flips(board, ReversiEngine.BLACK, 2, 3)
+	var pure_ok: bool = board == board_before
+	var occupied_ok: bool = ReversiEngine.count_flips(board, ReversiEngine.BLACK, 3, 3) == 0
+	var invalid_ok: bool = ReversiEngine.count_flips(board, ReversiEngine.NONE, 2, 3) == 0 \
+		and ReversiEngine.count_flips(board, ReversiEngine.BLACK, -1, 3) == 0
+	var result := ReversiEngine.play_move(state, 2, 3)
+	return (
+		_assert(preview_count == 1, "flip count previews one disc for the initial C4 move")
+		and _assert(pure_ok, "flip count leaves the board unchanged")
+		and _assert(occupied_ok and invalid_ok, "flip count safely rejects invalid moves")
+		and _assert(preview_count == result.get("flipped", []).size(), "flip count matches the applied move result")
 	)
 
 
@@ -1427,6 +1448,91 @@ func _test_show_moves_setting() -> bool:
 		and _assert(restored_off_ok, "show moves off restores after restart")
 		and _assert(english_label_ok, "show moves renders the English label")
 		and _assert(restored_on_ok, "show moves on restores legal markers")
+	)
+
+
+func _test_flip_count_overlay() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var suffix := str(OS.get_process_id())
+	var prefs_path := "user://prefs_flip_counts_%s.json" % suffix
+	var save_path := "user://save_flip_counts_%s.json" % suffix
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+
+	var defaults := ReversiEngine.default_settings()
+	var normalized := ReversiEngine.normalize_settings({})
+	var defaults_off_ok: bool = !bool(defaults.get("show_flip_counts", true)) \
+		and !bool(normalized.get("show_flip_counts", true))
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	main._prefs_path = prefs_path
+	main._save_path = save_path
+	add_child(main)
+	await get_tree().process_frame
+	main.player_stone = ReversiEngine.BLACK
+	main.state = ReversiEngine.create_new_game(ReversiEngine.BLACK, "MEDIUM")
+	main._render()
+	await get_tree().process_frame
+
+	var default_marker_ok: bool = !main.show_flip_counts_toggle.button_pressed \
+		and _visible_flip_count_count(main) == 0 \
+		and _visible_hint_count(main) == int(main.state.get("valid_moves", []).size())
+	main._show_settings_menu()
+	await get_tree().process_frame
+	var toggle_ok: bool = main.settings_panel.is_ancestor_of(main.show_flip_counts_toggle) \
+		and main.show_flip_counts_toggle.is_visible_in_tree() \
+		and main.show_flip_counts_toggle.text == "뒤집기 수" \
+		and str(MainScript.TEXT["en"].get("show_flip_counts", "")) == "FLIP COUNTS"
+	main.show_flip_counts_toggle.button_pressed = true
+	await get_tree().process_frame
+
+	var legal_counts_ok := true
+	var valid_moves: Array = main.state.get("valid_moves", [])
+	for move_value in valid_moves:
+		var move: Dictionary = move_value
+		var x := int(move["x"])
+		var y := int(move["y"])
+		var label: Label = main.cell_flip_count_labels[x][y]
+		legal_counts_ok = label.visible \
+			and label.text == str(ReversiEngine.count_flips(main.state["board"], main.player_stone, x, y)) \
+			and legal_counts_ok
+	var all_legal_visible_ok: bool = _visible_flip_count_count(main) == valid_moves.size()
+	var stored: Dictionary = main._load_preferences()
+	var persisted_ok: bool = bool(stored.get("settings", {}).get("show_flip_counts", false))
+
+	main.state["current_turn"] = ReversiEngine.WHITE
+	main.state["valid_moves"] = ReversiEngine.get_valid_moves(main.state["board"], ReversiEngine.WHITE)
+	main.input_locked = false
+	main._render()
+	var ai_hidden_ok: bool = _visible_flip_count_count(main) == 0
+	main.state["current_turn"] = ReversiEngine.BLACK
+	main.state["valid_moves"] = ReversiEngine.get_valid_moves(main.state["board"], ReversiEngine.BLACK)
+	main.input_locked = true
+	main._render()
+	var locked_hidden_ok: bool = _visible_flip_count_count(main) == 0
+	main.queue_free()
+	await get_tree().process_frame
+
+	var restored = main_scene.instantiate()
+	restored._prefs_path = prefs_path
+	restored._save_path = save_path
+	add_child(restored)
+	await get_tree().process_frame
+	var restored_ok: bool = restored.show_flip_counts_toggle.button_pressed \
+		and restored._show_flip_counts_enabled() \
+		and _visible_flip_count_count(restored) == int(restored.state.get("valid_moves", []).size())
+	restored.queue_free()
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	return (
+		_assert(defaults_off_ok, "flip count overlay defaults off and normalizes legacy settings")
+		and _assert(default_marker_ok, "flip count off preserves the existing move markers")
+		and _assert(toggle_ok, "flip count toggle stays inside settings with ko en labels")
+		and _assert(legal_counts_ok and all_legal_visible_ok, "flip count labels cover every legal player move")
+		and _assert(persisted_ok, "flip count toggle persists immediately")
+		and _assert(ai_hidden_ok, "flip count labels hide during the ai turn")
+		and _assert(locked_hidden_ok, "flip count labels hide while input is locked")
+		and _assert(restored_ok, "flip count overlay restores after restart")
 	)
 
 
@@ -3292,6 +3398,15 @@ func _visible_hint_count(main) -> int:
 	for row in main.cell_hint_views:
 		for hint in row:
 			if hint.visible:
+				count += 1
+	return count
+
+
+func _visible_flip_count_count(main) -> int:
+	var count := 0
+	for row in main.cell_flip_count_labels:
+		for label in row:
+			if label.visible:
 				count += 1
 	return count
 

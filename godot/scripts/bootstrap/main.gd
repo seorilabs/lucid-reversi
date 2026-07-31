@@ -112,6 +112,7 @@ const TEXT := {
 		"reduce_motion": "모션 줄이기",
 		"high_contrast": "고대비 색상",
 		"show_moves": "착수 표시",
+		"show_flip_counts": "뒤집기 수",
 		"board_theme": "보드 %s",
 		"stone_theme": "돌 %s",
 		"locale": "언어 %s",
@@ -197,6 +198,7 @@ const TEXT := {
 		"reduce_motion": "REDUCE MOTION",
 		"high_contrast": "HIGH CONTRAST",
 		"show_moves": "MOVES",
+		"show_flip_counts": "FLIP COUNTS",
 		"board_theme": "BOARD %s",
 		"stone_theme": "STONE %s",
 		"locale": "LANG %s",
@@ -282,6 +284,7 @@ const TEXT := {
 		"reduce_motion": "動きを減らす",
 		"high_contrast": "ハイコントラスト",
 		"show_moves": "着手表示",
+		"show_flip_counts": "反転数",
 		"board_theme": "盤面 %s",
 		"stone_theme": "石 %s",
 		"locale": "言語 %s",
@@ -345,6 +348,7 @@ var _share_result_probe: Callable
 var cell_buttons: Array = []
 var cell_piece_views: Array = []
 var cell_hint_views: Array = []
+var cell_flip_count_labels: Array = []
 var cell_recommendation_views: Array = []
 var cell_tutorial_views: Array = []
 var cell_surface_depth_views: Array = []
@@ -400,6 +404,7 @@ var font_scale_buttons: Array = []
 var reduce_motion_toggle: CheckButton
 var high_contrast_toggle: CheckButton
 var show_moves_toggle: CheckButton
+var show_flip_counts_toggle: CheckButton
 var result_overlay: ColorRect
 var result_panel: PanelContainer
 var result_winner_stone_view: TextureRect
@@ -739,6 +744,7 @@ func _build_board(root: VBoxContainer) -> void:
 	cell_buttons.clear()
 	cell_piece_views.clear()
 	cell_hint_views.clear()
+	cell_flip_count_labels.clear()
 	cell_recommendation_views.clear()
 	cell_tutorial_views.clear()
 	cell_surface_depth_views.clear()
@@ -747,6 +753,7 @@ func _build_board(root: VBoxContainer) -> void:
 		var button_row: Array = []
 		var piece_row: Array = []
 		var hint_row: Array = []
+		var flip_count_row: Array = []
 		var recommendation_row: Array = []
 		var tutorial_row: Array = []
 		var depth_row: Array = []
@@ -793,6 +800,16 @@ func _build_board(root: VBoxContainer) -> void:
 			hint.add_theme_stylebox_override("panel", _make_style(_theme_color("hint"), 1, _theme_color("hint_border"), 14))
 			button.add_child(hint)
 
+			var flip_count_label := Label.new()
+			flip_count_label.name = "FlipCount%d_%d" % [x, y]
+			flip_count_label.visible = false
+			flip_count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			flip_count_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			flip_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			flip_count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			flip_count_label.add_theme_font_size_override("font_size", _font_size(16))
+			hint.add_child(flip_count_label)
+
 			var recommendation := PanelContainer.new()
 			recommendation.name = "HintRecommendation%d_%d" % [x, y]
 			recommendation.visible = false
@@ -827,12 +844,14 @@ func _build_board(root: VBoxContainer) -> void:
 			button_row.append(button)
 			piece_row.append(piece)
 			hint_row.append(hint)
+			flip_count_row.append(flip_count_label)
 			recommendation_row.append(recommendation)
 			tutorial_row.append(tutorial_highlight)
 			depth_row.append(surface_depth)
 		cell_buttons.append(button_row)
 		cell_piece_views.append(piece_row)
 		cell_hint_views.append(hint_row)
+		cell_flip_count_labels.append(flip_count_row)
 		cell_recommendation_views.append(recommendation_row)
 		cell_tutorial_views.append(tutorial_row)
 		cell_surface_depth_views.append(depth_row)
@@ -1185,6 +1204,8 @@ func _build_settings_overlay() -> void:
 	box.add_child(haptic_toggle)
 	show_moves_toggle = _make_toggle_button(_t("show_moves"), "show_moves")
 	box.add_child(show_moves_toggle)
+	show_flip_counts_toggle = _make_toggle_button(_t("show_flip_counts"), "show_flip_counts")
+	box.add_child(show_flip_counts_toggle)
 	reduce_motion_toggle = _make_toggle_button(_t("reduce_motion"), "reduce_motion")
 	box.add_child(reduce_motion_toggle)
 	high_contrast_toggle = _make_toggle_button(_t("high_contrast"), "high_contrast")
@@ -1777,8 +1798,9 @@ func _make_toggle_button(text: String, key: String) -> CheckButton:
 	toggle.text = text
 	toggle.focus_mode = Control.FOCUS_NONE
 	toggle.add_theme_font_size_override("font_size", _font_size(19))
-	var settings: Dictionary = state.get("settings", ReversiEngine.default_settings())
-	toggle.button_pressed = bool(settings.get(key, true))
+	var default_settings := ReversiEngine.default_settings()
+	var settings: Dictionary = state.get("settings", default_settings)
+	toggle.button_pressed = bool(settings.get(key, default_settings.get(key, true)))
 	toggle.add_theme_stylebox_override("normal", _make_style(_theme_color("hud"), 1, Color(1, 1, 1, 0.10), 6))
 	toggle.add_theme_stylebox_override("hover", _make_style(_theme_color("hud").lightened(0.08), 1, Color(1, 1, 1, 0.18), 6))
 	toggle.add_theme_color_override("font_color", _theme_color("text_primary"))
@@ -1789,7 +1811,7 @@ func _make_toggle_button(text: String, key: String) -> CheckButton:
 		current_settings[key] = enabled
 		state["settings"] = current_settings
 		_save_preferences()
-		if key == "show_moves" or key == "high_contrast":
+		if key == "show_moves" or key == "show_flip_counts" or key == "high_contrast":
 			_render()
 	)
 	return toggle
@@ -2377,6 +2399,7 @@ func _render_cell(x: int, y: int, piece: int, is_valid: bool, is_last: bool) -> 
 	var button: Button = cell_buttons[x][y]
 	var piece_view: TextureRect = cell_piece_views[x][y]
 	var hint_view: PanelContainer = cell_hint_views[x][y]
+	var flip_count_label: Label = cell_flip_count_labels[x][y]
 	var recommendation_view: PanelContainer = cell_recommendation_views[x][y]
 	var base := _board_cell_color(x, y)
 	var border_width := (5 if _high_contrast_enabled() else 3) if is_last else 0
@@ -2386,15 +2409,23 @@ func _render_cell(x: int, y: int, piece: int, is_valid: bool, is_last: bool) -> 
 	button.disabled = false
 	hint_view.visible = false
 	hint_view.add_theme_stylebox_override("panel", _legal_move_hint_style())
+	flip_count_label.visible = false
+	flip_count_label.text = ""
+	flip_count_label.add_theme_color_override("font_color", _theme_color("text_primary"))
+	_apply_text_visibility(flip_count_label, 3, _theme_color("text_primary"))
 	recommendation_view.visible = false
 	if piece == ReversiEngine.NONE and is_valid and int(state.get("current_turn", ReversiEngine.NONE)) == player_stone and !input_locked:
 		piece_view.texture = null
 		piece_view.modulate = Color.TRANSPARENT
 		piece_view.scale = Vector2.ONE
-		if _show_moves_enabled():
+		var show_flip_count := _show_flip_counts_enabled()
+		if _show_moves_enabled() or show_flip_count:
 			base = base.lightened(0.08)
 			hint_view.visible = true
-		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+			button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		if show_flip_count:
+			flip_count_label.text = str(ReversiEngine.count_flips(state["board"], player_stone, x, y))
+			flip_count_label.visible = true
 	elif piece == ReversiEngine.BLACK or piece == ReversiEngine.WHITE:
 		piece_view.texture = _texture_for_stone(piece)
 		piece_view.modulate = Color.WHITE
@@ -2941,6 +2972,10 @@ func _reduce_motion_enabled() -> bool:
 
 func _show_moves_enabled() -> bool:
 	return bool(_current_settings().get("show_moves", true))
+
+
+func _show_flip_counts_enabled() -> bool:
+	return bool(_current_settings().get("show_flip_counts", false))
 
 
 func _high_contrast_enabled() -> bool:
