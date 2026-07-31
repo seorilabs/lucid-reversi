@@ -20,7 +20,7 @@ const PREFS_PATH := "user://prefs_v1.json"
 const CELL_SIZE := 84
 const CELL_GAP := 2
 const BOARD_PADDING := 4
-const BOARD_FRAME_SIZE := CELL_SIZE * ReversiEngine.BOARD_SIZE + CELL_GAP * (ReversiEngine.BOARD_SIZE - 1) + BOARD_PADDING * 2
+const BOARD_TARGET_CONTENT_SIZE := CELL_SIZE * ReversiEngine.DEFAULT_BOARD_SIZE + CELL_GAP * (ReversiEngine.DEFAULT_BOARD_SIZE - 1)
 const PLAY_BUTTON_HEIGHT := 58
 const ACTION_BUTTON_HEIGHT := 52
 const SETTINGS_CHOICE_HEIGHT := 52
@@ -31,6 +31,8 @@ const FLIP_EDGE_SCALE := Vector2(0.04, 1.12)
 const FLIP_HIGHLIGHT_COLOR := Color(1.0, 0.92, 0.68, 1.0)
 const FLIP_SWAP_ALPHA := 0.55
 const DIFFICULTY_IDS := ["EASY", "MEDIUM", "HARD"]
+const BOARD_SIZE_IDS := ["6", "8", "10"]
+const BOARD_SIZE_LABELS := ["6×6", "8×8", "10×10"]
 const THEME_IDS := ["classic", "arctic", "ember"]
 const THEME_LABELS := ["CLASSIC", "ARCTIC", "EMBER"]
 const STONE_THEME_IDS := ["classic", "arctic", "ember"]
@@ -66,6 +68,7 @@ const TEXT := {
 		"sound": "소리",
 		"haptic": "진동",
 		"difficulty_setting": "난이도",
+		"board_size_setting": "보드 크기",
 		"board_theme_title": "보드",
 		"stone_theme_title": "돌",
 		"language_setting": "언어",
@@ -122,6 +125,7 @@ const TEXT := {
 		"sound": "SOUND",
 		"haptic": "HAPTIC",
 		"difficulty_setting": "LEVEL",
+		"board_size_setting": "BOARD SIZE",
 		"board_theme_title": "BOARD",
 		"stone_theme_title": "STONE",
 		"language_setting": "LANG",
@@ -204,6 +208,7 @@ var white_button: Button
 var undo_button: Button
 var new_game_button: Button
 var difficulty_buttons: Array = []
+var board_size_buttons: Array = []
 var board_theme_buttons: Array = []
 var stone_theme_buttons: Array = []
 var locale_buttons: Array = []
@@ -248,7 +253,18 @@ func _ready() -> void:
 func _load_or_start() -> void:
 	var loaded := _load_state()
 	if loaded.is_empty():
-		state = ReversiEngine.create_new_game(player_stone, difficulty)
+		var preferred_settings: Dictionary = preferences.get(
+			"settings",
+			ReversiEngine.default_settings(),
+		)
+		var preferred_board_size := ReversiEngine.normalize_board_size(
+			int(preferred_settings.get("board_size", ReversiEngine.DEFAULT_BOARD_SIZE))
+		)
+		state = ReversiEngine.create_new_game(
+			player_stone,
+			difficulty,
+			preferred_board_size,
+		)
 	else:
 		state = loaded
 		player_stone = int(state.get("player_stone", ReversiEngine.BLACK))
@@ -435,8 +451,13 @@ func _build_status_bar(root: VBoxContainer) -> void:
 
 
 func _build_board(root: VBoxContainer) -> void:
+	var board_size := _current_board_size()
+	var cell_size := cell_size_for_board(board_size)
+	var piece_margin := maxi(5, int(round(float(cell_size) / 12.0)))
+	var hint_margin := maxi(16, int(round(float(cell_size) / 3.0)))
 	var board_frame := PanelContainer.new()
-	board_frame.custom_minimum_size = Vector2(BOARD_FRAME_SIZE, BOARD_FRAME_SIZE)
+	var board_frame_size := board_frame_size_for_board(board_size)
+	board_frame.custom_minimum_size = Vector2(board_frame_size, board_frame_size)
 	board_frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	board_frame.add_theme_stylebox_override("panel", _make_style(_theme_color("board_frame"), 2, _theme_color("board_frame_border"), 6))
 	root.add_child(board_frame)
@@ -449,7 +470,7 @@ func _build_board(root: VBoxContainer) -> void:
 	board_frame.add_child(board_margin)
 
 	var board := GridContainer.new()
-	board.columns = ReversiEngine.BOARD_SIZE
+	board.columns = board_size
 	board.add_theme_constant_override("h_separation", CELL_GAP)
 	board.add_theme_constant_override("v_separation", CELL_GAP)
 	board_margin.add_child(board)
@@ -457,15 +478,15 @@ func _build_board(root: VBoxContainer) -> void:
 	cell_buttons.clear()
 	cell_piece_views.clear()
 	cell_hint_views.clear()
-	for x in range(ReversiEngine.BOARD_SIZE):
+	for x in range(board_size):
 		var button_row: Array = []
 		var piece_row: Array = []
 		var hint_row: Array = []
-		for y in range(ReversiEngine.BOARD_SIZE):
+		for y in range(board_size):
 			var cell_x := x
 			var cell_y := y
 			var button := Button.new()
-			button.custom_minimum_size = Vector2(CELL_SIZE, CELL_SIZE)
+			button.custom_minimum_size = Vector2(cell_size, cell_size)
 			button.focus_mode = Control.FOCUS_NONE
 			button.clip_contents = true
 			button.text = ""
@@ -476,20 +497,20 @@ func _build_board(root: VBoxContainer) -> void:
 			piece.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 			piece.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			piece.set_anchors_preset(Control.PRESET_FULL_RECT)
-			piece.offset_left = 7
-			piece.offset_top = 7
-			piece.offset_right = -7
-			piece.offset_bottom = -7
+			piece.offset_left = piece_margin
+			piece.offset_top = piece_margin
+			piece.offset_right = -piece_margin
+			piece.offset_bottom = -piece_margin
 			button.add_child(piece)
 
 			var hint := PanelContainer.new()
 			hint.visible = false
 			hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			hint.set_anchors_preset(Control.PRESET_FULL_RECT)
-			hint.offset_left = 28
-			hint.offset_top = 28
-			hint.offset_right = -28
-			hint.offset_bottom = -28
+			hint.offset_left = hint_margin
+			hint.offset_top = hint_margin
+			hint.offset_right = -hint_margin
+			hint.offset_bottom = -hint_margin
 			hint.add_theme_stylebox_override("panel", _make_style(_theme_color("hint"), 1, _theme_color("hint_border"), 14))
 			button.add_child(hint)
 
@@ -736,6 +757,15 @@ func _build_settings_overlay() -> void:
 		difficulty,
 		Callable(self, "_set_difficulty_from_choice"),
 		difficulty_buttons
+	))
+
+	box.add_child(_make_choice_section(
+		_t("board_size_setting"),
+		BOARD_SIZE_IDS,
+		BOARD_SIZE_LABELS,
+		str(_current_board_size()),
+		Callable(self, "_set_board_size_from_choice"),
+		board_size_buttons
 	))
 
 	sound_toggle = _make_toggle_button(_t("sound"), "sound")
@@ -1021,10 +1051,17 @@ func _start_new_game(stone: int, persist: bool = true) -> void:
 	_interstitial_shown_this_game = false
 	var current_settings := _current_settings()
 	var current_stats := ReversiEngine.normalize_stats(state.get("stats", {}))
+	var board_size := ReversiEngine.normalize_board_size(
+		int(current_settings.get("board_size", ReversiEngine.DEFAULT_BOARD_SIZE))
+	)
+	var rebuild_board := cell_buttons.size() != board_size
 	player_stone = stone
-	state = ReversiEngine.create_new_game(player_stone, difficulty)
+	state = ReversiEngine.create_new_game(player_stone, difficulty, board_size)
+	current_settings["board_size"] = board_size
 	state["settings"] = current_settings
 	state["stats"] = current_stats
+	if rebuild_board:
+		_build_ui()
 	_sync_identity_labels()
 	if persist:
 		_save_state()
@@ -1032,6 +1069,27 @@ func _start_new_game(stone: int, persist: bool = true) -> void:
 	if analytics != null:
 		analytics.on_game_start(difficulty, player_stone)
 	call_deferred("_maybe_play_ai_turn")
+
+
+static func cell_size_for_board(board_size: int) -> int:
+	var normalized_size := ReversiEngine.normalize_board_size(board_size)
+	return maxi(
+		1,
+		int(floor(
+			float(BOARD_TARGET_CONTENT_SIZE - CELL_GAP * (normalized_size - 1))
+			/ float(normalized_size)
+		)),
+	)
+
+
+static func board_frame_size_for_board(board_size: int) -> int:
+	var normalized_size := ReversiEngine.normalize_board_size(board_size)
+	var cell_size := cell_size_for_board(normalized_size)
+	return (
+		cell_size * normalized_size
+		+ CELL_GAP * (normalized_size - 1)
+		+ BOARD_PADDING * 2
+	)
 
 
 func _sync_identity_labels() -> void:
@@ -1235,8 +1293,9 @@ func _render() -> void:
 
 	var board: Array = state.get("board", [])
 	var valid_moves: Array = state.get("valid_moves", [])
-	for x in range(ReversiEngine.BOARD_SIZE):
-		for y in range(ReversiEngine.BOARD_SIZE):
+	var board_size := ReversiEngine.get_board_size(board)
+	for x in range(board_size):
+		for y in range(board_size):
 			var piece := int(board[x][y])
 			var is_valid := _is_valid_cell(valid_moves, x, y)
 			var is_last := _is_last_move(x, y)
@@ -1434,6 +1493,7 @@ func _update_mode_buttons() -> void:
 
 func _update_settings_choice_buttons() -> void:
 	_update_choice_buttons(difficulty_buttons, difficulty)
+	_update_choice_buttons(board_size_buttons, str(_current_board_size()))
 	_update_choice_buttons(board_theme_buttons, _current_theme_id())
 	_update_choice_buttons(stone_theme_buttons, _current_stone_theme_id())
 	_update_choice_buttons(locale_buttons, _current_locale_id())
@@ -1640,11 +1700,17 @@ func _outline_color_for(font_color: Color) -> Color:
 func _current_settings() -> Dictionary:
 	var defaults := ReversiEngine.default_settings()
 	var current: Dictionary = state.get("settings", {})
-	var merged := defaults.duplicate()
-	for key in current.keys():
-		if defaults.has(key):
-			merged[key] = current[key]
-	return merged
+	return ReversiEngine.normalize_settings(current.merged(defaults, false))
+
+
+func _current_board_size() -> int:
+	var board: Array = state.get("board", [])
+	var board_size := ReversiEngine.get_board_size(board)
+	if board_size > 0:
+		return board_size
+	return ReversiEngine.normalize_board_size(
+		int(_current_settings().get("board_size", ReversiEngine.DEFAULT_BOARD_SIZE))
+	)
 
 
 func _current_font_scale() -> float:
@@ -1676,8 +1742,14 @@ func _apply_preferences_to_state() -> void:
 	preferences = ReversiEngine.normalize_preferences(preferences, _device_default_locale())
 	difficulty = str(preferences.get("difficulty", "MEDIUM"))
 	state["difficulty"] = difficulty
-	var preferred_settings: Dictionary = preferences.get("settings", ReversiEngine.default_settings())
-	state["settings"] = preferred_settings.duplicate(true)
+	var preferred_settings := ReversiEngine.normalize_settings(
+		preferences.get("settings", ReversiEngine.default_settings())
+	)
+	preferred_settings["board_size"] = ReversiEngine.get_board_size(
+		state.get("board", []),
+	)
+	state["settings"] = preferred_settings
+	preferences["settings"] = preferred_settings.duplicate(true)
 
 
 func _sync_preferences_from_state() -> void:
@@ -1721,6 +1793,25 @@ func _set_difficulty_from_choice(difficulty_id: String) -> void:
 	_save_preferences()
 	_render()
 	call_deferred("_maybe_play_ai_turn")
+
+
+func _set_board_size_from_choice(board_size_id: String) -> void:
+	if !BOARD_SIZE_IDS.has(board_size_id):
+		return
+	var board_size := ReversiEngine.normalize_board_size(board_size_id.to_int())
+	if board_size == _current_board_size():
+		_update_settings_choice_buttons()
+		return
+	var keep_settings_open := settings_overlay != null and settings_overlay.visible
+	var settings := _current_settings()
+	settings["board_size"] = board_size
+	state["settings"] = settings
+	if analytics != null:
+		analytics.on_settings_changed("board_size", str(board_size))
+	_save_preferences()
+	_start_new_game(player_stone)
+	if keep_settings_open:
+		_show_settings_menu()
 
 
 func _set_font_scale_from_choice(scale_id: String) -> void:

@@ -27,14 +27,14 @@
 
 - Mobile playfield-first: 게임판, 점수, 차례, 착수 가능 위치, 돌 뒤집힘 애니메이션을 화면 중심 경험으로 둔다.
 - Board-adjacent feedback starts immediately under the board: full-width advantage meter first, then one compact row for 새 게임, 선공/후공, 착수 가능 수.
-- Non-gameplay controls live in the top-right settings menu: 난이도, 사운드, 진동, 보드/돌 테마, 언어, 글자 크기, 모션 줄이기. Mobile settings use large segmented buttons instead of select boxes, and tapping outside the settings panel closes it.
+- Non-gameplay controls live in the top-right settings menu: 난이도, 보드 크기, 사운드, 진동, 보드/돌 테마, 언어, 글자 크기, 모션 줄이기. Mobile settings use large segmented buttons instead of select boxes, and tapping outside the settings panel closes it.
 - In-play fun feedback should stay close to the board: last-move highlight, always-on legal move markers, midpoint color-swap disc flip with a placement-origin wave, placement sound, flip sound, big-flip sound, and a full-width advantage meter.
 - Avoid bottom control decks that compete with the board or make the game feel like a settings dashboard.
 
 ## MVP Scope
 
 - Must-have:
-  - 8x8 리버시 싱글플레이
+  - 6x6 / 8x8 / 10x10 리버시 싱글플레이(기본 8x8)
   - 플레이어 선공/후공 선택
   - 난이도 3단계: EASY depth 1, MEDIUM depth 3, HARD depth 5
   - 합법 수 표시, 패스 처리, 게임오버/승패/무승부 처리
@@ -56,16 +56,16 @@
 
 ## Core Rules
 
-- Board size: `8 x 8`
+- Board size: `6 x 6`, `8 x 8`, `10 x 10` (default: `8 x 8`)
 - Piece enum: `NONE = 0`, `BLACK = 1`, `WHITE = 2`, `VALID = 3`
 - Coordinate: `x = row`, `y = col`
-- Start position:
-  - `(3,3) WHITE`
-  - `(3,4) BLACK`
-  - `(4,3) BLACK`
-  - `(4,4) WHITE`
+- Start position: `N/2`를 기준으로 중앙 4칸에 WHITE/BLACK 교차 배치
+  - `(N/2-1,N/2-1) WHITE`
+  - `(N/2-1,N/2) BLACK`
+  - `(N/2,N/2-1) BLACK`
+  - `(N/2,N/2) WHITE`
 - First turn: BLACK
-- Initial valid moves for BLACK: `(2,3)`, `(3,2)`, `(4,5)`, `(5,4)`
+- Initial valid moves for BLACK: 중앙 4칸의 바깥 직교 방향 4칸(8x8은 `(2,3)`, `(3,2)`, `(4,5)`, `(5,4)`)
 - Winner:
   - black count > white count: BLACK
   - white count > black count: WHITE
@@ -82,7 +82,8 @@
 
 - Local save path: `user://save_v1.json`
 - User preferences path: `user://prefs_v1.json`
-- Board codec: 8 rows x 16-bit little-endian plus 16-bit current turn = 18 bytes.
+- Board codec: `LR` magic + codec version + board-size tag + current turn + 셀당 2-bit 가변 payload.
+- Legacy board codec: 기존 8 rows x 16-bit little-endian + 16-bit current turn(18 bytes)은 읽기 호환을 유지한다.
 - Valid move cells can be encoded with `VALID = 3` for review/share payloads.
 
 ## 승인

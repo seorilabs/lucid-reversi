@@ -45,6 +45,7 @@ func _ready() -> void:
 	ok = _test_first_move_flip() and ok
 	ok = _test_pass_turn_fixture() and ok
 	ok = _test_game_over_full_board() and ok
+	ok = _test_board_size_settings_and_rules() and ok
 	ok = _test_codec_round_trip() and ok
 	ok = _test_save_round_trip() and ok
 	ok = _test_preferences_storage_lifecycle() and ok
@@ -60,6 +61,8 @@ func _ready() -> void:
 	ok = settings_menu_ok and ok
 	var settings_persistence_ok := await _test_settings_persist_immediately()
 	ok = settings_persistence_ok and ok
+	var board_size_ui_ok := await _test_board_size_ui()
+	ok = board_size_ui_ok and ok
 	var accessibility_ok := await _test_accessibility_settings_and_reduced_motion()
 	ok = accessibility_ok and ok
 	var new_game_confirmation_ok := await _test_new_game_confirmation_guard()
@@ -310,19 +313,137 @@ func _test_game_over_full_board() -> bool:
 	return _assert(bool(state["game_over"]), "full board game over") and _assert(int(state["winner"]) == ReversiEngine.BLACK, "full board winner")
 
 
+func _test_board_size_settings_and_rules() -> bool:
+	var defaults := ReversiEngine.default_settings()
+	var normalization_ok := (
+		int(defaults.get("board_size", 0)) == 8
+		and int(ReversiEngine.normalize_settings({"board_size": 5})["board_size"]) == 6
+		and int(ReversiEngine.normalize_settings({"board_size": 7})["board_size"]) == 8
+		and int(ReversiEngine.normalize_settings({"board_size": 11})["board_size"]) == 10
+	)
+	var variants_ok := true
+	for board_size in [6, 10]:
+		var state := ReversiEngine.create_new_game(
+			ReversiEngine.BLACK,
+			"MEDIUM",
+			board_size,
+		)
+		var board: Array = state["board"]
+		var center := int(board_size / 2)
+		var expected_moves := [
+			{"x": center - 2, "y": center - 1},
+			{"x": center - 1, "y": center - 2},
+			{"x": center, "y": center + 1},
+			{"x": center + 1, "y": center},
+		]
+		var full_board: Array = []
+		for _x in range(board_size):
+			var row: Array = []
+			for _y in range(board_size):
+				row.append(ReversiEngine.BLACK)
+			full_board.append(row)
+		var black_score := ReversiEngine._evaluate_board(
+			full_board,
+			ReversiEngine.BLACK,
+		)
+		var white_score := ReversiEngine._evaluate_board(
+			full_board,
+			ReversiEngine.WHITE,
+		)
+		var first_move: Dictionary = expected_moves[0]
+		var move_result := ReversiEngine.play_move(
+			state,
+			int(first_move["x"]),
+			int(first_move["y"]),
+		)
+		var variant_ok: bool = (
+			board.size() == board_size
+			and board[0].size() == board_size
+			and int(state.get("settings", {}).get("board_size", 0)) == board_size
+			and _moves_equal(
+				ReversiEngine.get_valid_moves(
+					ReversiEngine._initial_board(board_size),
+					ReversiEngine.BLACK,
+				),
+				expected_moves,
+			)
+			and bool(move_result.get("ok", false))
+			and move_result.get("flipped", []).size() == 1
+			and ReversiEngine._evaluate_board(
+				ReversiEngine._initial_board(board_size),
+				ReversiEngine.BLACK,
+			) == 0
+			and black_score > 0
+			and black_score == -white_score
+		)
+		variants_ok = _assert(
+			variant_ok,
+			"%dx%d rules and evaluation use the board size" % [board_size, board_size],
+		) and variants_ok
+	return (
+		_assert(normalization_ok, "board size settings normalize to 6 8 or 10")
+		and variants_ok
+	)
+
+
 func _test_codec_round_trip() -> bool:
 	var state := ReversiEngine.create_new_game()
 	var payload := ReversiEngine.encode_board_payload(state["board"], int(state["current_turn"]), state["valid_moves"])
 	var decoded := ReversiEngine.decode_board_payload(payload)
 	var encoded_again := ReversiEngine.encode_board_payload(decoded["board"], int(decoded["current_turn"]), decoded["valid_moves"])
 	var expected_rows := PackedInt32Array([0x0000, 0x0000, 0x0300, 0x0e40, 0x01b0, 0x00c0, 0x0000, 0x0000])
-	var rows_ok := true
-	for index in range(expected_rows.size()):
-		rows_ok = rows_ok and _read_u16(payload, index * 2) == expected_rows[index]
+	var legacy_payload := PackedByteArray()
+	for row_value in expected_rows:
+		_append_u16(legacy_payload, int(row_value))
+	_append_u16(legacy_payload, ReversiEngine.BLACK)
+	var legacy_decoded := ReversiEngine.decode_board_payload(legacy_payload)
+	var legacy_saved := ReversiEngine.state_to_save_dict(state)
+	legacy_saved["board_codec"] = Marshalls.raw_to_base64(legacy_payload)
+	var legacy_restored := ReversiEngine.state_from_save_dict(legacy_saved)
+
+	var large_state := ReversiEngine.create_new_game(
+		ReversiEngine.WHITE,
+		"HARD",
+		10,
+	)
+	var large_move: Dictionary = large_state["valid_moves"][0]
+	ReversiEngine.play_move(
+		large_state,
+		int(large_move["x"]),
+		int(large_move["y"]),
+	)
+	var large_saved := ReversiEngine.state_to_save_dict(large_state)
+	var large_payload := Marshalls.base64_to_raw(str(large_saved["board_codec"]))
+	var large_restored := ReversiEngine.state_from_save_dict(large_saved)
 	return (
-		_assert(payload.size() == 18, "codec payload is 18 bytes")
-		and _assert(rows_ok, "initial codec row fixture")
-		and _assert(payload == encoded_again, "codec round trip")
+		_assert(
+			payload.size() == 21
+				and int(payload[0]) == ReversiEngine.CODEC_MAGIC_0
+				and int(payload[1]) == ReversiEngine.CODEC_MAGIC_1
+				and int(payload[2]) == ReversiEngine.CODEC_VERSION
+				and int(payload[3]) == 8,
+			"codec writes a tagged variable-length 8x8 payload",
+		)
+		and _assert(payload == encoded_again, "tagged codec round trip")
+		and _assert(
+			legacy_payload.size() == 18
+				and ReversiEngine.get_board_size(legacy_decoded.get("board", [])) == 8
+				and int(legacy_decoded.get("current_turn", 0)) == ReversiEngine.BLACK
+				and _moves_equal(legacy_decoded.get("valid_moves", []), state["valid_moves"]),
+			"codec decodes the legacy 18-byte 8x8 fixture",
+		)
+		and _assert(
+			!legacy_restored.is_empty()
+				and ReversiEngine.get_board_size(legacy_restored.get("board", [])) == 8,
+			"legacy board_codec save restores as 8x8",
+		)
+		and _assert(
+			large_payload.size() == 30
+				and ReversiEngine.get_board_size(large_restored.get("board", [])) == 10
+				and large_restored.get("board", []) == large_state.get("board", [])
+				and int(large_restored.get("settings", {}).get("board_size", 0)) == 10,
+			"10x10 save round trips through the tagged codec",
+		)
 	)
 
 
@@ -1045,8 +1166,10 @@ func _test_settings_menu_keeps_playfield_focused() -> bool:
 		and main.white_button.custom_minimum_size.y >= 56.0 \
 		and main.new_game_button.custom_minimum_size.y >= 56.0
 	var settings_controls_hidden_ok: bool = main.difficulty_buttons.size() == 3 \
+		and main.board_size_buttons.size() == 3 \
 		and main.board_theme_buttons.size() == 3 \
 		and !_choice_group_first_button_visible(main.difficulty_buttons) \
+		and !_choice_group_first_button_visible(main.board_size_buttons) \
 		and !_choice_group_first_button_visible(main.board_theme_buttons)
 	var no_select_box_ok: bool = !_visible_option_button_exists(main)
 	var load_removed_ok: bool = main._t("load") == "load"
@@ -1066,6 +1189,7 @@ func _test_settings_menu_keeps_playfield_focused() -> bool:
 	await get_tree().process_frame
 	var menu_open_ok: bool = main.settings_overlay.visible \
 		and _choice_group_first_button_visible(main.difficulty_buttons) \
+		and _choice_group_first_button_visible(main.board_size_buttons) \
 		and _choice_group_first_button_visible(main.board_theme_buttons)
 	var hint_toggle_removed_ok: bool = !_visible_button_text_exists(main.settings_overlay, "힌트") \
 		and !_visible_button_text_exists(main.settings_overlay, "HINT")
@@ -1148,6 +1272,94 @@ func _test_settings_persist_immediately() -> bool:
 	main.queue_free()
 	_rm_user(prefs_path)
 	return _assert(stored_ok, "every user setting writes preferences immediately")
+
+
+func _test_board_size_ui() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var suffix := str(OS.get_process_id())
+	var prefs_path := "user://prefs_board_size_%s.json" % suffix
+	var save_path := "user://save_board_size_%s.json" % suffix
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+	main._prefs_path = prefs_path
+	main._save_path = save_path
+	main.state = ReversiEngine.create_new_game(
+		ReversiEngine.BLACK,
+		"MEDIUM",
+		8,
+	)
+	main._build_ui()
+	main._render()
+	await get_tree().process_frame
+
+	var defaults_ok: bool = (
+		main.board_size_buttons.size() == 3
+		and _choice_group_has_active_id(main.board_size_buttons, "8")
+		and str(MainScript.TEXT["ko"].get("board_size_setting", "")) == "보드 크기"
+		and str(MainScript.TEXT["en"].get("board_size_setting", "")) == "BOARD SIZE"
+	)
+	main._show_settings_menu()
+	await get_tree().process_frame
+	var first_size_entry: Dictionary = main.board_size_buttons[0]
+	var first_size_button := first_size_entry.get("button") as Button
+	var settings_only_ok: bool = (
+		first_size_button != null
+		and main.settings_panel.is_ancestor_of(first_size_button)
+		and first_size_button.is_visible_in_tree()
+	)
+
+	main._set_board_size_from_choice("6")
+	await get_tree().process_frame
+	var six_board: Array = main.state.get("board", [])
+	var six_ok: bool = (
+		ReversiEngine.get_board_size(six_board) == 6
+		and main.cell_buttons.size() == 6
+		and main.cell_buttons[0].size() == 6
+		and main.cell_buttons[0][0].custom_minimum_size.x
+			== MainScript.cell_size_for_board(6)
+		and _choice_group_has_active_id(main.board_size_buttons, "6")
+		and main.state.get("move_history", []).is_empty()
+		and main.settings_overlay.visible
+	)
+
+	main._set_board_size_from_choice("10")
+	await get_tree().process_frame
+	var stored: Dictionary = main._load_preferences()
+	var restored: Dictionary = main._load_state()
+	var ten_board: Array = main.state.get("board", [])
+	var ten_ok: bool = (
+		ReversiEngine.get_board_size(ten_board) == 10
+		and main.cell_buttons.size() == 10
+		and main.cell_buttons[0].size() == 10
+		and main.cell_buttons[0][0].custom_minimum_size.x
+			== MainScript.cell_size_for_board(10)
+		and MainScript.cell_size_for_board(6) > MainScript.cell_size_for_board(8)
+		and MainScript.cell_size_for_board(8) > MainScript.cell_size_for_board(10)
+		and _choice_group_has_active_id(main.board_size_buttons, "10")
+		and int(stored.get("settings", {}).get("board_size", 0)) == 10
+		and ReversiEngine.get_board_size(restored.get("board", [])) == 10
+	)
+	main._hide_settings_menu()
+	await get_tree().process_frame
+	var hidden_with_menu_ok := !_choice_group_first_button_visible(
+		main.board_size_buttons,
+	)
+
+	main.queue_free()
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	return (
+		_assert(defaults_ok, "ui exposes 6 8 and 10 board sizes with i18n labels")
+		and _assert(settings_only_ok, "ui keeps board size controls inside settings")
+		and _assert(six_ok, "ui board size selection starts and renders a 6x6 game")
+		and _assert(ten_ok, "ui board size selection persists and renders a 10x10 game")
+		and _assert(hidden_with_menu_ok, "ui hides board size controls with settings")
+	)
 
 
 func _test_accessibility_settings_and_reduced_motion() -> bool:
@@ -1516,6 +1728,11 @@ func _moves_equal(actual: Array, expected: Array) -> bool:
 
 func _read_u16(payload: PackedByteArray, offset: int) -> int:
 	return int(payload[offset]) | (int(payload[offset + 1]) << 8)
+
+
+func _append_u16(payload: PackedByteArray, value: int) -> void:
+	payload.append(value & 0xff)
+	payload.append((value >> 8) & 0xff)
 
 
 func _rm_user(rel_path: String) -> void:

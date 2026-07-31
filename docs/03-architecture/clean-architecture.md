@@ -20,7 +20,7 @@ flowchart LR
 - 합법 수 계산
 - 패스와 게임오버 판정
 - 난이도별 AI 선택
-- 18-byte 보드 codec
+- 크기 태그 가변 보드 codec과 기존 18-byte 8x8 codec 읽기 호환
 - 게임 save와 사용자 prefs DTO 변환
 
 금지:
