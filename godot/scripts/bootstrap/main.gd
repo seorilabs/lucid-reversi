@@ -188,6 +188,10 @@ const TEXT := {
 		"result_black_wins": "흑 승리",
 		"result_white_wins": "백 승리",
 		"result_detail": "흑 %d / 백 %d",
+		"result_highlights_title": "이 판 하이라이트",
+		"result_highlight_flip": "최대 뒤집기 · %s %s · %d개",
+		"result_highlight_corners": "코너 확보 · 흑 %d / 백 %d",
+		"result_highlight_lead": "최대 우세 · %s +%d",
 		"result_share_text": "%s\n%s\n%s",
 		"stats_summary": "%s %d승 %d무 %d패",
 	},
@@ -319,6 +323,10 @@ const TEXT := {
 		"result_black_wins": "BLACK WINS",
 		"result_white_wins": "WHITE WINS",
 		"result_detail": "BLACK %d / WHITE %d",
+		"result_highlights_title": "GAME HIGHLIGHTS",
+		"result_highlight_flip": "BIGGEST FLIP · %s %s · %d",
+		"result_highlight_corners": "CORNERS · BLACK %d / WHITE %d",
+		"result_highlight_lead": "PEAK LEAD · %s +%d",
 		"result_share_text": "%s\n%s\n%s",
 		"stats_summary": "%s %dW %dD %dL",
 	},
@@ -450,6 +458,10 @@ const TEXT := {
 		"result_black_wins": "黒の勝ち",
 		"result_white_wins": "白の勝ち",
 		"result_detail": "黒 %d / 白 %d",
+		"result_highlights_title": "この対局のハイライト",
+		"result_highlight_flip": "最大返し · %s %s · %d個",
+		"result_highlight_corners": "コーナー · 黒 %d / 白 %d",
+		"result_highlight_lead": "最大リード · %s +%d",
 		"result_share_text": "%s\n%s\n%s",
 		"stats_summary": "%s %d勝 %d分 %d敗",
 	},
@@ -573,6 +585,9 @@ var result_winner_stone_view: TextureRect
 var result_title_label: Label
 var result_score_label: Label
 var result_detail_label: Label
+var result_highlights_panel: PanelContainer
+var result_highlights_title_label: Label
+var result_highlights_label: Label
 var result_stats_label: Label
 var result_move_list_button: Button
 var result_replay_button: Button
@@ -1397,6 +1412,43 @@ func _build_result_overlay() -> void:
 	result_detail_label.add_theme_color_override("font_color", _theme_color("text_muted"))
 	_apply_text_visibility(result_detail_label, 1, _theme_color("text_muted"))
 	box.add_child(result_detail_label)
+
+	result_highlights_panel = PanelContainer.new()
+	result_highlights_panel.name = "ResultHighlightsCard"
+	result_highlights_panel.visible = false
+	result_highlights_panel.custom_minimum_size = Vector2(340, 0)
+	result_highlights_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	result_highlights_panel.add_theme_stylebox_override(
+		"panel",
+		_make_style(_theme_color("hud"), 1, Color(1, 1, 1, 0.13), 8),
+	)
+	box.add_child(result_highlights_panel)
+
+	var highlights_margin := MarginContainer.new()
+	highlights_margin.add_theme_constant_override("margin_left", 14)
+	highlights_margin.add_theme_constant_override("margin_top", 10)
+	highlights_margin.add_theme_constant_override("margin_right", 14)
+	highlights_margin.add_theme_constant_override("margin_bottom", 10)
+	result_highlights_panel.add_child(highlights_margin)
+
+	var highlights_box := VBoxContainer.new()
+	highlights_box.add_theme_constant_override("separation", 5)
+	highlights_margin.add_child(highlights_box)
+
+	result_highlights_title_label = Label.new()
+	result_highlights_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	result_highlights_title_label.add_theme_font_size_override("font_size", _font_size(18))
+	result_highlights_title_label.add_theme_color_override("font_color", _theme_color("accent"))
+	_apply_text_visibility(result_highlights_title_label, 1, _theme_color("accent"))
+	highlights_box.add_child(result_highlights_title_label)
+
+	result_highlights_label = Label.new()
+	result_highlights_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	result_highlights_label.add_theme_font_size_override("font_size", _font_size(15))
+	result_highlights_label.add_theme_color_override("font_color", _theme_color("text_primary"))
+	result_highlights_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_apply_text_visibility(result_highlights_label, 1, _theme_color("text_primary"))
+	highlights_box.add_child(result_highlights_label)
 
 	result_stats_label = Label.new()
 	result_stats_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -3628,6 +3680,7 @@ func _update_result_overlay(persist_stats: bool = true) -> void:
 		white_score if _is_local_game() or player_stone == ReversiEngine.BLACK else black_score,
 	]
 	result_detail_label.text = _t("result_detail") % [black_score, white_score]
+	_update_result_highlights()
 	if result_replay_button != null:
 		result_replay_button.disabled = !replay_history_valid(state)
 	_show_result_overlay(winner)
@@ -3653,9 +3706,51 @@ func _update_result_overlay(persist_stats: bool = true) -> void:
 	result_stats_label.text = _current_difficulty_stats_text() if !_is_local_game() else ""
 
 
+func _update_result_highlights() -> void:
+	if result_highlights_panel == null:
+		return
+	result_highlights_panel.visible = false
+	result_highlights_title_label.text = ""
+	result_highlights_label.text = ""
+	var board_value = state.get("board", [])
+	if typeof(board_value) != TYPE_ARRAY:
+		return
+	var board_size := ReversiEngine.get_board_size(board_value as Array)
+	var summary := ReversiEngine.summarize_move_history(
+		state.get("move_history", []),
+		board_size,
+	)
+	if summary.is_empty():
+		return
+	var max_flip_move: Dictionary = summary.get("max_flip_move", {})
+	var coordinate := move_coordinate(
+		int(max_flip_move.get("x", -1)),
+		int(max_flip_move.get("y", -1)),
+	)
+	result_highlights_title_label.text = _t("result_highlights_title")
+	result_highlights_label.text = "\n".join(PackedStringArray([
+		_t("result_highlight_flip") % [
+			_piece_label(int(max_flip_move.get("stone", ReversiEngine.NONE))),
+			coordinate,
+			int(summary.get("max_flip_count", 0)),
+		],
+		_t("result_highlight_corners") % [
+			int(summary.get("corner_black", 0)),
+			int(summary.get("corner_white", 0)),
+		],
+		_t("result_highlight_lead") % [
+			_piece_label(int(summary.get("peak_lead_stone", ReversiEngine.NONE))),
+			int(summary.get("peak_lead", 0)),
+		],
+	]))
+	result_highlights_panel.visible = true
+
+
 func _update_puzzle_result_overlay(black_score: int, white_score: int) -> void:
 	var definition := _active_puzzle_definition()
 	var winner := int(state.get("winner", ReversiEngine.NONE))
+	if result_highlights_panel != null:
+		result_highlights_panel.visible = false
 	result_title_label.text = _t("puzzle_complete") if _puzzle_success else _t("puzzle_failed")
 	var title_color := _theme_color("accent") if _puzzle_success else _theme_color("danger")
 	result_title_label.add_theme_color_override("font_color", title_color)
