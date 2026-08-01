@@ -185,6 +185,23 @@ func _test_ai_think_delay_profile_and_guard() -> bool:
 		MainScript.ai_think_remaining_delay(0.4, 100),
 		0.3,
 	) and is_zero_approx(MainScript.ai_think_remaining_delay(0.4, 600))
+	var thread_policy_ok: bool = MainScript.ai_search_should_use_thread(
+		"HARD",
+		false,
+		true,
+	) and !MainScript.ai_search_should_use_thread(
+		"HARD",
+		true,
+		true,
+	) and !MainScript.ai_search_should_use_thread(
+		"HARD",
+		false,
+		false,
+	) and !MainScript.ai_search_should_use_thread(
+		"MEDIUM",
+		false,
+		true,
+	)
 
 	var main_scene = load("res://scenes/main.tscn")
 	var main = main_scene.instantiate()
@@ -223,14 +240,116 @@ func _test_ai_think_delay_profile_and_guard() -> bool:
 		and int(main.state.get("current_turn", ReversiEngine.NONE)) == ReversiEngine.WHITE
 
 	main.queue_free()
+	await get_tree().process_frame
+
+	var threaded_main = main_scene.instantiate()
+	add_child(threaded_main)
+	await get_tree().process_frame
+	threaded_main.player_stone = ReversiEngine.WHITE
+	threaded_main.difficulty = "HARD"
+	threaded_main.state = ReversiEngine.create_new_game(
+		ReversiEngine.WHITE,
+		"HARD",
+		8,
+		992,
+	)
+	var threaded_settings: Dictionary = threaded_main.state.get("settings", {})
+	threaded_settings["sound"] = false
+	threaded_settings["reduce_motion"] = true
+	threaded_main.state["settings"] = threaded_settings
+	var expected_hard_move: Dictionary = ReversiEngine.choose_ai_move(
+		threaded_main.state.duplicate(true),
+	)
+	threaded_main._maybe_play_ai_turn()
+	var hard_pending_ok: bool = threaded_main.ai_move_pending \
+		and threaded_main.input_locked
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var worker_started_without_blocking: bool = threaded_main._ai_worker_started_count >= 1
+	var worker_deadline_msec := Time.get_ticks_msec() + 5000
+	while threaded_main._ai_worker_completed_count < 1 \
+		and Time.get_ticks_msec() < worker_deadline_msec:
+		await get_tree().process_frame
+	var worker_thread_ok: bool = threaded_main._ai_worker_started_count >= 1 \
+		and threaded_main._ai_worker_completed_count >= 1 \
+		and threaded_main._ai_worker_ran_off_main_thread
+	var hard_apply_deadline_msec := Time.get_ticks_msec() + 2000
+	while (threaded_main.ai_move_pending or threaded_main.input_locked) \
+		and Time.get_ticks_msec() < hard_apply_deadline_msec:
+		await get_tree().process_frame
+	var hard_result_ok: bool = threaded_main._ai_worker_completed_count >= 1 \
+		and !threaded_main.ai_move_pending \
+		and !threaded_main.input_locked \
+		and threaded_main.state.get("move_history", []).size() == 1 \
+		and int(threaded_main.state.get("move_history", [])[0].get("x", -1)) \
+			== int(expected_hard_move.get("x", -2)) \
+		and int(threaded_main.state.get("move_history", [])[0].get("y", -1)) \
+			== int(expected_hard_move.get("y", -2))
+
+	threaded_main.state = ReversiEngine.create_new_game(
+		ReversiEngine.WHITE,
+		"HARD",
+		8,
+		993,
+	)
+	threaded_main.state["settings"] = threaded_settings
+	threaded_main.player_stone = ReversiEngine.WHITE
+	threaded_main.ai_move_pending = false
+	threaded_main.input_locked = false
+	threaded_main._maybe_play_ai_turn()
+	await get_tree().process_frame
+	threaded_main.player_stone = ReversiEngine.BLACK
+	threaded_main.state = ReversiEngine.create_new_game(
+		ReversiEngine.BLACK,
+		"HARD",
+		8,
+		994,
+	)
+	threaded_main.state["settings"] = threaded_settings
+	threaded_main.input_locked = false
+	var stale_worker_deadline_msec := Time.get_ticks_msec() + 5000
+	while threaded_main.ai_move_pending \
+		and Time.get_ticks_msec() < stale_worker_deadline_msec:
+		await get_tree().process_frame
+	var stale_worker_discard_ok: bool = !threaded_main.ai_move_pending \
+		and !threaded_main.input_locked \
+		and int(threaded_main.state.get("game_seed", -1)) == 994 \
+		and threaded_main.state.get("move_history", []).is_empty()
+
+	var fallback_state := ReversiEngine.create_new_game(
+		ReversiEngine.WHITE,
+		"MEDIUM",
+		8,
+		995,
+	)
+	var expected_fallback_move: Dictionary = ReversiEngine.choose_ai_move(
+		fallback_state.duplicate(true),
+	)
+	var fallback_move: Dictionary = await threaded_main._choose_ai_move_without_blocking(
+		fallback_state,
+		"MEDIUM",
+	)
+	var fallback_ok: bool = fallback_move == expected_fallback_move \
+		and threaded_main._ai_sync_fallback_count == 1
+	var no_new_hud_ok: bool = threaded_main.find_child("GameRoot", true, false).get_child_count() == 7
+	threaded_main.queue_free()
+	await get_tree().process_frame
 	return (
 		_assert(ordered_bases_ok, "ai think delay bases increase with difficulty")
 		and _assert(midpoint_ok, "ai think delay midpoint matches the centralized base")
 		and _assert(jitter_range_ok, "ai think delay applies a bounded nonzero jitter")
 		and _assert(random_jitter_ok, "ai think delay samples vary across turns")
 		and _assert(remaining_delay_ok, "ai think delay subtracts elapsed search time")
+		and _assert(thread_policy_ok, "hard AI uses a worker except on web or unavailable threading")
 		and _assert(pending_started_ok, "ai turn enters the pending state before search")
 		and _assert(turn_guard_ok, "ai turn change guard prevents a stale computed move")
+		and _assert(hard_pending_ok, "hard AI keeps input locked while search is pending")
+		and _assert(worker_started_without_blocking, "hard AI starts while main frames keep running")
+		and _assert(worker_thread_ok, "hard AI search executes on a worker thread")
+		and _assert(hard_result_ok, "hard AI worker applies the exact computed move")
+		and _assert(stale_worker_discard_ok, "hard AI worker discards a stale result after game replacement")
+		and _assert(fallback_ok, "non-worker path returns the same synchronous AI result")
+		and _assert(no_new_hud_ok, "threaded AI reuses the existing status HUD")
 	)
 
 

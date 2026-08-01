@@ -391,6 +391,11 @@ var player_stone := ReversiEngine.BLACK
 var difficulty := "MEDIUM"
 var ai_move_pending := false
 var input_locked := false
+var _active_ai_search_thread: Thread
+var _ai_worker_started_count := 0
+var _ai_worker_completed_count := 0
+var _ai_sync_fallback_count := 0
+var _ai_worker_ran_off_main_thread := false
 # 한 판당 전면 광고 1회만 노출하기 위한 가드 (게임 종료 시 트리거).
 var _interstitial_shown_this_game := false
 # 결과 카드는 대국 종료 순간에만 1회 연출하고 재렌더·복원에서는 정적으로 표시한다.
@@ -528,6 +533,12 @@ func _ready() -> void:
 	_render()
 	call_deferred("_show_first_game_how_to_play")
 	call_deferred("_maybe_play_ai_turn")
+
+
+func _exit_tree() -> void:
+	if _active_ai_search_thread != null and _active_ai_search_thread.is_started():
+		_active_ai_search_thread.wait_to_finish()
+	_active_ai_search_thread = null
 
 
 func _load_or_start() -> void:
@@ -2602,6 +2613,7 @@ func _maybe_play_ai_turn() -> void:
 		return
 
 	ai_move_pending = true
+	input_locked = true
 	status_label.text = _t("status_ai_thinking")
 	var expected_game_seed: int = int(state.get("game_seed", -1))
 	var expected_history_size: int = state.get("move_history", []).size()
@@ -2610,10 +2622,15 @@ func _maybe_play_ai_turn() -> void:
 	await get_tree().process_frame
 	if !_ai_turn_is_current(ai_stone, expected_game_seed, expected_history_size):
 		ai_move_pending = false
+		input_locked = false
 		_render()
 		return
 
-	var move := ReversiEngine.choose_ai_move(state)
+	var search_state: Dictionary = state.duplicate(true)
+	var move: Dictionary = await _choose_ai_move_without_blocking(
+		search_state,
+		str(search_state.get("difficulty", difficulty)),
+	)
 	var remaining_delay: float = ai_think_remaining_delay(
 		target_delay,
 		Time.get_ticks_msec() - think_started_msec,
@@ -2622,10 +2639,12 @@ func _maybe_play_ai_turn() -> void:
 		await get_tree().create_timer(remaining_delay).timeout
 	if !_ai_turn_is_current(ai_stone, expected_game_seed, expected_history_size):
 		ai_move_pending = false
+		input_locked = false
 		_render()
 		return
 	if move.is_empty():
 		ai_move_pending = false
+		input_locked = false
 		_render()
 		return
 
@@ -2637,6 +2656,51 @@ func _maybe_play_ai_turn() -> void:
 	# 플레이어가 착수할 곳이 없어 패스되면 엔진이 턴을 다시 AI 에게 넘긴다.
 	# 이 경우 재호출하지 않으면 AI 차례에서 게임이 멈추므로 다시 트리거한다.
 	call_deferred("_maybe_play_ai_turn")
+
+
+static func ai_search_should_use_thread(
+	difficulty_id: String,
+	is_web: bool,
+	threading_available: bool,
+) -> bool:
+	return difficulty_id == "HARD" and !is_web and threading_available
+
+
+func _choose_ai_move_without_blocking(
+	search_state: Dictionary,
+	difficulty_id: String,
+) -> Dictionary:
+	if !ai_search_should_use_thread(difficulty_id, OS.has_feature("web"), true):
+		_ai_sync_fallback_count += 1
+		return ReversiEngine.choose_ai_move(search_state)
+
+	var worker := Thread.new()
+	var start_error := worker.start(
+		Callable(self, "_choose_ai_move_from_snapshot").bind(search_state),
+	)
+	if start_error != OK:
+		_ai_sync_fallback_count += 1
+		return ReversiEngine.choose_ai_move(search_state)
+
+	_active_ai_search_thread = worker
+	_ai_worker_started_count += 1
+	while worker.is_alive():
+		await get_tree().process_frame
+	var worker_result = worker.wait_to_finish()
+	_active_ai_search_thread = null
+	_ai_worker_completed_count += 1
+	if typeof(worker_result) != TYPE_DICTIONARY:
+		return {}
+	_ai_worker_ran_off_main_thread = bool(worker_result.get("ran_off_main_thread", false))
+	var move = worker_result.get("move", {})
+	return move if typeof(move) == TYPE_DICTIONARY else {}
+
+
+func _choose_ai_move_from_snapshot(search_state: Dictionary) -> Dictionary:
+	return {
+		"move": ReversiEngine.choose_ai_move(search_state),
+		"ran_off_main_thread": !Thread.is_main_thread(),
+	}
 
 
 static func ai_think_delay(difficulty_id: String, jitter_unit: float) -> float:
