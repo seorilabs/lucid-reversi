@@ -60,6 +60,7 @@ static func default_settings() -> Dictionary:
 		"reduce_motion": false,
 		"high_contrast": false,
 		"show_moves": true,
+		"show_coordinates": true,
 		"show_flip_counts": false,
 		"opponent_mode": "ai",
 		"variant": VARIANT_STANDARD,
