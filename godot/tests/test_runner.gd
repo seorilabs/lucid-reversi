@@ -52,9 +52,17 @@ class _ShareResultProbe:
 		messages.append(text)
 
 
+class _ScreenKeepOnProbe:
+	extends RefCounted
+	var calls: Array[bool] = []
+	func set_keep_on(enable: bool) -> void:
+		calls.append(enable)
+
+
 func _ready() -> void:
 	var ok := true
 	ok = _test_main_scene_exists() and ok
+	ok = _test_screen_keep_on_policy() and ok
 	ok = _test_initial_valid_moves() and ok
 	ok = _test_first_move_flip() and ok
 	ok = _test_flip_count_is_pure() and ok
@@ -146,6 +154,39 @@ func _ready() -> void:
 	var haptic_ok := await _test_haptic_feedback()
 	ok = haptic_ok and ok
 	get_tree().quit(0 if ok else 1)
+
+
+func _test_screen_keep_on_policy() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var foreground_probe := _ScreenKeepOnProbe.new()
+	var web_probe := _ScreenKeepOnProbe.new()
+	var headless_probe := _ScreenKeepOnProbe.new()
+	var foreground_enabled: bool = MainScript.configure_screen_keep_on(
+		"macos",
+		Callable(foreground_probe, "set_keep_on"),
+	)
+	var web_enabled: bool = MainScript.configure_screen_keep_on(
+		"web",
+		Callable(web_probe, "set_keep_on"),
+	)
+	var headless_enabled: bool = MainScript.configure_screen_keep_on(
+		"headless",
+		Callable(headless_probe, "set_keep_on"),
+	)
+	return (
+		_assert(
+			foreground_enabled and foreground_probe.calls == [true],
+			"foreground display requests screen keep-on",
+		)
+		and _assert(
+			web_enabled and web_probe.calls == [true],
+			"web display safely routes screen keep-on",
+		)
+		and _assert(
+			!headless_enabled and headless_probe.calls.is_empty(),
+			"headless display skips screen keep-on",
+		)
+	)
 
 
 func _test_safe_area_margins() -> bool:
