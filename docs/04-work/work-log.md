@@ -2,6 +2,7 @@
 
 ## 2026-08-01
 
+- Added three localized fixed-position puzzle challenges with a settings-only selector, corner/win objectives, standard result-overlay feedback, and isolation from normal saves, stats, ads, and replay.
 - Added a settings-only AI/local opponent selector with persisted pass-and-play turns, black/white status and results, and AI-stat isolation.
 - Added a localized, vertically scrollable move-list panel with chronological stone/coordinate rows, live move-count and last-move entry text, result-screen access, and new-game reset behavior.
 - Added a localized playfield hint action that highlights exactly one legal best move for the current player and disables safely outside actionable player turns.

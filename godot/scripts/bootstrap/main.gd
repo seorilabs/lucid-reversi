@@ -2,6 +2,7 @@ extends Control
 
 const ReversiEngine = preload("res://scripts/reversi_engine.gd")
 const ReversiAnalytics = preload("res://scripts/analytics.gd")
+const PuzzleCatalog = preload("res://scripts/puzzle_catalog.gd")
 const GA4_SENDER_SCRIPT = preload("res://scripts/ga4_mp_sender.gd")
 const IOS_ADS_SCRIPT = preload("res://scripts/ios_ads.gd")
 const PLACE_SFX = preload("res://assets/audio/place.wav")
@@ -103,6 +104,24 @@ const TEXT := {
 		"variant_setting": "규칙",
 		"variant_standard": "표준",
 		"variant_anti": "역",
+		"puzzle_section": "퍼즐",
+		"puzzle_entry": "퍼즐 도전",
+		"puzzle_select_title": "퍼즐 선택",
+		"puzzle_select_intro": "정해진 국면에서 목표를 달성하세요.",
+		"puzzle_start": "도전",
+		"puzzle_difficulty": "권장 난이도 · %s",
+		"puzzle_complete": "퍼즐 성공",
+		"puzzle_failed": "퍼즐 실패",
+		"puzzle_standard_game": "일반 새 게임",
+		"puzzle_corner_title": "코너를 잡아라",
+		"puzzle_corner_description": "위험한 끝내기 국면에서 왼쪽 위 코너를 확보하세요.",
+		"puzzle_corner_goal": "목표 · 왼쪽 위 코너에 흑 돌 놓기",
+		"puzzle_comeback_title": "마지막 역전",
+		"puzzle_comeback_description": "남은 8칸의 수순을 읽어 흑으로 승리하세요.",
+		"puzzle_comeback_goal": "목표 · 종국에 흑 승리",
+		"puzzle_white_title": "백의 마무리",
+		"puzzle_white_description": "마지막 빈칸을 찾아 백의 승리를 완성하세요.",
+		"puzzle_white_goal": "목표 · 종국에 백 승리",
 		"black_player": "흑 플레이어",
 		"white_player": "백 플레이어",
 		"board_size_setting": "보드 크기",
@@ -216,6 +235,24 @@ const TEXT := {
 		"variant_setting": "RULES",
 		"variant_standard": "STANDARD",
 		"variant_anti": "ANTI",
+		"puzzle_section": "PUZZLES",
+		"puzzle_entry": "PUZZLE CHALLENGE",
+		"puzzle_select_title": "CHOOSE A PUZZLE",
+		"puzzle_select_intro": "Reach the objective from a fixed board position.",
+		"puzzle_start": "START",
+		"puzzle_difficulty": "RECOMMENDED · %s",
+		"puzzle_complete": "PUZZLE CLEARED",
+		"puzzle_failed": "PUZZLE FAILED",
+		"puzzle_standard_game": "STANDARD NEW GAME",
+		"puzzle_corner_title": "TAKE THE CORNER",
+		"puzzle_corner_description": "Secure the upper-left corner in this sharp endgame.",
+		"puzzle_corner_goal": "GOAL · PLACE BLACK IN THE UPPER-LEFT CORNER",
+		"puzzle_comeback_title": "FINAL COMEBACK",
+		"puzzle_comeback_description": "Read the final eight squares and win as Black.",
+		"puzzle_comeback_goal": "GOAL · BLACK WINS AT THE END",
+		"puzzle_white_title": "WHITE FINISH",
+		"puzzle_white_description": "Find the last move and complete White's victory.",
+		"puzzle_white_goal": "GOAL · WHITE WINS AT THE END",
 		"black_player": "BLACK PLAYER",
 		"white_player": "WHITE PLAYER",
 		"board_size_setting": "BOARD SIZE",
@@ -329,6 +366,24 @@ const TEXT := {
 		"variant_setting": "ルール",
 		"variant_standard": "標準",
 		"variant_anti": "逆転",
+		"puzzle_section": "パズル",
+		"puzzle_entry": "パズルに挑戦",
+		"puzzle_select_title": "パズル選択",
+		"puzzle_select_intro": "決められた局面から目標を達成しましょう。",
+		"puzzle_start": "挑戦",
+		"puzzle_difficulty": "推奨難易度 · %s",
+		"puzzle_complete": "パズル成功",
+		"puzzle_failed": "パズル失敗",
+		"puzzle_standard_game": "通常の新しい対局",
+		"puzzle_corner_title": "コーナーを取れ",
+		"puzzle_corner_description": "鋭い終盤で左上のコーナーを確保しましょう。",
+		"puzzle_corner_goal": "目標 · 左上のコーナーに黒石を置く",
+		"puzzle_comeback_title": "最後の逆転",
+		"puzzle_comeback_description": "残り8マスの手順を読み、黒で勝利しましょう。",
+		"puzzle_comeback_goal": "目標 · 終局時に黒の勝利",
+		"puzzle_white_title": "白の仕上げ",
+		"puzzle_white_description": "最後の一手を見つけ、白の勝利を完成させましょう。",
+		"puzzle_white_goal": "目標 · 終局時に白の勝利",
 		"black_player": "黒プレイヤー",
 		"white_player": "白プレイヤー",
 		"board_size_setting": "盤面サイズ",
@@ -465,6 +520,11 @@ var move_count_label: Button
 var settings_button: Button
 var settings_overlay: ColorRect
 var settings_panel: PanelContainer
+var puzzle_entry_button: Button
+var puzzle_overlay: ColorRect
+var puzzle_panel: PanelContainer
+var puzzle_close_button: Button
+var puzzle_cards: Array = []
 var how_to_play_entry_button: Button
 var how_to_play_overlay: ColorRect
 var how_to_play_panel: PanelContainer
@@ -517,6 +577,7 @@ var result_stats_label: Label
 var result_move_list_button: Button
 var result_replay_button: Button
 var result_share_button: Button
+var result_restart_button: Button
 var replay_controls: PanelContainer
 var replay_step_label: Label
 var replay_previous_button: Button
@@ -536,6 +597,9 @@ var white_meter: ColorRect
 var black_meter_label: Label
 var white_meter_label: Label
 var _shell_open_override := Callable()
+var _active_puzzle_id := ""
+var _puzzle_completed := false
+var _puzzle_success := false
 
 
 func _ready() -> void:
@@ -647,6 +711,7 @@ func _build_ui() -> void:
 	_build_play_focus_strip(root)
 	_build_result_overlay()
 	_build_settings_overlay()
+	_build_puzzle_overlay()
 	_build_how_to_play_overlay()
 	_build_move_list_overlay()
 	_build_new_game_confirmation_overlay()
@@ -1364,7 +1429,13 @@ func _build_result_overlay() -> void:
 	buttons.add_theme_constant_override("separation", 8)
 	box.add_child(buttons)
 
-	buttons.add_child(_make_action_button(_t("restart"), func() -> void: _start_new_game(player_stone), true))
+	result_restart_button = _make_action_button(
+		_t("restart"),
+		func() -> void: _start_new_game(player_stone),
+		true,
+	)
+	result_restart_button.name = "ResultRestartButton"
+	buttons.add_child(result_restart_button)
 	result_share_button = _make_action_button(_t("share_result"), func() -> void: _share_result())
 	result_share_button.name = "ResultShareButton"
 	buttons.add_child(result_share_button)
@@ -1527,6 +1598,24 @@ func _build_settings_overlay() -> void:
 		stone_theme_buttons
 	))
 
+	var puzzle_section := VBoxContainer.new()
+	puzzle_section.name = "PuzzleSection"
+	puzzle_section.add_theme_constant_override("separation", 5)
+	var puzzle_title := Label.new()
+	puzzle_title.name = "PuzzleSectionTitle"
+	puzzle_title.text = _t("puzzle_section")
+	puzzle_title.add_theme_font_size_override("font_size", _font_size(16))
+	puzzle_title.add_theme_color_override("font_color", _theme_color("text_muted"))
+	_apply_text_visibility(puzzle_title, 1, _theme_color("text_muted"))
+	puzzle_section.add_child(puzzle_title)
+	puzzle_entry_button = _make_action_button(
+		_t("puzzle_entry"),
+		func() -> void: _show_puzzle_selector(),
+	)
+	puzzle_entry_button.name = "PuzzleEntryButton"
+	puzzle_entry_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	puzzle_section.add_child(puzzle_entry_button)
+	box.add_child(puzzle_section)
 	var language_section := _make_choice_section(
 		_t("language_setting"),
 		LOCALE_IDS,
@@ -1545,6 +1634,176 @@ func _build_settings_overlay() -> void:
 	how_to_play_entry_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_child(how_to_play_entry_button)
 	box.add_child(_make_about_section(PRIVACY_POLICY_URL))
+
+
+func _build_puzzle_overlay() -> void:
+	puzzle_overlay = ColorRect.new()
+	puzzle_overlay.name = "PuzzleOverlay"
+	puzzle_overlay.visible = false
+	puzzle_overlay.color = Color(0.005, 0.008, 0.014, 0.72)
+	puzzle_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	puzzle_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	puzzle_overlay.gui_input.connect(_on_puzzle_overlay_gui_input)
+	add_child(puzzle_overlay)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	puzzle_overlay.add_child(center)
+
+	puzzle_panel = PanelContainer.new()
+	puzzle_panel.name = "PuzzlePanel"
+	puzzle_panel.custom_minimum_size = Vector2(560, 850)
+	puzzle_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	puzzle_panel.add_theme_stylebox_override(
+		"panel",
+		_make_style(_theme_color("hud_dark"), 2, Color(1, 1, 1, 0.14), 12),
+	)
+	center.add_child(puzzle_panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_top", 18)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_bottom", 18)
+	puzzle_panel.add_child(margin)
+
+	var layout := VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 12)
+	margin.add_child(layout)
+
+	var header := HBoxContainer.new()
+	header.alignment = BoxContainer.ALIGNMENT_CENTER
+	header.add_theme_constant_override("separation", 10)
+	layout.add_child(header)
+
+	var title := Label.new()
+	title.name = "PuzzleSelectTitle"
+	title.text = _t("puzzle_select_title")
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.add_theme_font_size_override("font_size", _font_size(28))
+	title.add_theme_color_override("font_color", _theme_color("text_primary"))
+	_apply_text_visibility(title, 2, _theme_color("text_primary"))
+	header.add_child(title)
+
+	puzzle_close_button = _make_action_button(
+		_t("close"),
+		func() -> void: _hide_puzzle_selector(),
+	)
+	puzzle_close_button.name = "PuzzleCloseButton"
+	header.add_child(puzzle_close_button)
+
+	var intro := Label.new()
+	intro.name = "PuzzleSelectIntro"
+	intro.text = _t("puzzle_select_intro")
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	intro.add_theme_font_size_override("font_size", _font_size(17))
+	intro.add_theme_color_override("font_color", _theme_color("text_muted"))
+	_apply_text_visibility(intro, 1, _theme_color("text_muted"))
+	layout.add_child(intro)
+
+	var scroll := ScrollContainer.new()
+	scroll.name = "PuzzleScroll"
+	scroll.custom_minimum_size = Vector2(0, 690)
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	layout.add_child(scroll)
+
+	var list := VBoxContainer.new()
+	list.name = "PuzzleList"
+	list.custom_minimum_size = Vector2(500, 0)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 12)
+	scroll.add_child(list)
+
+	puzzle_cards.clear()
+	for definition_value in PuzzleCatalog.all():
+		var definition: Dictionary = definition_value
+		var card := _make_puzzle_card(definition)
+		list.add_child(card)
+
+
+func _make_puzzle_card(definition: Dictionary) -> PanelContainer:
+	var puzzle_id := str(definition.get("id", ""))
+	var card := PanelContainer.new()
+	card.name = "PuzzleCard%s" % puzzle_id.to_pascal_case()
+	card.custom_minimum_size = Vector2(0, 205)
+	card.add_theme_stylebox_override(
+		"panel",
+		_make_style(_theme_color("hud"), 1, Color(1, 1, 1, 0.10), 9),
+	)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_top", 13)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_bottom", 13)
+	card.add_child(margin)
+
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 7)
+	margin.add_child(content)
+
+	var title := Label.new()
+	title.name = "PuzzleCardTitle"
+	title.text = _t(str(definition.get("title_key", "")))
+	title.add_theme_font_size_override("font_size", _font_size(22))
+	title.add_theme_color_override("font_color", _theme_color("accent"))
+	_apply_text_visibility(title, 1, _theme_color("accent"))
+	content.add_child(title)
+
+	var description := Label.new()
+	description.name = "PuzzleCardDescription"
+	description.text = _t(str(definition.get("description", "")))
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	description.add_theme_font_size_override("font_size", _font_size(16))
+	description.add_theme_color_override("font_color", _theme_color("text_primary"))
+	_apply_text_visibility(description, 1, _theme_color("text_primary"))
+	content.add_child(description)
+
+	var goal := Label.new()
+	goal.name = "PuzzleCardGoal"
+	goal.text = _t(str(definition.get("goal_key", "")))
+	goal.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	goal.add_theme_font_size_override("font_size", _font_size(15))
+	goal.add_theme_color_override("font_color", _theme_color("text_muted"))
+	_apply_text_visibility(goal, 1, _theme_color("text_muted"))
+	content.add_child(goal)
+
+	var footer := HBoxContainer.new()
+	footer.alignment = BoxContainer.ALIGNMENT_CENTER
+	footer.add_theme_constant_override("separation", 10)
+	content.add_child(footer)
+
+	var difficulty_label := Label.new()
+	difficulty_label.name = "PuzzleDifficulty"
+	difficulty_label.text = _t("puzzle_difficulty") % [
+		_difficulty_label(str(definition.get("difficulty", "MEDIUM"))),
+	]
+	difficulty_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	difficulty_label.add_theme_font_size_override("font_size", _font_size(15))
+	difficulty_label.add_theme_color_override("font_color", _theme_color("text_muted"))
+	_apply_text_visibility(difficulty_label, 1, _theme_color("text_muted"))
+	footer.add_child(difficulty_label)
+
+	var start_button := _make_action_button(
+		_t("puzzle_start"),
+		Callable(self, "_start_puzzle").bind(puzzle_id),
+		true,
+	)
+	start_button.name = "PuzzleStartButton"
+	footer.add_child(start_button)
+
+	puzzle_cards.append({
+		"id": puzzle_id,
+		"card": card,
+		"start_button": start_button,
+		"title_label": title,
+		"description_label": description,
+		"goal_label": goal,
+	})
+	return card
 
 
 func _build_how_to_play_overlay() -> void:
@@ -2110,6 +2369,108 @@ func _hide_settings_menu() -> void:
 		settings_overlay.visible = false
 
 
+func _show_puzzle_selector() -> void:
+	_hide_settings_menu()
+	if puzzle_overlay != null:
+		puzzle_overlay.visible = true
+
+
+func _hide_puzzle_selector() -> void:
+	if puzzle_overlay != null:
+		puzzle_overlay.visible = false
+
+
+func _on_puzzle_overlay_gui_input(event: InputEvent) -> void:
+	if !_puzzle_overlay_tap_should_close(event):
+		return
+	_hide_puzzle_selector()
+	puzzle_overlay.accept_event()
+
+
+func _puzzle_overlay_tap_should_close(event: InputEvent) -> bool:
+	if puzzle_overlay == null or !puzzle_overlay.visible:
+		return false
+	var position := Vector2.ZERO
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		if !mouse_event.pressed or mouse_event.button_index != MOUSE_BUTTON_LEFT:
+			return false
+		position = mouse_event.position
+	elif event is InputEventScreenTouch:
+		var touch_event := event as InputEventScreenTouch
+		if !touch_event.pressed:
+			return false
+		position = touch_event.position
+	else:
+		return false
+	return puzzle_panel == null or !puzzle_panel.get_global_rect().has_point(position)
+
+
+func _start_puzzle(puzzle_id: String) -> bool:
+	var definition := PuzzleCatalog.get_by_id(puzzle_id)
+	var puzzle_state := PuzzleCatalog.create_state(definition)
+	if puzzle_state.is_empty():
+		return false
+	_clear_hint_highlight()
+	_hide_move_list()
+	_hide_settings_menu()
+	_hide_puzzle_selector()
+	ai_move_pending = false
+	input_locked = false
+	_interstitial_shown_this_game = false
+	_result_animation_played_this_game = false
+	var current_settings := _current_settings().duplicate(true)
+	var current_stats := ReversiEngine.normalize_stats(state.get("stats", {}))
+	var board_size := ReversiEngine.get_board_size(puzzle_state.get("board", []))
+	current_settings["board_size"] = board_size
+	current_settings["opponent_mode"] = "ai"
+	current_settings["variant"] = ReversiEngine.VARIANT_STANDARD
+	puzzle_state["settings"] = current_settings
+	puzzle_state["stats"] = current_stats
+	_active_puzzle_id = puzzle_id
+	_puzzle_completed = false
+	_puzzle_success = false
+	player_stone = int(definition.get("player_stone", ReversiEngine.BLACK))
+	state = puzzle_state
+	if cell_buttons.size() != board_size:
+		_build_ui()
+	_sync_identity_labels()
+	_render()
+	call_deferred("_maybe_play_ai_turn")
+	return true
+
+
+func _active_puzzle_definition() -> Dictionary:
+	return PuzzleCatalog.get_by_id(_active_puzzle_id)
+
+
+func _is_puzzle_active() -> bool:
+	return !_active_puzzle_id.is_empty()
+
+
+func _clear_active_puzzle() -> void:
+	_active_puzzle_id = ""
+	_puzzle_completed = false
+	_puzzle_success = false
+
+
+func _evaluate_active_puzzle_goal() -> Dictionary:
+	if !_is_puzzle_active():
+		return {"complete": false, "success": false}
+	var result := PuzzleCatalog.evaluate_goal(_active_puzzle_definition(), state)
+	if !bool(result.get("complete", false)) or _puzzle_completed:
+		return result
+	_puzzle_completed = true
+	_puzzle_success = bool(result.get("success", false))
+	state["game_over"] = true
+	state["current_turn"] = ReversiEngine.NONE
+	state["valid_moves"] = []
+	state["winner"] = (
+		player_stone if _puzzle_success else ReversiEngine.opponent(player_stone)
+	)
+	return result
+
+
 func _show_first_game_how_to_play() -> void:
 	if !bool(preferences.get("how_to_play_seen", false)):
 		_show_how_to_play(true)
@@ -2513,12 +2874,17 @@ func _start_new_game(stone: int, persist: bool = true) -> void:
 	input_locked = false
 	_interstitial_shown_this_game = false
 	_result_animation_played_this_game = false
-	var current_settings := _current_settings()
+	var current_settings := (
+		ReversiEngine.normalize_settings(preferences.get("settings", {}))
+		if _is_puzzle_active()
+		else _current_settings()
+	)
 	var current_stats := ReversiEngine.normalize_stats(state.get("stats", {}))
 	var board_size := ReversiEngine.normalize_board_size(
 		int(current_settings.get("board_size", ReversiEngine.DEFAULT_BOARD_SIZE))
 	)
 	var rebuild_board := cell_buttons.size() != board_size
+	_clear_active_puzzle()
 	player_stone = stone
 	state = ReversiEngine.create_new_game(player_stone, difficulty, board_size)
 	current_settings["board_size"] = board_size
@@ -2656,6 +3022,7 @@ func _on_cell_pressed(x: int, y: int) -> void:
 		_pulse_cell(x, y, _theme_color("danger"))
 		return
 
+	_evaluate_active_puzzle_goal()
 	_save_state()
 	await _render_with_animation(before_board, result)
 	call_deferred("_maybe_play_ai_turn")
@@ -2711,6 +3078,7 @@ func _maybe_play_ai_turn() -> void:
 
 	var before_board := ReversiEngine.clone_board(state["board"])
 	var result := ReversiEngine.play_move(state, int(move["x"]), int(move["y"]))
+	_evaluate_active_puzzle_goal()
 	_save_state()
 	ai_move_pending = false
 	await _render_with_animation(before_board, result)
@@ -3225,6 +3593,11 @@ func _update_result_overlay(persist_stats: bool = true) -> void:
 	var counts := ReversiEngine.count_pieces(state.get("board", []))
 	var black_score := int(counts["black"])
 	var white_score := int(counts["white"])
+	if _is_puzzle_active():
+		_update_puzzle_result_overlay(black_score, white_score)
+		return
+	if result_restart_button != null:
+		result_restart_button.text = _t("restart")
 	var winner := int(state.get("winner", ReversiEngine.NONE))
 	var result_kind := ""
 	if _is_local_game() and winner == ReversiEngine.BLACK:
@@ -3278,6 +3651,30 @@ func _update_result_overlay(persist_stats: bool = true) -> void:
 		_request_interstitial_ad()
 	result_stats_label.visible = !_is_local_game()
 	result_stats_label.text = _current_difficulty_stats_text() if !_is_local_game() else ""
+
+
+func _update_puzzle_result_overlay(black_score: int, white_score: int) -> void:
+	var definition := _active_puzzle_definition()
+	var winner := int(state.get("winner", ReversiEngine.NONE))
+	result_title_label.text = _t("puzzle_complete") if _puzzle_success else _t("puzzle_failed")
+	var title_color := _theme_color("accent") if _puzzle_success else _theme_color("danger")
+	result_title_label.add_theme_color_override("font_color", title_color)
+	_apply_text_visibility(result_title_label, 3, title_color)
+	result_score_label.text = "%d : %d" % [
+		black_score if player_stone == ReversiEngine.BLACK else white_score,
+		white_score if player_stone == ReversiEngine.BLACK else black_score,
+	]
+	result_detail_label.text = _t("result_detail") % [black_score, white_score]
+	result_stats_label.visible = true
+	result_stats_label.text = _t(str(definition.get("goal_key", "")))
+	if result_replay_button != null:
+		result_replay_button.disabled = true
+	if result_restart_button != null:
+		result_restart_button.text = _t("puzzle_standard_game")
+	_show_result_overlay(winner)
+	if !_interstitial_shown_this_game:
+		_interstitial_shown_this_game = true
+		_request_haptic("game_over")
 
 
 func _show_result_overlay(winner: int) -> void:
@@ -4048,6 +4445,8 @@ func _make_style(bg: Color, border_width: int = 0, border_color: Color = Color.T
 
 
 func _save_state() -> void:
+	if _is_puzzle_active():
+		return
 	state["last_saved_at"] = int(Time.get_unix_time_from_system())
 	var file := FileAccess.open(_save_path, FileAccess.WRITE)
 	if file == null:
