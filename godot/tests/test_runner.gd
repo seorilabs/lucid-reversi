@@ -83,6 +83,8 @@ func _ready() -> void:
 	ok = japanese_locale_ok and ok
 	var settings_menu_ok := await _test_settings_menu_keeps_playfield_focused()
 	ok = settings_menu_ok and ok
+	var difficulty_description_ok := await _test_difficulty_description_subtitle()
+	ok = difficulty_description_ok and ok
 	var how_to_play_ok := await _test_how_to_play_sheet()
 	ok = how_to_play_ok and ok
 	var move_list_ok := await _test_move_list_panel()
@@ -2966,6 +2968,98 @@ func _test_settings_persist_immediately() -> bool:
 	main.queue_free()
 	_rm_user(prefs_path)
 	return _assert(stored_ok, "every user setting writes preferences immediately")
+
+
+func _test_difficulty_description_subtitle() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var suffix := str(OS.get_process_id())
+	var prefs_path := "user://prefs_difficulty_description_%s.json" % suffix
+	var save_path := "user://save_difficulty_description_%s.json" % suffix
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+
+	var description_keys := [
+		"difficulty_easy_description",
+		"difficulty_medium_description",
+		"difficulty_hard_description",
+	]
+	var catalogs_ok := true
+	for locale_id in ["ko", "en"]:
+		var catalog: Dictionary = MainScript.TEXT[locale_id]
+		var descriptions: Array[String] = []
+		for key in description_keys:
+			var description := str(catalog.get(key, ""))
+			catalogs_ok = !description.is_empty() and !descriptions.has(description) and catalogs_ok
+			descriptions.append(description)
+
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	main._prefs_path = prefs_path
+	main._save_path = save_path
+	add_child(main)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var section: Node = main.settings_panel.find_child("DifficultySection", true, false)
+	var subtitle := main.difficulty_subtitle_label as Label
+	var settings_only_ok: bool = section != null \
+		and subtitle != null \
+		and subtitle.get_parent() == section \
+		and main.settings_panel.is_ancestor_of(subtitle) \
+		and !subtitle.is_visible_in_tree()
+
+	main._show_settings_menu()
+	await get_tree().process_frame
+	var korean_updates_ok: bool = main.settings_overlay.visible
+	for index in range(MainScript.DIFFICULTY_IDS.size()):
+		var entry: Dictionary = main.difficulty_buttons[index]
+		var button := entry.get("button") as Button
+		button.emit_signal("pressed")
+		await get_tree().process_frame
+		var difficulty_id := str(MainScript.DIFFICULTY_IDS[index])
+		korean_updates_ok = main.difficulty_subtitle_label.text \
+			== str(MainScript.TEXT["ko"][description_keys[index]]) \
+			and main.difficulty == difficulty_id \
+			and _choice_group_has_active_id(main.difficulty_buttons, difficulty_id) \
+			and korean_updates_ok
+
+	main._set_locale("en", false)
+	await get_tree().process_frame
+	var english_updates_ok: bool = main.settings_overlay.visible
+	for index in range(MainScript.DIFFICULTY_IDS.size()):
+		var entry: Dictionary = main.difficulty_buttons[index]
+		var button := entry.get("button") as Button
+		button.emit_signal("pressed")
+		await get_tree().process_frame
+		var difficulty_id := str(MainScript.DIFFICULTY_IDS[index])
+		english_updates_ok = main.difficulty_subtitle_label.text \
+			== str(MainScript.TEXT["en"][description_keys[index]]) \
+			and main.difficulty == difficulty_id \
+			and _choice_group_has_active_id(main.difficulty_buttons, difficulty_id) \
+			and english_updates_ok
+
+	main._hide_settings_menu()
+	await get_tree().process_frame
+	var hidden_ok: bool = !main.difficulty_subtitle_label.is_visible_in_tree()
+	main._show_settings_menu()
+	await get_tree().process_frame
+	var reopen_ok: bool = main.difficulty == "HARD" \
+		and main.difficulty_subtitle_label.is_visible_in_tree() \
+		and main.difficulty_subtitle_label.text \
+			== str(MainScript.TEXT["en"]["difficulty_hard_description"])
+
+	main.queue_free()
+	await get_tree().process_frame
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	return (
+		_assert(catalogs_ok, "difficulty descriptions provide distinct Korean and English copy")
+		and _assert(settings_only_ok, "difficulty subtitle stays inside the existing settings section")
+		and _assert(korean_updates_ok, "difficulty buttons update the Korean subtitle immediately")
+		and _assert(english_updates_ok, "difficulty buttons update the English subtitle immediately")
+		and _assert(hidden_ok, "difficulty subtitle is not a persistent HUD element")
+		and _assert(reopen_ok, "difficulty subtitle matches the current choice when settings reopen")
+	)
 
 
 func _test_board_size_ui() -> bool:
