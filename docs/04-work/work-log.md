@@ -2,6 +2,7 @@
 
 ## 2026-08-01
 
+- Scheduled AI disc-difference and positional evaluation weights by opening, middle, and endgame occupancy phases, with named tuning constants and regression coverage for all three phases and existing corner/X/C semantics.
 - Replaced legal-move dot-only guidance with current-color translucent ghost discs inside board cells, hidden during locked and AI turns and blended into the existing placement animation across every board theme.
 - Added a user-listened 36-second ambient OGG loop with a numerically verified seam, separate Music/SFX buses, a persisted settings-only music toggle, and headless-safe playback guards.
 - Made the X-square evaluation penalty conditional on its adjacent corner remaining open, with board-size-derived coordinates and an AI-choice regression fixture independent from C-square handling.
