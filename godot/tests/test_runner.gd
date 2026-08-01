@@ -149,6 +149,8 @@ func _ready() -> void:
 	ok = forest_theme_ok and ok
 	var sakura_theme_ok := await _test_sakura_visual_theme()
 	ok = sakura_theme_ok and ok
+	var ghost_preview_ok := await _test_legal_move_ghost_preview()
+	ok = ghost_preview_ok and ok
 	var ui_ok := await _test_ui_hints_return_after_animation()
 	ok = ui_ok and ok
 	var show_moves_ok := await _test_show_moves_setting()
@@ -2125,6 +2127,137 @@ func _move_flip_and_mobility(
 	}
 
 
+func _test_legal_move_ghost_preview() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+
+	main.ai_move_pending = false
+	main.input_locked = false
+	main.player_stone = ReversiEngine.BLACK
+	main.state = ReversiEngine.create_new_game(ReversiEngine.BLACK, "MEDIUM")
+	var initial_settings: Dictionary = main.state.get("settings", {})
+	initial_settings["sound"] = false
+	main.state["settings"] = initial_settings
+	main._render()
+	await get_tree().process_frame
+
+	var expected_moves: int = main.state.get("valid_moves", []).size()
+	var black_texture: Texture2D = main._texture_for_stone(ReversiEngine.BLACK)
+	var board_grid := main.find_child("BoardGrid", true, false) as GridContainer
+	var initial_ghosts_ok: bool = expected_moves == 4 \
+		and _visible_ghost_count(main) == expected_moves \
+		and _visible_hint_count(main) == expected_moves \
+		and !main.cell_ghost_views[0][0].visible
+	var board_layer_ok: bool = board_grid != null
+	for move_value in main.state.get("valid_moves", []):
+		var move: Dictionary = move_value
+		var x := int(move.get("x", -1))
+		var y := int(move.get("y", -1))
+		var ghost: TextureRect = main.cell_ghost_views[x][y]
+		initial_ghosts_ok = initial_ghosts_ok \
+			and ghost.visible \
+			and ghost.texture == black_texture \
+			and is_equal_approx(ghost.modulate.a, MainScript.LEGAL_MOVE_GHOST_ALPHA) \
+			and is_equal_approx(ghost.scale.x, MainScript.LEGAL_MOVE_GHOST_SCALE) \
+			and is_equal_approx(ghost.scale.y, MainScript.LEGAL_MOVE_GHOST_SCALE) \
+			and ghost.pivot_offset == ghost.size * 0.5
+		board_layer_ok = board_layer_ok \
+			and board_grid.is_ancestor_of(ghost) \
+			and !main.settings_panel.is_ancestor_of(ghost)
+
+	var all_theme_contrast_ok := true
+	for theme_value in MainScript.THEME_IDS:
+		var theme_id := str(theme_value)
+		main._set_theme(theme_id, false)
+		await get_tree().process_frame
+		var ghost: TextureRect = main.cell_ghost_views[2][3]
+		var hint_style := main.cell_hint_views[2][3].get_theme_stylebox("panel") as StyleBoxFlat
+		var theme_config: Dictionary = main._theme_config(theme_id)
+		var border_contrast := absf(
+			hint_style.border_color.get_luminance()
+			- Color(theme_config["board_surface"]).get_luminance()
+		)
+		all_theme_contrast_ok = all_theme_contrast_ok \
+			and ghost.visible \
+			and ghost.texture == main._texture_for_stone(ReversiEngine.BLACK) \
+			and hint_style != null \
+			and hint_style.bg_color.a <= 0.10 \
+			and border_contrast >= 0.18
+
+	main._set_theme("classic", false)
+	await get_tree().process_frame
+	main.state["current_turn"] = ReversiEngine.WHITE
+	main.state["valid_moves"] = ReversiEngine.get_valid_moves(
+		main.state["board"],
+		ReversiEngine.WHITE,
+	)
+	main.input_locked = false
+	main._render()
+	var opponent_turn_hidden_ok: bool = _visible_ghost_count(main) == 0 \
+		and _visible_hint_count(main) == 0
+
+	main.state["current_turn"] = ReversiEngine.BLACK
+	main.state["valid_moves"] = ReversiEngine.get_valid_moves(
+		main.state["board"],
+		ReversiEngine.BLACK,
+	)
+	main.input_locked = true
+	main._render()
+	var input_locked_hidden_ok: bool = _visible_ghost_count(main) == 0 \
+		and _visible_hint_count(main) == 0
+
+	main.input_locked = false
+	var local_settings: Dictionary = main.state.get("settings", {})
+	local_settings["opponent_mode"] = "local"
+	main.state["settings"] = local_settings
+	main.state["current_turn"] = ReversiEngine.WHITE
+	main.state["valid_moves"] = ReversiEngine.get_valid_moves(
+		main.state["board"],
+		ReversiEngine.WHITE,
+	)
+	main._render()
+	var local_move: Dictionary = main.state.get("valid_moves", [])[0]
+	var local_ghost: TextureRect = main.cell_ghost_views[int(local_move["x"])][int(local_move["y"])]
+	var local_turn_color_ok: bool = _visible_ghost_count(main) \
+			== main.state.get("valid_moves", []).size() \
+		and local_ghost.texture == main._texture_for_stone(ReversiEngine.WHITE)
+
+	var ai_settings: Dictionary = main.state.get("settings", {})
+	ai_settings["opponent_mode"] = "ai"
+	main.state["settings"] = ai_settings
+	main.state["current_turn"] = ReversiEngine.BLACK
+	main.state["valid_moves"] = ReversiEngine.get_valid_moves(
+		main.state["board"],
+		ReversiEngine.BLACK,
+	)
+	main._render()
+	var before_board: Array = ReversiEngine.clone_board(main.state["board"])
+	var move_result: Dictionary = ReversiEngine.play_move(main.state, 2, 3)
+	var motion_count_before: int = main._motion_tween_count
+	await main._render_with_animation(before_board, move_result)
+	var placed_view: TextureRect = main.cell_piece_views[2][3]
+	var placement_transition_ok: bool = bool(move_result.get("ok", false)) \
+		and !main.cell_ghost_views[2][3].visible \
+		and placed_view.texture == main._texture_for_stone(ReversiEngine.BLACK) \
+		and placed_view.modulate == Color.WHITE \
+		and placed_view.scale == Vector2.ONE \
+		and main._motion_tween_count > motion_count_before
+
+	main.queue_free()
+	return (
+		_assert(initial_ghosts_ok, "legal moves render current-color translucent ghost discs")
+		and _assert(board_layer_ok, "ghost discs stay inside the board render layer")
+		and _assert(all_theme_contrast_ok, "ghost discs retain a contrasting marker across every board theme")
+		and _assert(opponent_turn_hidden_ok, "ghost discs hide during the AI opponent turn")
+		and _assert(input_locked_hidden_ok, "ghost discs hide while board input is locked")
+		and _assert(local_turn_color_ok, "local play ghost discs follow the current turn color")
+		and _assert(placement_transition_ok, "a ghost disc transitions into the existing opaque placement animation")
+	)
+
+
 func _test_ui_hints_return_after_animation() -> bool:
 	var main_scene = load("res://scenes/main.tscn")
 	var main = main_scene.instantiate()
@@ -2159,14 +2292,14 @@ func _test_ui_hints_return_after_animation() -> bool:
 
 	var expected_hints := int(main.state.get("valid_moves", []).size())
 	var visible_hints := _visible_hint_count(main)
-	var ghost_stones := _visible_hint_piece_texture_count(main)
+	var ghost_stones := _visible_ghost_count(main)
 	var unlocked := !bool(main.input_locked)
 	main.queue_free()
 	return (
 		_assert(unlocked, "ui unlocks after move animation")
 		and _assert(expected_hints > 0, "ui has valid player moves after ai")
 		and _assert(visible_hints == expected_hints, "ui valid hints return after animation")
-		and _assert(ghost_stones == 0, "ui valid hints do not draw ghost stones")
+		and _assert(ghost_stones == expected_hints, "ui valid hints return as ghost stones")
 	)
 
 
@@ -2198,7 +2331,8 @@ func _test_show_moves_setting() -> bool:
 
 	var expected_hints := int(main.state.get("valid_moves", []).size())
 	var default_on_ok: bool = main.show_moves_toggle.button_pressed \
-		and _visible_hint_count(main) == expected_hints
+		and _visible_hint_count(main) == expected_hints \
+		and _visible_ghost_count(main) == expected_hints
 	main._show_settings_menu()
 	await get_tree().process_frame
 	var settings_depth_ok: bool = main.settings_panel.is_ancestor_of(main.show_moves_toggle) \
@@ -2209,7 +2343,8 @@ func _test_show_moves_setting() -> bool:
 	main.show_moves_toggle.button_pressed = false
 	await get_tree().process_frame
 	var hidden_ok: bool = !main._show_moves_enabled() \
-		and _visible_hint_count(main) == 0
+		and _visible_hint_count(main) == 0 \
+		and _visible_ghost_count(main) == 0
 	var motion_count_before_invalid: int = main._motion_tween_count
 	main._on_cell_pressed(0, 0)
 	var invalid_feedback_ok: bool = main._motion_tween_count == motion_count_before_invalid + 1
@@ -2225,7 +2360,8 @@ func _test_show_moves_setting() -> bool:
 	await get_tree().process_frame
 	var restored_off_ok: bool = !restored_main.show_moves_toggle.button_pressed \
 		and !restored_main._show_moves_enabled() \
-		and _visible_hint_count(restored_main) == 0
+		and _visible_hint_count(restored_main) == 0 \
+		and _visible_ghost_count(restored_main) == 0
 	restored_main._set_locale("en", false)
 	await get_tree().process_frame
 	var english_label_ok: bool = restored_main.show_moves_toggle.text == "MOVES"
@@ -2233,6 +2369,9 @@ func _test_show_moves_setting() -> bool:
 	await get_tree().process_frame
 	var restored_on_ok: bool = restored_main._show_moves_enabled() \
 		and _visible_hint_count(restored_main) == int(
+			restored_main.state.get("valid_moves", []).size()
+		) \
+		and _visible_ghost_count(restored_main) == int(
 			restored_main.state.get("valid_moves", []).size()
 		)
 
@@ -4971,11 +5110,12 @@ func _visible_flip_count_count(main) -> int:
 	return count
 
 
-func _visible_hint_piece_texture_count(main) -> int:
+func _visible_ghost_count(main) -> int:
 	var count := 0
-	for x in range(main.cell_hint_views.size()):
-		for y in range(main.cell_hint_views[x].size()):
-			if main.cell_hint_views[x][y].visible and main.cell_piece_views[x][y].texture != null:
+	for row in main.cell_ghost_views:
+		for ghost_value in row:
+			var ghost: TextureRect = ghost_value
+			if ghost.visible and ghost.texture != null:
 				count += 1
 	return count
 
