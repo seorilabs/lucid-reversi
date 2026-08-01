@@ -13,6 +13,8 @@ const ARCTIC_BLACK_TEXTURE = preload("res://assets/reversi/themes/arctic_black.s
 const ARCTIC_WHITE_TEXTURE = preload("res://assets/reversi/themes/arctic_white.svg")
 const EMBER_BLACK_TEXTURE = preload("res://assets/reversi/themes/ember_black.svg")
 const EMBER_WHITE_TEXTURE = preload("res://assets/reversi/themes/ember_white.svg")
+const SAKURA_BLACK_TEXTURE = preload("res://assets/reversi/themes/sakura_black.svg")
+const SAKURA_WHITE_TEXTURE = preload("res://assets/reversi/themes/sakura_white.svg")
 const UI_FONT = preload("res://assets/fonts/DoHyeon-Regular.ttf")
 const JAPANESE_FONT = preload("res://assets/fonts/MPLUSRounded1c-Regular.ttf")
 
@@ -47,10 +49,10 @@ const DIFFICULTY_IDS := ["EASY", "MEDIUM", "HARD"]
 const OPPONENT_MODE_IDS := ["ai", "local"]
 const BOARD_SIZE_IDS := ["6", "8", "10"]
 const BOARD_SIZE_LABELS := ["6×6", "8×8", "10×10"]
-const THEME_IDS := ["classic", "arctic", "ember", "forest"]
-const THEME_LABELS := ["CLASSIC", "ARCTIC", "EMBER", "FOREST"]
-const STONE_THEME_IDS := ["classic", "arctic", "ember"]
-const STONE_THEME_LABELS := ["CLASSIC", "ARCTIC", "EMBER"]
+const THEME_IDS := ["classic", "arctic", "ember", "forest", "sakura"]
+const THEME_LABELS := ["CLASSIC", "ARCTIC", "EMBER", "FOREST", "SAKURA"]
+const STONE_THEME_IDS := ["classic", "arctic", "ember", "sakura"]
+const STONE_THEME_LABELS := ["CLASSIC", "ARCTIC", "EMBER", "SAKURA"]
 const LOCALE_IDS := ["ko", "en", "ja"]
 const LOCALE_LABELS := ["한국어", "EN", "日本語"]
 const FONT_SCALE_IDS := ["1.0", "1.15", "1.3"]
@@ -134,6 +136,7 @@ const TEXT := {
 		"theme_arctic": "빙하",
 		"theme_ember": "노을",
 		"theme_forest": "숲",
+		"theme_sakura": "벚꽃",
 		"status_game_over": "게임 종료",
 		"status_flip": "뒤집는 중",
 		"status_ai_thinking": "AI 생각 중",
@@ -240,6 +243,7 @@ const TEXT := {
 		"theme_arctic": "ARCTIC",
 		"theme_ember": "EMBER",
 		"theme_forest": "FOREST",
+		"theme_sakura": "SAKURA",
 		"status_game_over": "GAME OVER",
 		"status_flip": "FLIP",
 		"status_ai_thinking": "AI THINKING",
@@ -346,6 +350,7 @@ const TEXT := {
 		"theme_arctic": "氷河",
 		"theme_ember": "夕焼け",
 		"theme_forest": "フォレスト",
+		"theme_sakura": "桜",
 		"status_game_over": "対局終了",
 		"status_flip": "反転中",
 		"status_ai_thinking": "AI思考中",
@@ -3820,6 +3825,24 @@ func _theme_config(theme_id: String = "") -> Dictionary:
 				"hint": Color(0.80, 1.0, 0.72, 0.94),
 				"hint_border": Color(0.96, 1.0, 0.90, 0.88),
 			}
+		"sakura":
+			config = {
+				"bg": Color(0.055, 0.027, 0.050, 1.0),
+				"hud": Color(0.145, 0.066, 0.115, 1.0),
+				"hud_dark": Color(0.085, 0.038, 0.070, 1.0),
+				"board_frame": Color(0.050, 0.018, 0.038, 1.0),
+				"board_frame_border": Color(0.92, 0.48, 0.64, 0.58),
+				"board_surface": Color(0.46, 0.18, 0.27, 1.0),
+				"board_grid": Color(0.12, 0.025, 0.070, 0.94),
+				"meter_bg": Color(0.045, 0.020, 0.040, 1.0),
+				"text_primary": Color(1.0, 0.96, 0.96, 1.0),
+				"text_muted": Color(0.93, 0.76, 0.81, 1.0),
+				"accent": Color(1.0, 0.78, 0.48, 1.0),
+				"danger": DANGER,
+				"success": Color(0.55, 0.92, 0.68, 1.0),
+				"hint": Color(1.0, 0.90, 0.56, 0.94),
+				"hint_border": Color(1.0, 0.97, 0.86, 0.82),
+			}
 		_:
 			config = {
 				"bg": BG_COLOR,
@@ -3884,6 +3907,13 @@ func _stone_theme_config(theme_id: String = "") -> Dictionary:
 				"white_texture": EMBER_WHITE_TEXTURE,
 				"black_meter": Color(0.16, 0.08, 0.045, 1.0),
 				"white_meter": Color(0.98, 0.87, 0.63, 1.0),
+			}
+		"sakura":
+			return {
+				"black_texture": SAKURA_BLACK_TEXTURE,
+				"white_texture": SAKURA_WHITE_TEXTURE,
+				"black_meter": Color(0.16, 0.055, 0.12, 1.0),
+				"white_meter": Color(1.0, 0.88, 0.90, 1.0),
 			}
 		_:
 			return {
