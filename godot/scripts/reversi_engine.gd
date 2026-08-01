@@ -1004,6 +1004,12 @@ static func _evaluate_board(
 		[Vector2i(near_last, last), Vector2i(last, last)],
 		[Vector2i(last, near_last), Vector2i(last, last)],
 	]
+	var x_square_pairs := [
+		[Vector2i(1, 1), Vector2i(0, 0)],
+		[Vector2i(1, near_last), Vector2i(0, last)],
+		[Vector2i(near_last, 1), Vector2i(last, 0)],
+		[Vector2i(near_last, near_last), Vector2i(last, last)],
+	]
 	var c_squares: Array[Vector2i] = []
 	for pair in c_square_pairs:
 		c_squares.append(pair[0])
@@ -1011,8 +1017,14 @@ static func _evaluate_board(
 	for point in [Vector2i(0, 0), Vector2i(0, last), Vector2i(last, 0), Vector2i(last, last)]:
 		score += _weighted_cell(board, point, stone, corner_value)
 
-	for point in [Vector2i(1, 1), Vector2i(1, near_last), Vector2i(near_last, 1), Vector2i(near_last, near_last)]:
-		score += _weighted_cell(board, point, stone, pre_corner_value)
+	for pair in x_square_pairs:
+		var point: Vector2i = pair[0]
+		var corner: Vector2i = pair[1]
+		var value := pre_corner_value
+		var cell := int(board[point.x][point.y])
+		if cell != NONE and cell == int(board[corner.x][corner.y]):
+			value = 0
+		score += _weighted_cell(board, point, stone, value)
 
 	for pair in c_square_pairs:
 		var point: Vector2i = pair[0]

@@ -89,7 +89,7 @@
 - MEDIUM: depth 3
 - HARD: depth 5
 - MEDIUM switches to exact terminal search at 6 or fewer empty cells; HARD switches at 8 or fewer. EASY always keeps depth 1.
-- Evaluation: mobility 차이와 corner/edge/near-corner 위치 가중을 반영하고, 돌 개수 차이는 빈칸 비율에 따라 개시 0·중반 1·종반 4 가중을 적용한다.
+- Evaluation: mobility 차이와 corner/edge/near-corner 위치 가중을 반영한다. C-스퀘어와 X-스퀘어의 감점은 인접 코너가 열려 있을 때만 적용하고, 같은 색 돌이 해당 코너를 확보하면 해제한다. 돌 개수 차이는 빈칸 비율에 따라 개시 0·중반 1·종반 4 가중을 적용한다.
 - 모든 난이도에서 최선 평가가 같은 수는 대국별 seed로 균등 선택한다. 같은 seed와 보드 상태는 같은 수를 재현하며, 서로 다른 EASY 대국은 동점 최선 수 사이에서 전개가 달라질 수 있다.
 - EASY는 depth 1을 유지하고 차선 수를 선택하지 않으며, 동점 최선 수에만 seed 변주를 적용한다.
 - AI 응답의 목표 사고 지연은 EASY 0.16초, MEDIUM 0.32초, HARD 0.48초를 기준으로 각 ±0.04초의 작은 흔들림을 적용한다. 실제 탐색에 이미 소비한 시간은 목표 지연에서 차감해 HARD 탐색 뒤 대기를 중복 부과하지 않으며, 대기 중 게임·턴·수순이 바뀌면 계산된 수를 폐기한다.
