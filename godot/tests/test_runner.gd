@@ -82,6 +82,7 @@ func _ready() -> void:
 	ok = _test_endgame_exact_search() and ok
 	ok = _test_mobility_evaluation_boundaries() and ok
 	ok = _test_c_square_evaluation() and ok
+	ok = _test_x_square_evaluation() and ok
 	ok = _test_phase_aware_mobility_choice() and ok
 	ok = _test_anti_reversi_rules_and_ai() and ok
 	ok = _test_puzzle_catalog_and_goals() and ok
@@ -1691,6 +1692,77 @@ func _test_c_square_evaluation() -> bool:
 			ReversiEngine._evaluate_board(open_corner_board, ReversiEngine.BLACK)
 				< ReversiEngine._evaluate_board(secured_corner_board, ReversiEngine.BLACK),
 			"C-square evaluation improves after the adjacent corner is secured",
+		)
+	)
+
+
+func _test_x_square_evaluation() -> bool:
+	var dynamic_coordinates_ok := true
+	for board_size in ReversiEngine.SUPPORTED_BOARD_SIZES:
+		var empty_board: Array = ReversiEngine.create_new_game(
+			ReversiEngine.BLACK,
+			"EASY",
+			board_size,
+			6301,
+		)["board"]
+		for x in range(board_size):
+			for y in range(board_size):
+				empty_board[x][y] = ReversiEngine.NONE
+		var last: int = board_size - 1
+		var near_last: int = board_size - 2
+		var x_square_pairs := [
+			[Vector2i(1, 1), Vector2i(0, 0)],
+			[Vector2i(1, near_last), Vector2i(0, last)],
+			[Vector2i(near_last, 1), Vector2i(last, 0)],
+			[Vector2i(near_last, near_last), Vector2i(last, last)],
+		]
+		for pair in x_square_pairs:
+			var point: Vector2i = pair[0]
+			var corner: Vector2i = pair[1]
+			var open_corner_board := ReversiEngine.clone_board(empty_board)
+			open_corner_board[point.x][point.y] = ReversiEngine.BLACK
+			var secured_corner_board := ReversiEngine.clone_board(open_corner_board)
+			secured_corner_board[corner.x][corner.y] = ReversiEngine.BLACK
+			dynamic_coordinates_ok = (
+				ReversiEngine._evaluate_board(open_corner_board, ReversiEngine.BLACK)
+					== -board_size * 2
+				and ReversiEngine._evaluate_board(
+					secured_corner_board,
+					ReversiEngine.BLACK,
+				) == board_size * 3
+				and dynamic_coordinates_ok
+			)
+
+	var secured_x_state := ReversiEngine.create_new_game(
+		ReversiEngine.BLACK,
+		"EASY",
+		ReversiEngine.DEFAULT_BOARD_SIZE,
+		6301,
+	)
+	secured_x_state["board"] = _board_from_strings([
+		"........",
+		"...W....",
+		"BWW.W...",
+		".WWWW..W",
+		".WWWWWW.",
+		"BBBWWWW.",
+		"B.WBBB..",
+		"BWBB....",
+	])
+	secured_x_state["current_turn"] = ReversiEngine.BLACK
+	secured_x_state["valid_moves"] = ReversiEngine.get_valid_moves(
+		secured_x_state["board"],
+		ReversiEngine.BLACK,
+	)
+	var chosen_move := ReversiEngine.choose_ai_move(secured_x_state)
+	return (
+		_assert(
+			dynamic_coordinates_ok,
+			"X-square penalties use board-size-derived coordinates and only open corners",
+		)
+		and _assert(
+			int(chosen_move.get("x", -1)) == 6 and int(chosen_move.get("y", -1)) == 1,
+			"easy AI can choose a secured X-square instead of retaining the open-corner penalty",
 		)
 	)
 

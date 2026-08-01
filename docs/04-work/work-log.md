@@ -2,6 +2,7 @@
 
 ## 2026-08-01
 
+- Made the X-square evaluation penalty conditional on its adjacent corner remaining open, with board-size-derived coordinates and an AI-choice regression fixture independent from C-square handling.
 - Added a localized game-over highlights card that replays move history to report the biggest flip, final corner ownership, and peak disc lead, including restored completed games and fail-closed missing history.
 - Added three localized fixed-position puzzle challenges with a settings-only selector, corner/win objectives, standard result-overlay feedback, and isolation from normal saves, stats, ads, and replay.
 - Added a settings-only AI/local opponent selector with persisted pass-and-play turns, black/white status and results, and AI-stat isolation.
