@@ -41,6 +41,8 @@ const FLIP_TILT_RADIANS := 0.11
 const FLIP_EDGE_SCALE := Vector2(0.04, 1.12)
 const FLIP_HIGHLIGHT_COLOR := Color(1.0, 0.92, 0.68, 1.0)
 const FLIP_SWAP_ALPHA := 0.55
+const LEGAL_MOVE_GHOST_ALPHA := 0.42
+const LEGAL_MOVE_GHOST_SCALE := 0.86
 const BGM_VOLUME_DB := -24.0
 const SFX_BUS := &"SFX"
 const MUSIC_BUS := &"Music"
@@ -519,6 +521,7 @@ var _replay_transitioning := false
 
 var cell_buttons: Array = []
 var cell_piece_views: Array = []
+var cell_ghost_views: Array = []
 var cell_hint_views: Array = []
 var cell_flip_count_labels: Array = []
 var cell_recommendation_views: Array = []
@@ -997,6 +1000,7 @@ func _build_board(root: VBoxContainer) -> void:
 
 	cell_buttons.clear()
 	cell_piece_views.clear()
+	cell_ghost_views.clear()
 	cell_hint_views.clear()
 	cell_flip_count_labels.clear()
 	cell_recommendation_views.clear()
@@ -1006,6 +1010,7 @@ func _build_board(root: VBoxContainer) -> void:
 	for x in range(board_size):
 		var button_row: Array = []
 		var piece_row: Array = []
+		var ghost_row: Array = []
 		var hint_row: Array = []
 		var flip_count_row: Array = []
 		var recommendation_row: Array = []
@@ -1031,6 +1036,19 @@ func _build_board(root: VBoxContainer) -> void:
 			surface_depth.offset_bottom = -2
 			surface_depth.add_theme_stylebox_override("panel", _make_board_cell_depth_style())
 			button.add_child(surface_depth)
+
+			var ghost := TextureRect.new()
+			ghost.name = "LegalMoveGhost%d_%d" % [x, y]
+			ghost.visible = false
+			ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			ghost.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+			ghost.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			ghost.set_anchors_preset(Control.PRESET_FULL_RECT)
+			ghost.offset_left = piece_margin
+			ghost.offset_top = piece_margin
+			ghost.offset_right = -piece_margin
+			ghost.offset_bottom = -piece_margin
+			button.add_child(ghost)
 
 			var piece := TextureRect.new()
 			piece.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1097,6 +1115,7 @@ func _build_board(root: VBoxContainer) -> void:
 			board.add_child(button)
 			button_row.append(button)
 			piece_row.append(piece)
+			ghost_row.append(ghost)
 			hint_row.append(hint)
 			flip_count_row.append(flip_count_label)
 			recommendation_row.append(recommendation)
@@ -1104,6 +1123,7 @@ func _build_board(root: VBoxContainer) -> void:
 			depth_row.append(surface_depth)
 		cell_buttons.append(button_row)
 		cell_piece_views.append(piece_row)
+		cell_ghost_views.append(ghost_row)
 		cell_hint_views.append(hint_row)
 		cell_flip_count_labels.append(flip_count_row)
 		cell_recommendation_views.append(recommendation_row)
@@ -3224,6 +3244,7 @@ func _ai_turn_is_current(ai_stone: int, game_seed: int, history_size: int) -> bo
 func _render_with_animation(before_board: Array, result: Dictionary) -> void:
 	input_locked = true
 	_render()
+	_prepare_placed_piece_transition(result)
 	await get_tree().process_frame
 	await _animate_move_result(before_board, result)
 	input_locked = false
@@ -3255,8 +3276,8 @@ func _animate_move_result(before_board: Array, result: Dictionary) -> void:
 		_prepare_piece_view(px, py)
 		var placed_view: TextureRect = cell_piece_views[px][py]
 		placed_view.texture = _texture_for_stone(stone)
-		placed_view.modulate = Color(1, 1, 1, 0.0)
-		placed_view.scale = Vector2(0.34, 0.34)
+		placed_view.modulate = Color(1, 1, 1, LEGAL_MOVE_GHOST_ALPHA)
+		placed_view.scale = Vector2.ONE * LEGAL_MOVE_GHOST_SCALE
 		_motion_tween_count += 1
 		var placed_tween := create_tween()
 		placed_tween.set_parallel(true)
@@ -3309,6 +3330,24 @@ func _animate_move_result(before_board: Array, result: Dictionary) -> void:
 
 	if wait_time > 0.0:
 		await get_tree().create_timer(wait_time).timeout
+
+
+func _prepare_placed_piece_transition(result: Dictionary) -> void:
+	if _reduce_motion_enabled() or !bool(result.get("ok", false)):
+		return
+	var placed_value = result.get("placed", {})
+	if typeof(placed_value) != TYPE_DICTIONARY or (placed_value as Dictionary).is_empty():
+		return
+	var placed: Dictionary = placed_value
+	var x := int(placed.get("x", -1))
+	var y := int(placed.get("y", -1))
+	if x < 0 or x >= cell_piece_views.size() or y < 0 or y >= cell_piece_views[x].size():
+		return
+	_prepare_piece_view(x, y)
+	var view: TextureRect = cell_piece_views[x][y]
+	view.texture = _texture_for_stone(int(placed.get("stone", ReversiEngine.NONE)))
+	view.modulate = Color(1, 1, 1, LEGAL_MOVE_GHOST_ALPHA)
+	view.scale = Vector2.ONE * LEGAL_MOVE_GHOST_SCALE
 
 
 func _render() -> void:
@@ -3373,6 +3412,7 @@ func _render() -> void:
 func _render_cell(x: int, y: int, piece: int, is_valid: bool, is_last: bool) -> void:
 	var button: Button = cell_buttons[x][y]
 	var piece_view: TextureRect = cell_piece_views[x][y]
+	var ghost_view: TextureRect = cell_ghost_views[x][y]
 	var hint_view: PanelContainer = cell_hint_views[x][y]
 	var flip_count_label: Label = cell_flip_count_labels[x][y]
 	var recommendation_view: PanelContainer = cell_recommendation_views[x][y]
@@ -3382,6 +3422,11 @@ func _render_cell(x: int, y: int, piece: int, is_valid: bool, is_last: bool) -> 
 
 	button.mouse_default_cursor_shape = Control.CURSOR_ARROW
 	button.disabled = false
+	ghost_view.visible = false
+	ghost_view.texture = null
+	ghost_view.modulate = Color(1, 1, 1, LEGAL_MOVE_GHOST_ALPHA)
+	ghost_view.scale = Vector2.ONE * LEGAL_MOVE_GHOST_SCALE
+	ghost_view.pivot_offset = ghost_view.size * 0.5
 	hint_view.visible = false
 	hint_view.add_theme_stylebox_override("panel", _legal_move_hint_style())
 	flip_count_label.visible = false
@@ -3389,7 +3434,8 @@ func _render_cell(x: int, y: int, piece: int, is_valid: bool, is_last: bool) -> 
 	flip_count_label.add_theme_color_override("font_color", _theme_color("text_primary"))
 	_apply_text_visibility(flip_count_label, 3, _theme_color("text_primary"))
 	recommendation_view.visible = false
-	if piece == ReversiEngine.NONE and is_valid and int(state.get("current_turn", ReversiEngine.NONE)) == player_stone and !input_locked:
+	var preview_stone := _legal_move_preview_stone()
+	if piece == ReversiEngine.NONE and is_valid and preview_stone != ReversiEngine.NONE:
 		piece_view.texture = null
 		piece_view.modulate = Color.TRANSPARENT
 		piece_view.scale = Vector2.ONE
@@ -3398,8 +3444,11 @@ func _render_cell(x: int, y: int, piece: int, is_valid: bool, is_last: bool) -> 
 			base = base.lightened(0.08)
 			hint_view.visible = true
 			button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		if _show_moves_enabled():
+			ghost_view.texture = _texture_for_stone(preview_stone)
+			ghost_view.visible = true
 		if show_flip_count:
-			flip_count_label.text = str(ReversiEngine.count_flips(state["board"], player_stone, x, y))
+			flip_count_label.text = str(ReversiEngine.count_flips(state["board"], preview_stone, x, y))
 			flip_count_label.visible = true
 	elif piece == ReversiEngine.BLACK or piece == ReversiEngine.WHITE:
 		piece_view.texture = _texture_for_stone(piece)
@@ -3444,7 +3493,9 @@ func _board_cell_color(x: int, y: int) -> Color:
 func _legal_move_hint_style() -> StyleBoxFlat:
 	if _high_contrast_enabled():
 		return _make_style(Color(1.0, 1.0, 1.0, 0.04), 3, _theme_color("hint_border"), 18)
-	return _make_style(_theme_color("hint"), 1, _theme_color("hint_border"), 14)
+	var fill := _theme_color("hint")
+	fill.a = 0.08
+	return _make_style(fill, 2, _theme_color("hint_border"), 14)
 
 
 func _prepare_piece_view(x: int, y: int) -> void:
@@ -4112,6 +4163,17 @@ func _reduce_motion_enabled() -> bool:
 
 func _show_moves_enabled() -> bool:
 	return bool(_current_settings().get("show_moves", true))
+
+
+func _legal_move_preview_stone() -> int:
+	if state.is_empty() or input_locked or bool(state.get("game_over", false)):
+		return ReversiEngine.NONE
+	var current_turn := int(state.get("current_turn", ReversiEngine.NONE))
+	if current_turn != ReversiEngine.BLACK and current_turn != ReversiEngine.WHITE:
+		return ReversiEngine.NONE
+	if !_is_local_game() and current_turn != player_stone:
+		return ReversiEngine.NONE
+	return current_turn
 
 
 func _show_flip_counts_enabled() -> bool:

@@ -2,6 +2,7 @@
 
 ## 2026-08-01
 
+- Replaced legal-move dot-only guidance with current-color translucent ghost discs inside board cells, hidden during locked and AI turns and blended into the existing placement animation across every board theme.
 - Added a user-listened 36-second ambient OGG loop with a numerically verified seam, separate Music/SFX buses, a persisted settings-only music toggle, and headless-safe playback guards.
 - Made the X-square evaluation penalty conditional on its adjacent corner remaining open, with board-size-derived coordinates and an AI-choice regression fixture independent from C-square handling.
 - Added a localized game-over highlights card that replays move history to report the biggest flip, final corner ownership, and peak disc lead, including restored completed games and fail-closed missing history.
