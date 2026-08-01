@@ -885,6 +885,19 @@ static func _evaluate_board(board: Array, stone: int) -> int:
 	var corner_path_value := -board_size
 	var last := board_size - 1
 	var near_last := board_size - 2
+	var c_square_pairs := [
+		[Vector2i(0, 1), Vector2i(0, 0)],
+		[Vector2i(1, 0), Vector2i(0, 0)],
+		[Vector2i(0, near_last), Vector2i(0, last)],
+		[Vector2i(near_last, 0), Vector2i(last, 0)],
+		[Vector2i(1, last), Vector2i(0, last)],
+		[Vector2i(last, 1), Vector2i(last, 0)],
+		[Vector2i(near_last, last), Vector2i(last, last)],
+		[Vector2i(last, near_last), Vector2i(last, last)],
+	]
+	var c_squares: Array[Vector2i] = []
+	for pair in c_square_pairs:
+		c_squares.append(pair[0])
 
 	for point in [Vector2i(0, 0), Vector2i(0, last), Vector2i(last, 0), Vector2i(last, last)]:
 		score += _weighted_cell(board, point, stone, corner_value)
@@ -892,12 +905,22 @@ static func _evaluate_board(board: Array, stone: int) -> int:
 	for point in [Vector2i(1, 1), Vector2i(1, near_last), Vector2i(near_last, 1), Vector2i(near_last, near_last)]:
 		score += _weighted_cell(board, point, stone, pre_corner_value)
 
+	for pair in c_square_pairs:
+		var point: Vector2i = pair[0]
+		var corner: Vector2i = pair[1]
+		var value := pre_corner_value
+		var cell := int(board[point.x][point.y])
+		if cell != NONE and cell == int(board[corner.x][corner.y]):
+			value = 0
+		score += _weighted_cell(board, point, stone, value)
+
 	for x in range(board_size):
 		for y in range(board_size):
 			var is_edge := x == 0 or y == 0 or x == last or y == last
 			var is_corner := (x == 0 or x == last) and (y == 0 or y == last)
-			if is_edge and !is_corner:
-				score += _weighted_cell(board, Vector2i(x, y), stone, edge_value)
+			var point := Vector2i(x, y)
+			if is_edge and !is_corner and !c_squares.has(point):
+				score += _weighted_cell(board, point, stone, edge_value)
 
 	for offset in range(2, board_size - 2):
 		for point in [

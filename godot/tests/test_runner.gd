@@ -71,6 +71,7 @@ func _ready() -> void:
 	ok = _test_alpha_beta_matches_full_search() and ok
 	ok = _test_endgame_exact_search() and ok
 	ok = _test_mobility_evaluation_boundaries() and ok
+	ok = _test_c_square_evaluation() and ok
 	ok = _test_phase_aware_mobility_choice() and ok
 	var ai_delay_ok := await _test_ai_think_delay_profile_and_guard()
 	ok = ai_delay_ok and ok
@@ -1409,6 +1410,60 @@ func _test_mobility_evaluation_boundaries() -> bool:
 				and ReversiEngine._disc_weight_for_board(full_board)
 					== ReversiEngine.DISC_WEIGHT_ENDGAME,
 			"disc-count weight increases from opening through endgame",
+		)
+	)
+
+
+func _test_c_square_evaluation() -> bool:
+	var c_squares := [
+		Vector2i(0, 1),
+		Vector2i(1, 0),
+		Vector2i(0, 6),
+		Vector2i(6, 0),
+		Vector2i(1, 7),
+		Vector2i(7, 1),
+		Vector2i(6, 7),
+		Vector2i(7, 6),
+	]
+	var every_open_corner_c_square_is_negative := true
+	for point in c_squares:
+		var board := _board_from_strings([
+			"........",
+			"........",
+			"........",
+			"........",
+			"........",
+			"........",
+			"........",
+			"........",
+		])
+		board[point.x][point.y] = ReversiEngine.BLACK
+		every_open_corner_c_square_is_negative = (
+			ReversiEngine._evaluate_board(board, ReversiEngine.BLACK) < 0
+			and every_open_corner_c_square_is_negative
+		)
+
+	var open_corner_board := _board_from_strings([
+		".B......",
+		"........",
+		"........",
+		"........",
+		"........",
+		"........",
+		"........",
+		"........",
+	])
+	var secured_corner_board := ReversiEngine.clone_board(open_corner_board)
+	secured_corner_board[0][0] = ReversiEngine.BLACK
+	return (
+		_assert(
+			every_open_corner_c_square_is_negative,
+			"all eight C-squares are penalized while their corners are open",
+		)
+		and _assert(
+			ReversiEngine._evaluate_board(open_corner_board, ReversiEngine.BLACK)
+				< ReversiEngine._evaluate_board(secured_corner_board, ReversiEngine.BLACK),
+			"C-square evaluation improves after the adjacent corner is secured",
 		)
 	)
 
