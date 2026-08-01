@@ -73,6 +73,7 @@ func _ready() -> void:
 	ok = _test_mobility_evaluation_boundaries() and ok
 	ok = _test_c_square_evaluation() and ok
 	ok = _test_phase_aware_mobility_choice() and ok
+	ok = _test_anti_reversi_rules_and_ai() and ok
 	var ai_delay_ok := await _test_ai_think_delay_profile_and_guard()
 	ok = ai_delay_ok and ok
 	var local_two_player_ok := await _test_local_two_player_mode()
@@ -85,6 +86,8 @@ func _ready() -> void:
 	ok = settings_menu_ok and ok
 	var difficulty_description_ok := await _test_difficulty_description_subtitle()
 	ok = difficulty_description_ok and ok
+	var anti_reversi_ui_ok := await _test_anti_reversi_ui()
+	ok = anti_reversi_ui_ok and ok
 	var how_to_play_ok := await _test_how_to_play_sheet()
 	ok = how_to_play_ok and ok
 	var move_list_ok := await _test_move_list_panel()
@@ -1653,6 +1656,124 @@ func _test_phase_aware_mobility_choice() -> bool:
 	)
 
 
+func _test_anti_reversi_rules_and_ai() -> bool:
+	var defaults := ReversiEngine.default_settings()
+	var settings_contract_ok: bool = str(defaults.get("variant", "")) \
+		== ReversiEngine.VARIANT_STANDARD \
+		and ReversiEngine.normalize_variant(ReversiEngine.VARIANT_ANTI) \
+			== ReversiEngine.VARIANT_ANTI \
+		and ReversiEngine.normalize_variant("unknown") == ReversiEngine.VARIANT_STANDARD \
+		and str(ReversiEngine.normalize_settings({"variant": "unknown"})["variant"]) \
+			== ReversiEngine.VARIANT_STANDARD
+
+	var majority_board: Array = []
+	for x in range(ReversiEngine.BOARD_SIZE):
+		var row: Array = []
+		for y in range(ReversiEngine.BOARD_SIZE):
+			row.append(
+				ReversiEngine.WHITE
+				if x == ReversiEngine.BOARD_SIZE - 1 and y == ReversiEngine.BOARD_SIZE - 1
+				else ReversiEngine.BLACK
+			)
+		majority_board.append(row)
+	var standard_result := ReversiEngine.create_state_from_board(
+		majority_board,
+		ReversiEngine.BLACK,
+		ReversiEngine.WHITE,
+	)
+	var anti_result: Dictionary = standard_result.duplicate(true)
+	var anti_result_settings: Dictionary = anti_result["settings"]
+	anti_result_settings["variant"] = ReversiEngine.VARIANT_ANTI
+	anti_result["settings"] = anti_result_settings
+	ReversiEngine._refresh_result(anti_result)
+	var minority_wins_ok: bool = bool(anti_result.get("game_over", false)) \
+		and int(standard_result.get("winner", ReversiEngine.NONE)) == ReversiEngine.BLACK \
+		and int(anti_result.get("winner", ReversiEngine.NONE)) == ReversiEngine.WHITE
+
+	var draw_board: Array = []
+	for x in range(ReversiEngine.BOARD_SIZE):
+		var row: Array = []
+		for y in range(ReversiEngine.BOARD_SIZE):
+			row.append(ReversiEngine.BLACK if (x + y) % 2 == 0 else ReversiEngine.WHITE)
+		draw_board.append(row)
+	var anti_draw := ReversiEngine.create_state_from_board(draw_board)
+	var anti_draw_settings: Dictionary = anti_draw["settings"]
+	anti_draw_settings["variant"] = ReversiEngine.VARIANT_ANTI
+	anti_draw["settings"] = anti_draw_settings
+	ReversiEngine._refresh_result(anti_draw)
+	var draw_unchanged_ok: bool = bool(anti_draw.get("game_over", false)) \
+		and int(anti_draw.get("winner", -1)) == ReversiEngine.NONE
+
+	var choice_board := _board_from_strings([
+		"..WWWWW.",
+		"WWWWBW..",
+		"WWWWWWW.",
+		"WWBWBW.B",
+		"WWWBWWBB",
+		"WWWWB.BB",
+		"WWWWWBBB",
+		"B.W.B.BB",
+	])
+	var standard_state := ReversiEngine.create_state_from_board(
+		choice_board,
+		ReversiEngine.BLACK,
+		ReversiEngine.WHITE,
+		"EASY",
+		560056,
+	)
+	var anti_state: Dictionary = standard_state.duplicate(true)
+	var anti_settings: Dictionary = anti_state["settings"]
+	anti_settings["variant"] = ReversiEngine.VARIANT_ANTI
+	anti_state["settings"] = anti_settings
+	var standard_evaluation := ReversiEngine._evaluate_board(
+		choice_board,
+		ReversiEngine.BLACK,
+	)
+	var anti_evaluation := ReversiEngine._evaluate_board(
+		choice_board,
+		ReversiEngine.BLACK,
+		ReversiEngine.VARIANT_ANTI,
+	)
+	var evaluation_inverts_ok: bool = anti_evaluation == -standard_evaluation \
+		and ReversiEngine._terminal_piece_difference(
+			majority_board,
+			ReversiEngine.BLACK,
+			ReversiEngine.VARIANT_ANTI,
+		) == -ReversiEngine._terminal_piece_difference(
+			majority_board,
+			ReversiEngine.BLACK,
+		)
+	var standard_move := ReversiEngine.choose_ai_move(standard_state)
+	var anti_move := ReversiEngine.choose_ai_move(anti_state)
+	var standard_board_after := ReversiEngine.clone_board(choice_board)
+	ReversiEngine._apply_move(
+		standard_board_after,
+		ReversiEngine.BLACK,
+		int(standard_move.get("x", -1)),
+		int(standard_move.get("y", -1)),
+	)
+	var anti_board_after := ReversiEngine.clone_board(choice_board)
+	ReversiEngine._apply_move(
+		anti_board_after,
+		ReversiEngine.BLACK,
+		int(anti_move.get("x", -1)),
+		int(anti_move.get("y", -1)),
+	)
+	var standard_counts := ReversiEngine.count_pieces(standard_board_after)
+	var anti_counts := ReversiEngine.count_pieces(anti_board_after)
+	var anti_choice_ok: bool = standard_move == {"x": 0, "y": 0} \
+		and anti_move == {"x": 1, "y": 6} \
+		and int(anti_counts["black"]) < int(standard_counts["black"])
+
+	return (
+		_assert(settings_contract_ok, "anti variant defaults and normalization are fail closed")
+		and _assert(minority_wins_ok, "anti variant awards a terminal board to the minority stone")
+		and _assert(draw_unchanged_ok, "anti variant keeps equal terminal counts as a draw")
+		and _assert(evaluation_inverts_ok, "anti variant reverses heuristic and exact terminal scores")
+		and _assert(anti_choice_ok, "anti AI avoids the standard corner and keeps fewer discs")
+	)
+
+
 func _move_flip_and_mobility(
 	board: Array,
 	stone: int,
@@ -3059,6 +3180,116 @@ func _test_difficulty_description_subtitle() -> bool:
 		and _assert(english_updates_ok, "difficulty buttons update the English subtitle immediately")
 		and _assert(hidden_ok, "difficulty subtitle is not a persistent HUD element")
 		and _assert(reopen_ok, "difficulty subtitle matches the current choice when settings reopen")
+	)
+
+
+func _test_anti_reversi_ui() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var suffix := str(OS.get_process_id())
+	var prefs_path := "user://prefs_anti_reversi_%s.json" % suffix
+	var save_path := "user://save_anti_reversi_%s.json" % suffix
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	main._prefs_path = prefs_path
+	main._save_path = save_path
+	add_child(main)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var section: Node = main.settings_panel.find_child("VariantSection", true, false)
+	var standard_button := main.variant_buttons[0].get("button") as Button
+	var anti_button := main.variant_buttons[1].get("button") as Button
+	var settings_only_ok: bool = main.variant_buttons.size() == 2 \
+		and section != null \
+		and standard_button != null \
+		and anti_button != null \
+		and section.is_ancestor_of(standard_button) \
+		and section.is_ancestor_of(anti_button) \
+		and main.settings_panel.is_ancestor_of(section) \
+		and !standard_button.is_visible_in_tree()
+	var labels_ok: bool = str(MainScript.TEXT["ko"].get("variant_setting", "")) == "규칙" \
+		and str(MainScript.TEXT["ko"].get("variant_standard", "")) == "표준" \
+		and str(MainScript.TEXT["ko"].get("variant_anti", "")) == "역" \
+		and str(MainScript.TEXT["en"].get("variant_setting", "")) == "RULES" \
+		and str(MainScript.TEXT["en"].get("variant_standard", "")) == "STANDARD" \
+		and str(MainScript.TEXT["en"].get("variant_anti", "")) == "ANTI"
+
+	main.state = ReversiEngine.create_new_game(ReversiEngine.BLACK, "MEDIUM")
+	ReversiEngine.play_move(main.state, 2, 3)
+	main._render()
+	var active_game_had_history: bool = main.state.get("move_history", []).size() == 1
+	main._show_settings_menu()
+	await get_tree().process_frame
+	anti_button.emit_signal("pressed")
+	await get_tree().process_frame
+	var fresh_counts := ReversiEngine.count_pieces(main.state.get("board", []))
+	var stored: Dictionary = main._load_preferences()
+	var change_restarts_ok: bool = active_game_had_history \
+		and main._current_variant() == ReversiEngine.VARIANT_ANTI \
+		and main.state.get("move_history", []).is_empty() \
+		and int(fresh_counts["black"]) == 2 \
+		and int(fresh_counts["white"]) == 2 \
+		and main.settings_overlay.visible \
+		and _choice_group_has_active_id(main.variant_buttons, ReversiEngine.VARIANT_ANTI)
+	var persistence_ok: bool = str(stored.get("settings", {}).get("variant", "")) \
+		== ReversiEngine.VARIANT_ANTI
+
+	var majority_board: Array = []
+	for x in range(ReversiEngine.BOARD_SIZE):
+		var row: Array = []
+		for y in range(ReversiEngine.BOARD_SIZE):
+			row.append(
+				ReversiEngine.WHITE
+				if x == ReversiEngine.BOARD_SIZE - 1 and y == ReversiEngine.BOARD_SIZE - 1
+				else ReversiEngine.BLACK
+			)
+		majority_board.append(row)
+	var anti_result := ReversiEngine.create_state_from_board(
+		majority_board,
+		ReversiEngine.BLACK,
+		ReversiEngine.WHITE,
+		"MEDIUM",
+	)
+	var result_settings: Dictionary = main._current_settings()
+	result_settings["variant"] = ReversiEngine.VARIANT_ANTI
+	anti_result["settings"] = result_settings
+	ReversiEngine._refresh_result(anti_result)
+	main.state = anti_result
+	main.player_stone = ReversiEngine.WHITE
+	main._interstitial_shown_this_game = true
+	main._result_animation_played_this_game = true
+	main._update_result_overlay(false)
+	var result_overlay_ok: bool = int(main.state.get("winner", ReversiEngine.NONE)) \
+		== ReversiEngine.WHITE \
+		and main.result_overlay.visible \
+		and main.result_title_label.text == main._t("result_win") \
+		and main.result_detail_label.text == main._t("result_detail") % [63, 1]
+
+	main.queue_free()
+	await get_tree().process_frame
+	var restored = main_scene.instantiate()
+	restored._prefs_path = prefs_path
+	restored._save_path = save_path
+	add_child(restored)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var restore_ok: bool = restored._current_variant() == ReversiEngine.VARIANT_ANTI \
+		and _choice_group_has_active_id(restored.variant_buttons, ReversiEngine.VARIANT_ANTI)
+	restored.queue_free()
+	await get_tree().process_frame
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+
+	return (
+		_assert(settings_only_ok, "variant selector stays inside the existing settings overlay")
+		and _assert(labels_ok, "variant selector has complete Korean and English labels")
+		and _assert(change_restarts_ok, "changing variant replaces an active game and keeps settings open")
+		and _assert(persistence_ok, "anti variant saves immediately in preferences")
+		and _assert(result_overlay_ok, "anti winner drives the existing result overlay verdict")
+		and _assert(restore_ok, "anti variant restores after restart")
 	)
 
 

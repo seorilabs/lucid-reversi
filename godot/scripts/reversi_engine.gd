@@ -25,6 +25,9 @@ const DIFFICULTY_DEPTH := {
 	"HARD": 5,
 }
 const OPPONENT_MODES := ["ai", "local"]
+const VARIANT_STANDARD := "standard"
+const VARIANT_ANTI := "anti"
+const VARIANTS := [VARIANT_STANDARD, VARIANT_ANTI]
 const ENDGAME_EXACT_EMPTIES := {
 	"MEDIUM": 6,
 	"HARD": 8,
@@ -50,6 +53,7 @@ static func default_settings() -> Dictionary:
 		"show_moves": true,
 		"show_flip_counts": false,
 		"opponent_mode": "ai",
+		"variant": VARIANT_STANDARD,
 		"board_size": DEFAULT_BOARD_SIZE,
 	}
 
@@ -66,11 +70,18 @@ static func normalize_settings(raw_settings: Dictionary) -> Dictionary:
 	normalized["opponent_mode"] = normalize_opponent_mode(
 		str(raw_settings.get("opponent_mode", "ai"))
 	)
+	normalized["variant"] = normalize_variant(
+		str(raw_settings.get("variant", VARIANT_STANDARD))
+	)
 	return normalized
 
 
 static func normalize_opponent_mode(value: String) -> String:
 	return value if OPPONENT_MODES.has(value) else "ai"
+
+
+static func normalize_variant(value: String) -> String:
+	return value if VARIANTS.has(value) else VARIANT_STANDARD
 
 
 static func normalize_board_size(value: int) -> int:
@@ -353,6 +364,7 @@ static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> 
 	var empty_count := _count_empty_cells(board)
 	var exact_threshold := int(ENDGAME_EXACT_EMPTIES.get(difficulty, -1))
 	var use_exact_search := exact_threshold >= 0 and empty_count <= exact_threshold
+	var variant := _variant_from_state(state)
 	var best_score := SEARCH_MIN
 	var best_moves: Array = []
 	for move in moves:
@@ -367,6 +379,7 @@ static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> 
 				SEARCH_MIN,
 				SEARCH_MAX,
 				search_stats,
+				variant,
 			)
 			if use_exact_search
 			else _search_score(
@@ -377,6 +390,7 @@ static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> 
 				SEARCH_MIN,
 				SEARCH_MAX,
 				search_stats,
+				variant,
 			)
 		)
 		if score > best_score:
@@ -724,12 +738,17 @@ static func _refresh_result(state: Dictionary) -> void:
 		state["current_turn"] = NONE
 		state["valid_moves"] = []
 		var counts := count_pieces(board)
+		var majority_winner := NONE
 		if int(counts["black"]) > int(counts["white"]):
-			state["winner"] = BLACK
+			majority_winner = BLACK
 		elif int(counts["white"]) > int(counts["black"]):
-			state["winner"] = WHITE
-		else:
+			majority_winner = WHITE
+		if majority_winner == NONE:
 			state["winner"] = NONE
+		elif _variant_from_state(state) == VARIANT_ANTI:
+			state["winner"] = opponent(majority_winner)
+		else:
+			state["winner"] = majority_winner
 	else:
 		state["game_over"] = false
 		state["winner"] = NONE
@@ -753,16 +772,17 @@ static func _search_score(
 	alpha: int,
 	beta: int,
 	search_stats: Dictionary = {},
+	variant: String = VARIANT_STANDARD,
 ) -> int:
 	_record_search_stat(search_stats, "nodes")
 	if depth <= 0 or turn == NONE:
-		return _evaluate_board(board, root_stone)
+		return _evaluate_board(board, root_stone, variant)
 
 	var moves := get_valid_moves(board, turn)
 	if moves.is_empty():
 		var other := opponent(turn)
 		if get_valid_moves(board, other).is_empty():
-			return _evaluate_board(board, root_stone)
+			return _evaluate_board(board, root_stone, variant)
 		return _search_score(
 			board,
 			other,
@@ -771,6 +791,7 @@ static func _search_score(
 			alpha,
 			beta,
 			search_stats,
+			variant,
 		)
 
 	var maximizing := turn == root_stone
@@ -787,6 +808,7 @@ static func _search_score(
 			alpha,
 			beta,
 			search_stats,
+			variant,
 		)
 		if maximizing:
 			best = max(best, score)
@@ -810,18 +832,19 @@ static func _search_exact_score(
 	alpha: int,
 	beta: int,
 	search_stats: Dictionary = {},
+	variant: String = VARIANT_STANDARD,
 ) -> int:
 	_record_search_stat(search_stats, "exact_nodes")
 	if turn == NONE:
 		_record_search_stat(search_stats, "exact_terminals")
-		return _terminal_piece_difference(board, root_stone)
+		return _terminal_piece_difference(board, root_stone, variant)
 
 	var moves := get_valid_moves(board, turn)
 	if moves.is_empty():
 		var other := opponent(turn)
 		if get_valid_moves(board, other).is_empty():
 			_record_search_stat(search_stats, "exact_terminals")
-			return _terminal_piece_difference(board, root_stone)
+			return _terminal_piece_difference(board, root_stone, variant)
 		_record_search_stat(search_stats, "exact_passes")
 		return _search_exact_score(
 			board,
@@ -830,6 +853,7 @@ static func _search_exact_score(
 			alpha,
 			beta,
 			search_stats,
+			variant,
 		)
 
 	var maximizing := turn == root_stone
@@ -845,6 +869,7 @@ static func _search_exact_score(
 			alpha,
 			beta,
 			search_stats,
+			variant,
 		)
 		if maximizing:
 			best = max(best, score)
@@ -861,13 +886,22 @@ static func _search_exact_score(
 	return best
 
 
-static func _terminal_piece_difference(board: Array, stone: int) -> int:
+static func _terminal_piece_difference(
+	board: Array,
+	stone: int,
+	variant: String = VARIANT_STANDARD,
+) -> int:
 	var counts := count_pieces(board)
 	var score := int(counts["black"]) - int(counts["white"])
-	return score if stone == BLACK else -score
+	var perspective_score := score if stone == BLACK else -score
+	return -perspective_score if normalize_variant(variant) == VARIANT_ANTI else perspective_score
 
 
-static func _evaluate_board(board: Array, stone: int) -> int:
+static func _evaluate_board(
+	board: Array,
+	stone: int,
+	variant: String = VARIANT_STANDARD,
+) -> int:
 	var board_size := get_board_size(board)
 	if board_size == 0:
 		return 0
@@ -931,7 +965,14 @@ static func _evaluate_board(board: Array, stone: int) -> int:
 		]:
 			score += _weighted_cell(board, point, stone, corner_path_value)
 
-	return score
+	return -score if normalize_variant(variant) == VARIANT_ANTI else score
+
+
+static func _variant_from_state(state: Dictionary) -> String:
+	var settings_value = state.get("settings", {})
+	if typeof(settings_value) != TYPE_DICTIONARY:
+		return VARIANT_STANDARD
+	return normalize_variant(str((settings_value as Dictionary).get("variant", VARIANT_STANDARD)))
 
 
 static func _disc_weight_for_board(board: Array) -> int:
