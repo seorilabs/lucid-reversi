@@ -79,6 +79,13 @@ const TEXT := {
 		"restart": "다시",
 		"board": "보드",
 		"share_result": "공유",
+		"replay": "리플레이",
+		"replay_previous": "이전",
+		"replay_play": "재생",
+		"replay_pause": "일시정지",
+		"replay_next": "다음",
+		"replay_close": "닫기",
+		"replay_step": "%d / %d수",
 		"settings": "설정",
 		"close": "닫기",
 		"sound": "소리",
@@ -178,6 +185,13 @@ const TEXT := {
 		"restart": "RESTART",
 		"board": "BOARD",
 		"share_result": "SHARE",
+		"replay": "REPLAY",
+		"replay_previous": "BACK",
+		"replay_play": "PLAY",
+		"replay_pause": "PAUSE",
+		"replay_next": "NEXT",
+		"replay_close": "CLOSE",
+		"replay_step": "MOVE %d / %d",
 		"settings": "SET",
 		"close": "CLOSE",
 		"sound": "SOUND",
@@ -277,6 +291,13 @@ const TEXT := {
 		"restart": "もう一度",
 		"board": "盤面",
 		"share_result": "共有",
+		"replay": "リプレイ",
+		"replay_previous": "戻る",
+		"replay_play": "再生",
+		"replay_pause": "一時停止",
+		"replay_next": "次へ",
+		"replay_close": "閉じる",
+		"replay_step": "%d / %d手",
 		"settings": "設定",
 		"close": "閉じる",
 		"sound": "サウンド",
@@ -385,6 +406,13 @@ var _result_entry_animation_count := 0
 var _winner_emphasis_animation_count := 0
 var _hinted_move: Dictionary = {}
 var _share_result_probe: Callable
+var replay_active := false
+var replay_playing := false
+var replay_step := 0
+var replay_history: Array = []
+var replay_original_state: Dictionary = {}
+var _replay_generation := 0
+var _replay_transitioning := false
 
 var cell_buttons: Array = []
 var cell_piece_views: Array = []
@@ -456,7 +484,14 @@ var result_score_label: Label
 var result_detail_label: Label
 var result_stats_label: Label
 var result_move_list_button: Button
+var result_replay_button: Button
 var result_share_button: Button
+var replay_controls: PanelContainer
+var replay_step_label: Label
+var replay_previous_button: Button
+var replay_play_button: Button
+var replay_next_button: Button
+var replay_close_button: Button
 var new_game_confirmation_overlay: ColorRect
 var new_game_confirmation_title_label: Label
 var new_game_confirmation_body_label: Label
@@ -557,6 +592,7 @@ func _build_ui() -> void:
 	_build_score_strip(root)
 	_build_status_bar(root)
 	_build_board(root)
+	_build_replay_controls(root)
 	_build_play_focus_strip(root)
 	_build_result_overlay()
 	_build_settings_overlay()
@@ -988,6 +1024,70 @@ func _make_board_coordinate_label(text: String, minimum_size: Vector2) -> Label:
 	return label
 
 
+func _build_replay_controls(root: VBoxContainer) -> void:
+	replay_controls = PanelContainer.new()
+	replay_controls.name = "ReplayControls"
+	replay_controls.visible = replay_active
+	replay_controls.custom_minimum_size = Vector2(0, 64)
+	replay_controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	replay_controls.add_theme_stylebox_override(
+		"panel",
+		_make_style(_theme_color("hud_dark"), 1, _theme_color("accent"), 8),
+	)
+	root.add_child(replay_controls)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 6)
+	replay_controls.add_child(margin)
+
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 6)
+	margin.add_child(row)
+
+	replay_previous_button = _make_action_button(
+		_t("replay_previous"),
+		func() -> void: _set_replay_step(replay_step - 1),
+	)
+	replay_previous_button.name = "ReplayPreviousButton"
+	row.add_child(replay_previous_button)
+
+	replay_play_button = _make_action_button(
+		_t("replay_play"),
+		func() -> void: _toggle_replay_playback(),
+		true,
+	)
+	replay_play_button.name = "ReplayPlayButton"
+	row.add_child(replay_play_button)
+
+	replay_next_button = _make_action_button(
+		_t("replay_next"),
+		func() -> void: _advance_replay_step(true),
+	)
+	replay_next_button.name = "ReplayNextButton"
+	row.add_child(replay_next_button)
+
+	replay_step_label = Label.new()
+	replay_step_label.name = "ReplayStepLabel"
+	replay_step_label.custom_minimum_size = Vector2(106, ACTION_BUTTON_HEIGHT)
+	replay_step_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	replay_step_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	replay_step_label.add_theme_font_size_override("font_size", _font_size(16))
+	replay_step_label.add_theme_color_override("font_color", _theme_color("text_primary"))
+	_apply_text_visibility(replay_step_label, 1, _theme_color("text_primary"))
+	row.add_child(replay_step_label)
+
+	replay_close_button = _make_action_button(
+		_t("replay_close"),
+		func() -> void: _close_replay(),
+	)
+	replay_close_button.name = "ReplayCloseButton"
+	row.add_child(replay_close_button)
+
+
 func _build_play_focus_strip(root: VBoxContainer) -> void:
 	adaptive_play_focus_slot = MarginContainer.new()
 	adaptive_play_focus_slot.name = "AdaptivePlayFocusSlot"
@@ -1188,6 +1288,16 @@ func _build_result_overlay() -> void:
 	result_stats_label.add_theme_color_override("font_color", _theme_color("text_primary"))
 	_apply_text_visibility(result_stats_label, 1, _theme_color("text_primary"))
 	box.add_child(result_stats_label)
+
+	result_replay_button = _make_action_button(
+		_t("replay"),
+		func() -> void: _enter_replay(),
+		true,
+	)
+	result_replay_button.name = "ResultReplayButton"
+	result_replay_button.custom_minimum_size = Vector2(300, ACTION_BUTTON_HEIGHT)
+	result_replay_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(result_replay_button)
 
 	result_move_list_button = _make_action_button(
 		_t("move_list_title"),
@@ -2120,6 +2230,188 @@ func _has_game_in_progress() -> bool:
 	return !bool(state.get("game_over", false)) and !state.get("move_history", []).is_empty()
 
 
+static func replay_state_at_step(source_state: Dictionary, target_step: int) -> Dictionary:
+	var history_value = source_state.get("move_history", [])
+	if typeof(history_value) != TYPE_ARRAY:
+		return {}
+	var history: Array = history_value
+	if target_step < 0 or target_step > history.size():
+		return {}
+	var source_board_value = source_state.get("board", [])
+	if typeof(source_board_value) != TYPE_ARRAY:
+		return {}
+	var board_size := ReversiEngine.get_board_size(source_board_value)
+	if board_size == 0:
+		return {}
+	var replay_state := ReversiEngine.create_new_game(
+		int(source_state.get("player_stone", ReversiEngine.BLACK)),
+		str(source_state.get("difficulty", "MEDIUM")),
+		board_size,
+		int(source_state.get("game_seed", -1)),
+	)
+	var source_settings_value = source_state.get("settings", {})
+	if typeof(source_settings_value) == TYPE_DICTIONARY:
+		replay_state["settings"] = (source_settings_value as Dictionary).duplicate(true)
+	var source_stats_value = source_state.get("stats", {})
+	if typeof(source_stats_value) == TYPE_DICTIONARY:
+		replay_state["stats"] = (source_stats_value as Dictionary).duplicate(true)
+	for index in range(target_step):
+		var record_value = history[index]
+		if typeof(record_value) != TYPE_DICTIONARY:
+			return {}
+		var record: Dictionary = record_value
+		if !record.has("x") or !record.has("y") or !record.has("stone"):
+			return {}
+		if int(record["stone"]) != int(replay_state.get("current_turn", ReversiEngine.NONE)):
+			return {}
+		var move_result := ReversiEngine.play_move(
+			replay_state,
+			int(record["x"]),
+			int(record["y"]),
+		)
+		if !bool(move_result.get("ok", false)):
+			return {}
+	return replay_state
+
+
+static func replay_history_valid(source_state: Dictionary) -> bool:
+	var history_value = source_state.get("move_history", [])
+	if !bool(source_state.get("game_over", false)) \
+		or typeof(history_value) != TYPE_ARRAY \
+		or (history_value as Array).is_empty():
+		return false
+	var replayed := replay_state_at_step(source_state, (history_value as Array).size())
+	return !replayed.is_empty() \
+		and replayed.get("board", []) == source_state.get("board", []) \
+		and bool(replayed.get("game_over", false)) \
+		and int(replayed.get("winner", ReversiEngine.NONE)) \
+			== int(source_state.get("winner", ReversiEngine.NONE))
+
+
+func _enter_replay() -> void:
+	if replay_active or !replay_history_valid(state):
+		return
+	replay_original_state = state.duplicate(true)
+	replay_history = state.get("move_history", []).duplicate(true)
+	var initial_state := replay_state_at_step(replay_original_state, 0)
+	if initial_state.is_empty():
+		replay_original_state.clear()
+		replay_history.clear()
+		return
+	replay_active = true
+	replay_playing = false
+	replay_step = 0
+	_replay_generation += 1
+	state = initial_state
+	input_locked = true
+	result_overlay.visible = false
+	_render()
+
+
+func _set_replay_step(target_step: int) -> void:
+	if !replay_active or _replay_transitioning:
+		return
+	replay_playing = false
+	_replay_generation += 1
+	var clamped_step := clampi(target_step, 0, replay_history.size())
+	var next_state := replay_state_at_step(replay_original_state, clamped_step)
+	if next_state.is_empty():
+		return
+	state = next_state
+	replay_step = clamped_step
+	input_locked = true
+	_render()
+
+
+func _advance_replay_step(animate: bool = true) -> void:
+	if !replay_active or _replay_transitioning or replay_step >= replay_history.size():
+		return
+	var record_value = replay_history[replay_step]
+	if typeof(record_value) != TYPE_DICTIONARY:
+		replay_playing = false
+		_update_replay_controls()
+		return
+	var record: Dictionary = record_value
+	var before_board := ReversiEngine.clone_board(state.get("board", []))
+	var result := ReversiEngine.play_move(state, int(record.get("x", -1)), int(record.get("y", -1)))
+	if !bool(result.get("ok", false)):
+		replay_playing = false
+		_update_replay_controls()
+		return
+	replay_step += 1
+	_replay_transitioning = true
+	input_locked = true
+	_render()
+	if animate:
+		await get_tree().process_frame
+		await _animate_move_result(before_board, result)
+	_replay_transitioning = false
+	input_locked = true
+	_render()
+
+
+func _toggle_replay_playback() -> void:
+	if !replay_active:
+		return
+	if replay_playing:
+		replay_playing = false
+		_replay_generation += 1
+		_update_replay_controls()
+		return
+	if _replay_transitioning:
+		return
+	if replay_step >= replay_history.size():
+		_set_replay_step(0)
+	replay_playing = true
+	_replay_generation += 1
+	var generation := _replay_generation
+	_update_replay_controls()
+	while (
+		replay_active
+		and replay_playing
+		and generation == _replay_generation
+		and replay_step < replay_history.size()
+	):
+		await _advance_replay_step(true)
+		if replay_playing and replay_step < replay_history.size():
+			await get_tree().create_timer(0.18).timeout
+	if generation == _replay_generation:
+		replay_playing = false
+		_update_replay_controls()
+
+
+func _close_replay() -> void:
+	if !replay_active:
+		return
+	replay_playing = false
+	_replay_generation += 1
+	replay_active = false
+	_replay_transitioning = false
+	state = replay_original_state.duplicate(true)
+	replay_original_state.clear()
+	replay_history.clear()
+	replay_step = 0
+	input_locked = false
+	_render()
+
+
+func _update_replay_controls() -> void:
+	if replay_controls == null:
+		return
+	replay_controls.visible = replay_active
+	if gameplay_strip != null:
+		gameplay_strip.visible = !replay_active
+	if !replay_active:
+		return
+	replay_step_label.text = _t("replay_step") % [replay_step, replay_history.size()]
+	replay_previous_button.disabled = _replay_transitioning or replay_step <= 0
+	replay_next_button.disabled = _replay_transitioning or replay_step >= replay_history.size()
+	replay_play_button.disabled = replay_history.is_empty() \
+		or (_replay_transitioning and !replay_playing)
+	replay_play_button.text = _t("replay_pause") if replay_playing else _t("replay_play")
+	replay_close_button.disabled = _replay_transitioning
+
+
 func _request_new_game(stone: int) -> void:
 	if !_has_game_in_progress():
 		_start_new_game(stone)
@@ -2497,6 +2789,7 @@ func _render() -> void:
 		undo_button.disabled = !_can_undo()
 	if hint_button != null:
 		hint_button.disabled = !_can_show_hint()
+	_update_replay_controls()
 
 	var board: Array = state.get("board", [])
 	var valid_moves: Array = state.get("valid_moves", [])
@@ -2508,7 +2801,9 @@ func _render() -> void:
 			var is_last := _is_last_move(x, y)
 			_render_cell(x, y, piece, is_valid, is_last)
 
-	if bool(state.get("game_over", false)):
+	if replay_active:
+		result_overlay.visible = false
+	elif bool(state.get("game_over", false)):
 		_update_result_overlay()
 	else:
 		result_overlay.visible = false
@@ -2832,6 +3127,8 @@ func _update_result_overlay(persist_stats: bool = true) -> void:
 		white_score if _is_local_game() or player_stone == ReversiEngine.BLACK else black_score,
 	]
 	result_detail_label.text = _t("result_detail") % [black_score, white_score]
+	if result_replay_button != null:
+		result_replay_button.disabled = !replay_history_valid(state)
 	_show_result_overlay(winner)
 	# game_over 는 광고와 같은 1회 가드 안에서만 전송한다.
 	# (오버레이는 게임 종료 후 입력·AI턴 진입마다 재호출되므로 밖에 두면 중복 집계된다.)
