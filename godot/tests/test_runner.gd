@@ -67,6 +67,7 @@ func _ready() -> void:
 	ok = _test_initial_valid_moves() and ok
 	ok = _test_first_move_flip() and ok
 	ok = _test_flip_count_is_pure() and ok
+	ok = _test_game_highlight_summary() and ok
 	ok = _test_pass_turn_fixture() and ok
 	ok = _test_game_over_full_board() and ok
 	ok = _test_board_size_settings_and_rules() and ok
@@ -106,6 +107,8 @@ func _ready() -> void:
 	ok = move_list_ok and ok
 	var result_share_ok := await _test_result_share_button()
 	ok = result_share_ok and ok
+	var game_highlights_ok := await _test_game_highlights_ui_and_restore()
+	ok = game_highlights_ok and ok
 	var replay_ok := await _test_finished_game_replay()
 	ok = replay_ok and ok
 	var hint_button_ok := await _test_hint_button()
@@ -755,6 +758,57 @@ func _test_flip_count_is_pure() -> bool:
 		and _assert(pure_ok, "flip count leaves the board unchanged")
 		and _assert(occupied_ok and invalid_ok, "flip count safely rejects invalid moves")
 		and _assert(preview_count == result.get("flipped", []).size(), "flip count matches the applied move result")
+	)
+
+
+func _test_game_highlight_summary() -> bool:
+	var fixture_history: Array = [
+		{"x": 2, "y": 3, "stone": ReversiEngine.BLACK},
+		{"x": 2, "y": 2, "stone": ReversiEngine.WHITE},
+		{"x": 2, "y": 1, "stone": ReversiEngine.BLACK},
+		{"x": 1, "y": 1, "stone": ReversiEngine.WHITE},
+		{"x": 0, "y": 1, "stone": ReversiEngine.BLACK},
+		{"x": 0, "y": 0, "stone": ReversiEngine.WHITE},
+		{"x": 3, "y": 2, "stone": ReversiEngine.BLACK},
+		{"x": 0, "y": 2, "stone": ReversiEngine.WHITE},
+		{"x": 1, "y": 2, "stone": ReversiEngine.BLACK},
+		{"x": 1, "y": 3, "stone": ReversiEngine.WHITE},
+		{"x": 0, "y": 3, "stone": ReversiEngine.BLACK},
+		{"x": 0, "y": 4, "stone": ReversiEngine.WHITE},
+		{"x": 1, "y": 0, "stone": ReversiEngine.BLACK},
+		{"x": 2, "y": 0, "stone": ReversiEngine.WHITE},
+		{"x": 4, "y": 5, "stone": ReversiEngine.BLACK},
+	]
+	var history_before := fixture_history.duplicate(true)
+	var summary := ReversiEngine.summarize_move_history(fixture_history, 8)
+	var max_flip_move: Dictionary = summary.get("max_flip_move", {})
+	var corrupt_history := fixture_history.duplicate(true)
+	(corrupt_history[3] as Dictionary)["stone"] = ReversiEngine.BLACK
+	var invalid_summary := ReversiEngine.summarize_move_history(corrupt_history, 8)
+	return (
+		_assert(fixture_history == history_before, "game highlight summary leaves move history unchanged")
+		and _assert(
+			int(summary.get("moves_replayed", 0)) == 15,
+			"game highlight summary replays the complete fixture",
+		)
+		and _assert(
+			int(summary.get("max_flip_count", 0)) == 2
+				and int(max_flip_move.get("x", -1)) == 0
+				and int(max_flip_move.get("y", -1)) == 3
+				and int(max_flip_move.get("stone", ReversiEngine.NONE)) == ReversiEngine.BLACK,
+			"game highlight summary finds the biggest flip and coordinate",
+		)
+		and _assert(
+			int(summary.get("corner_black", -1)) == 0
+				and int(summary.get("corner_white", -1)) == 1,
+			"game highlight summary counts final occupied corners",
+		)
+		and _assert(
+			int(summary.get("peak_lead", 0)) == 5
+				and int(summary.get("peak_lead_stone", ReversiEngine.NONE)) == ReversiEngine.BLACK,
+			"game highlight summary finds the peak disc lead",
+		)
+		and _assert(invalid_summary.is_empty(), "game highlight summary rejects corrupt move history")
 	)
 
 
@@ -4482,6 +4536,103 @@ func _test_result_share_button() -> bool:
 		and _assert(english_ok, "result share button and payload localize to English")
 		and _assert(i18n_ok, "result share strings cover every supported locale")
 		and _assert(unavailable_noop_ok, "result share safely no-ops without a channel")
+	)
+
+
+func _test_game_highlights_ui_and_restore() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var completed_state := ReversiEngine.create_new_game(
+		ReversiEngine.BLACK,
+		"EASY",
+		ReversiEngine.BOARD_SIZE,
+		600060,
+	)
+	var guard := 0
+	while !bool(completed_state.get("game_over", false)) and guard < 100:
+		var moves: Array = completed_state.get("valid_moves", [])
+		if moves.is_empty():
+			break
+		var move: Dictionary = moves[0]
+		var result := ReversiEngine.play_move(
+			completed_state,
+			int(move["x"]),
+			int(move["y"]),
+		)
+		if !bool(result.get("ok", false)):
+			break
+		guard += 1
+	var completed_summary := ReversiEngine.summarize_move_history(
+		completed_state.get("move_history", []),
+		ReversiEngine.BOARD_SIZE,
+	)
+	var completed_fixture_ok: bool = bool(completed_state.get("game_over", false)) \
+		and int(completed_summary.get("moves_replayed", 0)) == 60 \
+		and int(completed_summary.get("max_flip_count", 0)) == 6 \
+		and int(completed_summary.get("corner_black", -1)) == 2 \
+		and int(completed_summary.get("corner_white", -1)) == 2 \
+		and int(completed_summary.get("peak_lead", 0)) == 32 \
+		and int(completed_summary.get("peak_lead_stone", ReversiEngine.NONE)) == ReversiEngine.WHITE
+
+	var suffix := str(OS.get_process_id())
+	var prefs_path := "user://prefs_highlights_%s.json" % suffix
+	var save_path := "user://save_highlights_%s.json" % suffix
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	var save_file := FileAccess.open(save_path, FileAccess.WRITE)
+	save_file.store_string(JSON.stringify(ReversiEngine.state_to_save_dict(completed_state)))
+	save_file.close()
+
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	main._prefs_path = prefs_path
+	main._save_path = save_path
+	add_child(main)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var restored_korean_ok: bool = bool(main.state.get("game_over", false)) \
+		and main.result_overlay.visible \
+		and main.result_highlights_panel.visible \
+		and main.result_overlay.is_ancestor_of(main.result_highlights_panel) \
+		and main.result_highlights_title_label.text == "이 판 하이라이트" \
+		and main.result_highlights_label.text == (
+			"최대 뒤집기 · 흑 H1 · 6개\n"
+			+ "코너 확보 · 흑 2 / 백 2\n"
+			+ "최대 우세 · 백 +32"
+		)
+
+	main._set_locale("en", false)
+	await get_tree().process_frame
+	var english_ok: bool = main.result_highlights_panel.visible \
+		and main.result_highlights_title_label.text == "GAME HIGHLIGHTS" \
+		and main.result_highlights_label.text == (
+			"BIGGEST FLIP · BLACK H1 · 6\n"
+			+ "CORNERS · BLACK 2 / WHITE 2\n"
+			+ "PEAK LEAD · WHITE +32"
+		)
+	var locale_keys_ok := true
+	for locale_id in ["ko", "en", "ja"]:
+		var locale_texts: Dictionary = MainScript.TEXT[locale_id]
+		for key in [
+			"result_highlights_title",
+			"result_highlight_flip",
+			"result_highlight_corners",
+			"result_highlight_lead",
+		]:
+			locale_keys_ok = locale_keys_ok and !str(locale_texts.get(key, "")).is_empty()
+
+	main.state["move_history"] = []
+	main._render()
+	var missing_history_hides_ok: bool = !main.result_highlights_panel.visible
+	main.queue_free()
+	await get_tree().process_frame
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	return (
+		_assert(completed_fixture_ok, "game highlight completed fixture has stable expected metrics")
+		and _assert(restored_korean_ok, "restored completed game shows three Korean highlight lines in the result modal")
+		and _assert(english_ok, "game highlight card rerenders in English after a locale change")
+		and _assert(locale_keys_ok, "game highlight strings cover every supported locale")
+		and _assert(missing_history_hides_ok, "game highlight card hides when replay history is unavailable")
 	)
 
 

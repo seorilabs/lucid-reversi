@@ -241,6 +241,81 @@ static func play_move(state: Dictionary, x: int, y: int) -> Dictionary:
 	}
 
 
+static func summarize_move_history(
+	move_history_value,
+	board_size: int = DEFAULT_BOARD_SIZE,
+) -> Dictionary:
+	if typeof(move_history_value) != TYPE_ARRAY:
+		return {}
+	var move_history: Array = move_history_value
+	if move_history.is_empty() or !SUPPORTED_BOARD_SIZES.has(board_size):
+		return {}
+
+	var replay_state := create_new_game(BLACK, "MEDIUM", board_size, 1)
+	var max_flip_count := 0
+	var max_flip_move: Dictionary = {}
+	var peak_lead := 0
+	var peak_lead_stone := NONE
+	for index in range(move_history.size()):
+		var record_value = move_history[index]
+		if typeof(record_value) != TYPE_DICTIONARY:
+			return {}
+		var record: Dictionary = record_value
+		if !record.has("x") or !record.has("y") or !record.has("stone"):
+			return {}
+		var stone := int(record["stone"])
+		if stone != int(replay_state.get("current_turn", NONE)):
+			return {}
+		var move_result := play_move(
+			replay_state,
+			int(record["x"]),
+			int(record["y"]),
+		)
+		if !bool(move_result.get("ok", false)):
+			return {}
+		var flip_count: int = move_result.get("flipped", []).size()
+		if flip_count > max_flip_count:
+			max_flip_count = flip_count
+			max_flip_move = {
+				"x": int(record["x"]),
+				"y": int(record["y"]),
+				"stone": stone,
+				"turn_index": index,
+			}
+		var counts := count_pieces(replay_state.get("board", []))
+		var lead := int(counts["black"]) - int(counts["white"])
+		if absi(lead) > peak_lead:
+			peak_lead = absi(lead)
+			peak_lead_stone = BLACK if lead > 0 else WHITE
+
+	if max_flip_move.is_empty():
+		return {}
+	var replay_board: Array = replay_state.get("board", [])
+	var last_index := board_size - 1
+	var corner_black := 0
+	var corner_white := 0
+	for corner in [
+		Vector2i(0, 0),
+		Vector2i(0, last_index),
+		Vector2i(last_index, 0),
+		Vector2i(last_index, last_index),
+	]:
+		var corner_stone := int(replay_board[corner.x][corner.y])
+		if corner_stone == BLACK:
+			corner_black += 1
+		elif corner_stone == WHITE:
+			corner_white += 1
+	return {
+		"moves_replayed": move_history.size(),
+		"max_flip_count": max_flip_count,
+		"max_flip_move": max_flip_move,
+		"corner_black": corner_black,
+		"corner_white": corner_white,
+		"peak_lead": peak_lead,
+		"peak_lead_stone": peak_lead_stone,
+	}
+
+
 static func can_undo_last_round(state: Dictionary) -> bool:
 	var player_stone := int(state.get("player_stone", NONE))
 	if player_stone != BLACK and player_stone != WHITE:
