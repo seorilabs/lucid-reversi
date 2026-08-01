@@ -18,7 +18,7 @@
 
 - Primary loop: AI 대전에서는 색상과 난이도를 고르고, 로컬 2인에서는 한 기기에서 흑·백을 번갈아 둔다.
 - Session length: 3-5분
-- Progression: EASY, MEDIUM, HARD 난이도를 바꿔 반복 대국하고 난이도별 로컬 승/무/패 전적을 누적한다.
+- Progression: BEGINNER, EASY, MEDIUM, HARD 난이도를 바꿔 반복 대국하고 난이도별 로컬 승/무/패 전적을 누적한다.
 - Failure/retry model: 승패/무승부 후 즉시 새 게임을 시작한다. 진행 중인 대국에서는 새 게임이나 돌 색 변경 전에 초기화 확인을 받는다.
 - Retention surface: 최근 대국 상태와 설정을 로컬 자동 저장/자동 복원한다.
 - Result learning: 종료 대국의 기보를 재생해 최대 뒤집기, 최종 코너 점유, 최대 돌 우세를 결과 모달 안에서 요약한다.
@@ -46,7 +46,7 @@
 - Must-have:
   - 6x6 / 8x8 / 10x10 AI 및 로컬 2인 리버시(기본 8x8)
   - 플레이어 선공/후공 선택
-  - 난이도 3단계: EASY depth 1, MEDIUM depth 3, HARD depth 5
+  - 난이도 4단계: BEGINNER 무작위/즉시 뒤집기, EASY depth 1, MEDIUM depth 3, HARD depth 5
   - 합법 수 표시, 패스 처리, 게임오버/승패/무승부 처리
   - 최근 대국/보드 상태 로컬 자동 저장/복원
   - 저음량 앰비언트 BGM 루프, 돌 착수 사운드, 일반 뒤집힘 사운드, 대량 뒤집힘 보너스 사운드와 상황별 햅틱
@@ -86,14 +86,15 @@
 
 ## AI
 
+- BEGINNER: 75% 확률로 seeded 합법 수를 선택하고, 나머지는 위치 가중 없이 즉시 뒤집는 돌 수만 비교한다.
 - EASY: depth 1
 - MEDIUM: depth 3
 - HARD: depth 5
-- MEDIUM switches to exact terminal search at 6 or fewer empty cells; HARD switches at 8 or fewer. EASY always keeps depth 1.
+- MEDIUM switches to exact terminal search at 6 or fewer empty cells; HARD switches at 8 or fewer. BEGINNER와 EASY는 각각의 얕은 선택 규칙을 유지한다.
 - Evaluation: mobility 차이와 corner/edge/near-corner 위치 가중을 반영한다. C-스퀘어와 X-스퀘어의 감점은 인접 코너가 열려 있을 때만 적용하고, 같은 색 돌이 해당 코너를 확보하면 해제한다. 돌 개수 차이는 빈칸 비율에 따라 개시 0·중반 1·종반 4 가중을 적용한다.
-- 모든 난이도에서 최선 평가가 같은 수는 대국별 seed로 균등 선택한다. 같은 seed와 보드 상태는 같은 수를 재현하며, 서로 다른 EASY 대국은 동점 최선 수 사이에서 전개가 달라질 수 있다.
+- EASY/MEDIUM/HARD에서 최선 평가가 같은 수는 대국별 seed로 균등 선택한다. 같은 seed와 보드 상태는 같은 수를 재현하며, 서로 다른 EASY 대국은 동점 최선 수 사이에서 전개가 달라질 수 있다. BEGINNER의 무작위 분기 또한 같은 seed와 보드 상태에서 재현된다.
 - EASY는 depth 1을 유지하고 차선 수를 선택하지 않으며, 동점 최선 수에만 seed 변주를 적용한다.
-- AI 응답의 목표 사고 지연은 EASY 0.16초, MEDIUM 0.32초, HARD 0.48초를 기준으로 각 ±0.04초의 작은 흔들림을 적용한다. 실제 탐색에 이미 소비한 시간은 목표 지연에서 차감해 HARD 탐색 뒤 대기를 중복 부과하지 않으며, 대기 중 게임·턴·수순이 바뀌면 계산된 수를 폐기한다.
+- AI 응답의 목표 사고 지연은 BEGINNER 0.10초, EASY 0.16초, MEDIUM 0.32초, HARD 0.48초를 기준으로 각 ±0.04초의 작은 흔들림을 적용한다. 실제 탐색에 이미 소비한 시간은 목표 지연에서 차감해 HARD 탐색 뒤 대기를 중복 부과하지 않으며, 대기 중 게임·턴·수순이 바뀌면 계산된 수를 폐기한다.
 
 ## Persistence / Codec
 

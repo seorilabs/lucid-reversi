@@ -22,12 +22,14 @@ const DISC_WEIGHT_ENDGAME := 4
 const POSITION_WEIGHT_OPENING := 2
 const POSITION_WEIGHT_MIDDLE := 1
 const POSITION_WEIGHT_ENDGAME := 1
+const BEGINNER_RANDOM_MOVE_RATE := 0.75
 const CODEC_MAGIC_0 := 0x4c
 const CODEC_MAGIC_1 := 0x52
 const CODEC_VERSION := 2
 const CODEC_HEADER_SIZE := 5
 
 const DIFFICULTY_DEPTH := {
+	"BEGINNER": 1,
 	"EASY": 1,
 	"MEDIUM": 3,
 	"HARD": 5,
@@ -117,14 +119,18 @@ static func default_preferences(default_locale: String = "ko") -> Dictionary:
 
 static func normalize_preferences(raw_preferences: Dictionary, default_locale: String = "ko") -> Dictionary:
 	var normalized := default_preferences(default_locale)
-	var difficulty := str(raw_preferences.get("difficulty", "MEDIUM"))
-	if DIFFICULTY_DEPTH.has(difficulty):
-		normalized["difficulty"] = difficulty
+	normalized["difficulty"] = normalize_difficulty(
+		str(raw_preferences.get("difficulty", "MEDIUM"))
+	)
 	normalized["how_to_play_seen"] = bool(raw_preferences.get("how_to_play_seen", false))
 	var raw_settings_value = raw_preferences.get("settings", {})
 	if typeof(raw_settings_value) == TYPE_DICTIONARY:
 		normalized["settings"] = normalize_settings(raw_settings_value)
 	return normalized
+
+
+static func normalize_difficulty(value: String) -> String:
+	return value if DIFFICULTY_DEPTH.has(value) else "MEDIUM"
 
 
 static func preferences_from_legacy_save(saved: Dictionary, default_locale: String = "ko") -> Dictionary:
@@ -138,6 +144,7 @@ static func preferences_from_legacy_save(saved: Dictionary, default_locale: Stri
 
 static func default_stats() -> Dictionary:
 	return {
+		"BEGINNER": {"wins": 0, "draws": 0, "losses": 0},
 		"EASY": {"wins": 0, "draws": 0, "losses": 0},
 		"MEDIUM": {"wins": 0, "draws": 0, "losses": 0},
 		"HARD": {"wins": 0, "draws": 0, "losses": 0},
@@ -165,6 +172,7 @@ static func create_new_game(
 	game_seed: int = -1,
 ) -> Dictionary:
 	var normalized_size := normalize_board_size(board_size)
+	difficulty = normalize_difficulty(difficulty)
 	var board := _initial_board(normalized_size)
 	var settings := default_settings()
 	settings["board_size"] = normalized_size
@@ -202,6 +210,7 @@ static func create_state_from_board(
 	var board_size := get_board_size(board)
 	if board_size == 0:
 		return {}
+	difficulty = normalize_difficulty(difficulty)
 	var settings := default_settings()
 	settings["board_size"] = board_size
 	var normalized_seed := game_seed if game_seed >= 0 else _generate_game_seed()
@@ -444,7 +453,9 @@ static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> 
 	if moves.is_empty():
 		return {}
 
-	var difficulty := str(state.get("difficulty", "MEDIUM"))
+	var difficulty := normalize_difficulty(str(state.get("difficulty", "MEDIUM")))
+	if difficulty == "BEGINNER":
+		return _choose_beginner_move(state, stone, moves, search_stats)
 	var depth := int(DIFFICULTY_DEPTH.get(difficulty, 3))
 	var empty_count := _count_empty_cells(board)
 	var exact_threshold := int(ENDGAME_EXACT_EMPTIES.get(difficulty, -1))
@@ -498,6 +509,37 @@ static func choose_ai_move(state: Dictionary, search_stats: Dictionary = {}) -> 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = _ai_tie_seed(state, stone)
 	return best_moves[rng.randi_range(0, best_moves.size() - 1)]
+
+
+static func _choose_beginner_move(
+	state: Dictionary,
+	stone: int,
+	moves: Array,
+	search_stats: Dictionary = {},
+) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = (_ai_tie_seed(state, stone) ^ 0x4B1D5EED) & 0x7fffffff
+	var choose_random := rng.randf() < BEGINNER_RANDOM_MOVE_RATE
+	if !search_stats.is_empty():
+		search_stats["beginner_random"] = choose_random
+		search_stats["candidate_count"] = moves.size()
+	if choose_random:
+		return moves[rng.randi_range(0, moves.size() - 1)]
+
+	# 입문 AI의 비무작위 분기는 위치·mobility 평가 없이 당장 뒤집는 돌 수만 본다.
+	var best_flip_count := -1
+	var greedy_moves: Array = []
+	var board: Array = state.get("board", [])
+	for move in moves:
+		var flip_count := count_flips(board, stone, int(move["x"]), int(move["y"]))
+		if flip_count > best_flip_count:
+			best_flip_count = flip_count
+			greedy_moves = [move]
+		elif flip_count == best_flip_count:
+			greedy_moves.append(move)
+	if !search_stats.is_empty():
+		search_stats["beginner_best_flip_count"] = best_flip_count
+	return greedy_moves[rng.randi_range(0, greedy_moves.size() - 1)]
 
 
 static func encode_board_payload(board: Array, current_turn: int, valid_moves: Array = []) -> PackedByteArray:
