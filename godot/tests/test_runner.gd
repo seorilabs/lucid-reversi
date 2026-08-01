@@ -112,6 +112,8 @@ func _ready() -> void:
 	ok = japanese_locale_ok and ok
 	var settings_menu_ok := await _test_settings_menu_keeps_playfield_focused()
 	ok = settings_menu_ok and ok
+	var consolidated_hud_ok := await _test_hud_information_consolidation()
+	ok = consolidated_hud_ok and ok
 	var difficulty_description_ok := await _test_difficulty_description_subtitle()
 	ok = difficulty_description_ok and ok
 	var anti_reversi_ui_ok := await _test_anti_reversi_ui()
@@ -407,7 +409,7 @@ func _test_ai_think_delay_profile_and_guard() -> bool:
 	)
 	var fallback_ok: bool = fallback_move == expected_fallback_move \
 		and threaded_main._ai_sync_fallback_count == 1
-	var no_new_hud_ok: bool = threaded_main.find_child("GameRoot", true, false).get_child_count() == 7
+	var no_new_hud_ok: bool = threaded_main.find_child("GameRoot", true, false).get_child_count() == 6
 	threaded_main.queue_free()
 	await get_tree().process_frame
 	return (
@@ -482,8 +484,7 @@ func _test_local_two_player_mode() -> bool:
 		and !main.white_button.visible \
 		and main.player_info_label.text == "흑 플레이어" \
 		and main.ai_info_label.text == "백 플레이어" \
-		and main.status_label.text == "흑 차례" \
-		and main.turn_badge.text == "흑"
+		and main.status_label.text == "흑 차례"
 
 	await main._on_cell_pressed(2, 3)
 	await get_tree().create_timer(0.55).timeout
@@ -2994,6 +2995,92 @@ func _test_japanese_locale_and_font_fallback() -> bool:
 	)
 
 
+func _test_hud_information_consolidation() -> bool:
+	var prefs_path := "user://prefs_hud_consolidation_%s.json" % str(OS.get_process_id())
+	var save_path := "user://save_hud_consolidation_%s.json" % str(OS.get_process_id())
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	main._prefs_path = prefs_path
+	main._save_path = save_path
+	add_child(main)
+	await get_tree().process_frame
+
+	var game_root := main.find_child("GameRoot", true, false) as VBoxContainer
+	var score_strip := main.find_child("ScoreStrip", true, false) as PanelContainer
+	var board_frame := main.find_child("BoardFrame", true, false) as PanelContainer
+	var gameplay_status_strip := main.find_child(
+		"GameplayStatusStrip",
+		true,
+		false,
+	) as PanelContainer
+	var band_count_reduced_ok: bool = game_root != null \
+		and game_root.get_child_count() == 6 \
+		and score_strip != null \
+		and gameplay_status_strip == main.gameplay_strip \
+		and main.find_child("TurnBadge", true, false) == null
+	var consolidated_surface_ok: bool = gameplay_status_strip != null \
+		and gameplay_status_strip.is_ancestor_of(main.status_label) \
+		and gameplay_status_strip.is_ancestor_of(main.move_count_label) \
+		and gameplay_status_strip.is_ancestor_of(main.footer_primary_label) \
+		and score_strip != null \
+		and !score_strip.is_ancestor_of(main.status_label)
+	var board_space_maintained_ok: bool = board_frame != null \
+		and board_frame.custom_minimum_size == Vector2(
+			main.board_frame_size_for_board(main._current_board_size()),
+			main.board_frame_size_for_board(main._current_board_size()),
+		)
+
+	var focus_valid_text: String = main._t("focus_valid") % main.state.get("valid_moves", []).size()
+	var focus_valid_count := 0
+	for label_value in main.find_children("*", "Label", true, false):
+		var label := label_value as Label
+		if label != null and label.is_visible_in_tree() and label.text == focus_valid_text:
+			focus_valid_count += 1
+	var single_move_counter_ok: bool = main.find_children(
+		"MoveListEntryButton",
+		"Button",
+		true,
+		false,
+	).size() == 1 \
+		and main.move_count_label.text == main._t("move_list_entry") % [0, main._last_move_text()] \
+		and focus_valid_count == 0
+	var initial_feedback_ok: bool = main.status_label.text == main._t("status_your_move") \
+		and main.player_score_label.text == "2" \
+		and main.ai_score_label.text == "2" \
+		and main.footer_primary_label.text == main._t("focus_even") \
+		and is_equal_approx(main.black_meter.size_flags_stretch_ratio, 2.0) \
+		and is_equal_approx(main.white_meter.size_flags_stretch_ratio, 2.0)
+
+	var settings: Dictionary = main.state.get("settings", {})
+	settings["opponent_mode"] = "local"
+	settings["sound"] = false
+	settings["reduce_motion"] = true
+	main.state["settings"] = settings
+	await main._on_cell_pressed(2, 3)
+	var updated_feedback_ok: bool = main.status_label.text == main._t("status_white_turn") \
+		and main.move_count_label.text == main._t("move_list_entry") % [1, main._last_move_text()] \
+		and main.player_score_label.text == "4" \
+		and main.ai_score_label.text == "1" \
+		and main.footer_primary_label.text == main._t("focus_black_leads") % 3 \
+		and is_equal_approx(main.black_meter.size_flags_stretch_ratio, 4.0) \
+		and is_equal_approx(main.white_meter.size_flags_stretch_ratio, 1.0)
+
+	main.queue_free()
+	await get_tree().process_frame
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	return (
+		_assert(single_move_counter_ok, "hud shows the move counter in exactly one place")
+		and _assert(consolidated_surface_ok, "turn status move list and advantage share one band")
+		and _assert(band_count_reduced_ok, "hud removes the separate status band and turn badge")
+		and _assert(board_space_maintained_ok, "hud consolidation preserves board size")
+		and _assert(initial_feedback_ok, "consolidated hud renders initial status score and advantage")
+		and _assert(updated_feedback_ok, "consolidated hud updates after a move")
+	)
+
+
 func _test_settings_menu_keeps_playfield_focused() -> bool:
 	var MainScript = load("res://scripts/bootstrap/main.gd")
 	var main_scene = load("res://scenes/main.tscn")
@@ -4164,7 +4251,7 @@ func _test_adaptive_vertical_layout() -> bool:
 	var baseline_y: float = main.gameplay_strip.position.y
 	var baseline_layout_ok: bool = main.adaptive_play_focus_slot.get_theme_constant("margin_top") == 0 \
 		and root != null \
-		and root.get_child_count() == 7 \
+		and root.get_child_count() == 6 \
 		and root.is_ancestor_of(main.replay_controls) \
 		and !main.replay_controls.visible \
 		and main.adaptive_play_focus_slot.get_child_count() == 1 \
@@ -4241,13 +4328,13 @@ func _test_accessibility_settings_and_reduced_motion() -> bool:
 		and int(counts.get("white", 0)) == 1 \
 		and main.player_score_label.text == "4" \
 		and main.ai_score_label.text == "1"
-	var turn_state_ok: bool = main.turn_badge.text == main._t("turn_ai")
+	var turn_state_ok: bool = main.status_label.text == main._t("status_ai_turn")
 	var expected_legal_moves := ReversiEngine.get_valid_moves(
 		main.state["board"],
 		int(main.state["current_turn"]),
 	)
 	var legal_moves_state_ok: bool = main.state.get("valid_moves", []) == expected_legal_moves \
-		and main.footer_secondary_label.text == main._t("focus_valid") % expected_legal_moves.size() \
+		and main.move_count_label.text == main._t("move_list_entry") % [1, main._last_move_text()] \
 		and _visible_hint_count(main) == 0
 	var board_state_ok: bool = main.cell_piece_views[2][3].texture == main._texture_for_stone(ReversiEngine.BLACK) \
 		and main.cell_piece_views[3][3].texture == main._texture_for_stone(ReversiEngine.BLACK)
@@ -4269,7 +4356,7 @@ func _test_accessibility_settings_and_reduced_motion() -> bool:
 		and _assert(persistence_ok, "accessibility settings persist in preferences")
 		and _assert(reduced_motion_ok, "reduced motion skips move and pulse tweens")
 		and _assert(score_state_ok, "reduced motion renders the final score")
-		and _assert(turn_state_ok, "reduced motion renders the final turn badge")
+		and _assert(turn_state_ok, "reduced motion renders the final turn status")
 		and _assert(legal_moves_state_ok, "reduced motion renders final legal moves")
 		and _assert(board_state_ok, "reduced motion renders the final board")
 		and _assert(rendered_english_labels_ok, "accessibility controls render English labels")

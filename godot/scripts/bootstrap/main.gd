@@ -536,7 +536,6 @@ var player_info_label: Label
 var ai_info_label: Label
 var player_stone_view: TextureRect
 var ai_stone_view: TextureRect
-var turn_badge: Label
 var status_label: Label
 var move_count_label: Button
 var settings_button: Button
@@ -617,7 +616,6 @@ var new_game_confirmation_confirm_button: Button
 var new_game_confirmation_cancel_button: Button
 var _pending_new_game_stone: int = ReversiEngine.NONE
 var footer_primary_label: Label
-var footer_secondary_label: Label
 var black_meter: ColorRect
 var white_meter: ColorRect
 var black_meter_label: Label
@@ -733,7 +731,6 @@ func _build_ui() -> void:
 
 	_build_top_bar(root)
 	_build_score_strip(root)
-	_build_status_bar(root)
 	_build_board(root)
 	_build_replay_controls(root)
 	_build_play_focus_strip(root)
@@ -797,6 +794,7 @@ func _build_top_bar(root: VBoxContainer) -> void:
 
 func _build_score_strip(root: VBoxContainer) -> void:
 	var strip := PanelContainer.new()
+	strip.name = "ScoreStrip"
 	strip.custom_minimum_size = Vector2(0, 78)
 	strip.add_theme_stylebox_override("panel", _make_style(_theme_color("hud_dark"), 1, Color(1, 1, 1, 0.08), 8))
 	root.add_child(strip)
@@ -818,16 +816,6 @@ func _build_score_strip(root: VBoxContainer) -> void:
 	player_info_label = player_panel["info"]
 	player_stone_view = player_panel["stone"]
 	row.add_child(player_panel["panel"])
-
-	turn_badge = Label.new()
-	turn_badge.custom_minimum_size = Vector2(126, 58)
-	turn_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	turn_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	turn_badge.add_theme_font_size_override("font_size", _font_size(18))
-	turn_badge.add_theme_color_override("font_color", Color(0.06, 0.055, 0.035, 1.0))
-	_apply_text_visibility(turn_badge, 1, Color(0.06, 0.055, 0.035, 1.0))
-	turn_badge.add_theme_stylebox_override("normal", _make_style(_theme_color("accent"), 1, Color(1, 1, 1, 0.18), 8))
-	row.add_child(turn_badge)
 
 	var ai_panel := _make_compact_score_panel(_t("ai"), ReversiEngine.opponent(player_stone))
 	ai_score_label = ai_panel["score"]
@@ -885,34 +873,6 @@ func _make_compact_score_panel(name_text: String, stone: int) -> Dictionary:
 		"info": info,
 		"stone": stone_view,
 	}
-
-
-func _build_status_bar(root: VBoxContainer) -> void:
-	var status := HBoxContainer.new()
-	status.custom_minimum_size = Vector2(0, 30)
-	status.alignment = BoxContainer.ALIGNMENT_CENTER
-	status.add_theme_constant_override("separation", 8)
-	root.add_child(status)
-
-	status_label = Label.new()
-	status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	status_label.add_theme_font_size_override("font_size", _font_size(17))
-	status_label.add_theme_color_override("font_color", _theme_color("text_muted"))
-	_apply_text_visibility(status_label, 1, _theme_color("text_muted"))
-	status.add_child(status_label)
-
-	move_count_label = Button.new()
-	move_count_label.name = "MoveListEntryButton"
-	move_count_label.custom_minimum_size = Vector2(196, 42)
-	move_count_label.alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	move_count_label.focus_mode = Control.FOCUS_NONE
-	move_count_label.flat = true
-	move_count_label.add_theme_font_size_override("font_size", _font_size(16))
-	move_count_label.add_theme_color_override("font_color", _theme_color("text_muted"))
-	move_count_label.add_theme_color_override("font_hover_color", _theme_color("text_primary"))
-	_apply_text_visibility(move_count_label, 1, _theme_color("text_muted"))
-	move_count_label.pressed.connect(_show_move_list)
-	status.add_child(move_count_label)
 
 
 func _build_board(root: VBoxContainer) -> void:
@@ -1257,7 +1217,8 @@ func _build_play_focus_strip(root: VBoxContainer) -> void:
 	root.add_child(adaptive_play_focus_slot)
 
 	gameplay_strip = PanelContainer.new()
-	gameplay_strip.custom_minimum_size = Vector2(0, 48)
+	gameplay_strip.name = "GameplayStatusStrip"
+	gameplay_strip.custom_minimum_size = Vector2(0, 52)
 	gameplay_strip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	gameplay_strip.add_theme_stylebox_override("panel", _make_style(_theme_color("hud_dark"), 1, Color(1, 1, 1, 0.08), 8))
 	adaptive_play_focus_slot.add_child(gameplay_strip)
@@ -1274,8 +1235,29 @@ func _build_play_focus_strip(root: VBoxContainer) -> void:
 	row.add_theme_constant_override("separation", 8)
 	margin.add_child(row)
 
+	status_label = Label.new()
+	status_label.name = "TurnStatusLabel"
+	status_label.custom_minimum_size = Vector2(108, 0)
+	status_label.add_theme_font_size_override("font_size", _font_size(17))
+	status_label.add_theme_color_override("font_color", _theme_color("text_primary"))
+	_apply_text_visibility(status_label, 1, _theme_color("text_primary"))
+	row.add_child(status_label)
+
+	move_count_label = Button.new()
+	move_count_label.name = "MoveListEntryButton"
+	move_count_label.custom_minimum_size = Vector2(168, 36)
+	move_count_label.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	move_count_label.focus_mode = Control.FOCUS_NONE
+	move_count_label.flat = true
+	move_count_label.add_theme_font_size_override("font_size", _font_size(15))
+	move_count_label.add_theme_color_override("font_color", _theme_color("text_muted"))
+	move_count_label.add_theme_color_override("font_hover_color", _theme_color("text_primary"))
+	_apply_text_visibility(move_count_label, 1, _theme_color("text_muted"))
+	move_count_label.pressed.connect(_show_move_list)
+	row.add_child(move_count_label)
+
 	footer_primary_label = Label.new()
-	footer_primary_label.custom_minimum_size = Vector2(112, 0)
+	footer_primary_label.custom_minimum_size = Vector2(98, 0)
 	footer_primary_label.add_theme_font_size_override("font_size", _font_size(18))
 	footer_primary_label.add_theme_color_override("font_color", _theme_color("text_primary"))
 	_apply_text_visibility(footer_primary_label, 2, _theme_color("text_primary"))
@@ -1360,17 +1342,6 @@ func _build_play_focus_strip(root: VBoxContainer) -> void:
 	var right_spacer := Control.new()
 	right_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	controls_row.add_child(right_spacer)
-
-	footer_secondary_label = Label.new()
-	footer_secondary_label.custom_minimum_size = Vector2(96, 0)
-	footer_secondary_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	footer_secondary_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	footer_secondary_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	footer_secondary_label.add_theme_font_size_override("font_size", _font_size(16))
-	footer_secondary_label.add_theme_color_override("font_color", _theme_color("text_muted"))
-	_apply_text_visibility(footer_secondary_label, 1, _theme_color("text_muted"))
-	right_spacer.add_child(footer_secondary_label)
-
 
 func _make_meter_label(font_color: Color) -> Label:
 	var label := Label.new()
@@ -3364,8 +3335,6 @@ func _render() -> void:
 	var player_score := black_score if player_stone == ReversiEngine.BLACK else white_score
 	var ai_score := white_score if player_stone == ReversiEngine.BLACK else black_score
 
-	var current_turn := int(state.get("current_turn", ReversiEngine.NONE))
-	turn_badge.text = _turn_text(current_turn)
 	status_label.text = _status_text()
 	move_count_label.text = _t("move_list_entry") % [
 		state.get("move_history", []).size(),
@@ -3376,13 +3345,11 @@ func _render() -> void:
 		if _is_local_game()
 		else _advantage_text(player_score, ai_score)
 	)
-	footer_secondary_label.text = _t("focus_valid") % state.get("valid_moves", []).size()
 	black_meter.size_flags_stretch_ratio = max(1.0, float(black_score))
 	white_meter.size_flags_stretch_ratio = max(1.0, float(white_score))
 	_update_meter_accessibility(black_score, white_score)
 	_update_mode_buttons()
 	_update_settings_choice_buttons()
-	_update_turn_badge(current_turn)
 	if undo_button != null:
 		undo_button.disabled = !_can_undo()
 	if hint_button != null:
@@ -3720,27 +3687,6 @@ func _apply_segment_style(button: Button, active: bool) -> void:
 	button.add_theme_color_override("font_hover_color", fg)
 	button.add_theme_color_override("font_pressed_color", fg)
 	_apply_text_visibility(button, 1, fg)
-
-
-func _update_turn_badge(current_turn: int) -> void:
-	var border_width := 3 if _high_contrast_enabled() else 1
-	var primary_turn := (
-		current_turn == ReversiEngine.BLACK
-		if _is_local_game()
-		else current_turn == player_stone
-	)
-	if primary_turn:
-		turn_badge.add_theme_stylebox_override("normal", _make_style(_theme_color("accent"), border_width, Color(1, 1, 1, 0.2), 8))
-		turn_badge.add_theme_color_override("font_color", Color(0.06, 0.055, 0.035, 1.0))
-		_apply_text_visibility(turn_badge, 1, Color(0.06, 0.055, 0.035, 1.0))
-	elif current_turn == ReversiEngine.NONE:
-		turn_badge.add_theme_stylebox_override("normal", _make_style(_theme_color("hud"), border_width, Color(1, 1, 1, 0.13), 8))
-		turn_badge.add_theme_color_override("font_color", _theme_color("text_primary"))
-		_apply_text_visibility(turn_badge, 1, _theme_color("text_primary"))
-	else:
-		turn_badge.add_theme_stylebox_override("normal", _make_style(_theme_color("success"), border_width, Color(1, 1, 1, 0.16), 8))
-		turn_badge.add_theme_color_override("font_color", Color(0.02, 0.05, 0.03, 1.0))
-		_apply_text_visibility(turn_badge, 1, Color(0.02, 0.05, 0.03, 1.0))
 
 
 func _update_result_overlay(persist_stats: bool = true) -> void:
