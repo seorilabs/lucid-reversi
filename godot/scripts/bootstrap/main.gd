@@ -71,6 +71,9 @@ const TEXT := {
 		"easy_short": "쉬움",
 		"medium_short": "보통",
 		"hard_short": "어려움",
+		"difficulty_easy_description": "다음 수를 중심으로 가볍게 살핍니다.",
+		"difficulty_medium_description": "여러 수 앞의 흐름을 균형 있게 읽습니다.",
+		"difficulty_hard_description": "장기 흐름까지 깊게 읽어 도전합니다.",
 		"new_game": "새 게임",
 		"confirm_new_game_title": "대국을 새로 시작할까요?",
 		"confirm_new_game_body": "진행 중인 대국은 저장되지 않습니다.",
@@ -178,6 +181,9 @@ const TEXT := {
 		"easy_short": "EASY",
 		"medium_short": "MED",
 		"hard_short": "HARD",
+		"difficulty_easy_description": "Looks just ahead for a relaxed game.",
+		"difficulty_medium_description": "Reads several moves for balanced play.",
+		"difficulty_hard_description": "Reads deep into the game for a challenge.",
 		"new_game": "NEW",
 		"confirm_new_game_title": "START A NEW GAME?",
 		"confirm_new_game_body": "Your current game will be discarded.",
@@ -285,6 +291,9 @@ const TEXT := {
 		"easy_short": "かんたん",
 		"medium_short": "ふつう",
 		"hard_short": "むずかしい",
+		"difficulty_easy_description": "次の一手を中心に気軽に考えます。",
+		"difficulty_medium_description": "数手先の流れをバランスよく読みます。",
+		"difficulty_hard_description": "長い流れまで深く読み、挑戦します。",
 		"new_game": "新しい対局",
 		"confirm_new_game_title": "新しい対局を始めますか？",
 		"confirm_new_game_body": "進行中の対局は保存されません。",
@@ -476,6 +485,7 @@ var undo_button: Button
 var hint_button: Button
 var new_game_button: Button
 var difficulty_buttons: Array = []
+var difficulty_subtitle_label: Label
 var opponent_mode_buttons: Array = []
 var board_size_buttons: Array = []
 var board_theme_buttons: Array = []
@@ -1407,14 +1417,24 @@ func _build_settings_overlay() -> void:
 		opponent_mode_buttons
 	))
 
-	box.add_child(_make_choice_section(
+	var difficulty_section := _make_choice_section(
 		_t("difficulty_setting"),
 		DIFFICULTY_IDS,
 		[_t("easy_short"), _t("medium_short"), _t("hard_short")],
 		difficulty,
 		Callable(self, "_set_difficulty_from_choice"),
 		difficulty_buttons
-	))
+	)
+	difficulty_section.name = "DifficultySection"
+	difficulty_subtitle_label = Label.new()
+	difficulty_subtitle_label.name = "DifficultySubtitle"
+	difficulty_subtitle_label.text = _difficulty_description(difficulty)
+	difficulty_subtitle_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	difficulty_subtitle_label.add_theme_font_size_override("font_size", _font_size(14))
+	difficulty_subtitle_label.add_theme_color_override("font_color", _theme_color("text_muted"))
+	_apply_text_visibility(difficulty_subtitle_label, 1, _theme_color("text_muted"))
+	difficulty_section.add_child(difficulty_subtitle_label)
+	box.add_child(difficulty_section)
 
 	box.add_child(_make_choice_section(
 		_t("board_size_setting"),
@@ -3112,6 +3132,8 @@ func _update_mode_buttons() -> void:
 func _update_settings_choice_buttons() -> void:
 	_update_choice_buttons(opponent_mode_buttons, _current_opponent_mode())
 	_update_choice_buttons(difficulty_buttons, difficulty)
+	if difficulty_subtitle_label != null:
+		difficulty_subtitle_label.text = _difficulty_description(difficulty)
 	_update_choice_buttons(board_size_buttons, str(_current_board_size()))
 	_update_choice_buttons(board_theme_buttons, _current_theme_id())
 	_update_choice_buttons(stone_theme_buttons, _current_stone_theme_id())
@@ -3686,6 +3708,16 @@ func _difficulty_label(difficulty_id: String) -> String:
 			return _t("hard")
 		_:
 			return _t("medium")
+
+
+func _difficulty_description(difficulty_id: String) -> String:
+	match difficulty_id:
+		"EASY":
+			return _t("difficulty_easy_description")
+		"HARD":
+			return _t("difficulty_hard_description")
+		_:
+			return _t("difficulty_medium_description")
 
 
 func _theme_display_label(theme_id: String) -> String:
