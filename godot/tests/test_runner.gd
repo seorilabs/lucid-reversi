@@ -89,6 +89,8 @@ func _ready() -> void:
 	ok = move_list_ok and ok
 	var result_share_ok := await _test_result_share_button()
 	ok = result_share_ok and ok
+	var replay_ok := await _test_finished_game_replay()
+	ok = replay_ok and ok
 	var hint_button_ok := await _test_hint_button()
 	ok = hint_button_ok and ok
 	var settings_persistence_ok := await _test_settings_persist_immediately()
@@ -3053,7 +3055,9 @@ func _test_adaptive_vertical_layout() -> bool:
 	var baseline_y: float = main.gameplay_strip.position.y
 	var baseline_layout_ok: bool = main.adaptive_play_focus_slot.get_theme_constant("margin_top") == 0 \
 		and root != null \
-		and root.get_child_count() == 6 \
+		and root.get_child_count() == 7 \
+		and root.is_ancestor_of(main.replay_controls) \
+		and !main.replay_controls.visible \
 		and main.adaptive_play_focus_slot.get_child_count() == 1 \
 		and main.adaptive_play_focus_slot.get_child(0) == main.gameplay_strip
 	main._update_adaptive_vertical_spacing(tall_window)
@@ -3664,6 +3668,148 @@ func _test_result_share_button() -> bool:
 		and _assert(english_ok, "result share button and payload localize to English")
 		and _assert(i18n_ok, "result share strings cover every supported locale")
 		and _assert(unavailable_noop_ok, "result share safely no-ops without a channel")
+	)
+
+
+func _test_finished_game_replay() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var finished_state := ReversiEngine.create_new_game(
+		ReversiEngine.BLACK,
+		"EASY",
+		ReversiEngine.BOARD_SIZE,
+		360036,
+	)
+	var guard := 0
+	while !bool(finished_state.get("game_over", false)) and guard < 100:
+		var moves: Array = finished_state.get("valid_moves", [])
+		if moves.is_empty():
+			break
+		var move: Dictionary = moves[0]
+		var result := ReversiEngine.play_move(
+			finished_state,
+			int(move["x"]),
+			int(move["y"]),
+		)
+		if !bool(result.get("ok", false)):
+			break
+		guard += 1
+	var finished_ok: bool = bool(finished_state.get("game_over", false)) \
+		and !finished_state.get("move_history", []).is_empty() \
+		and MainScript.replay_history_valid(finished_state)
+
+	var suffix := str(OS.get_process_id())
+	var prefs_path := "user://prefs_replay_%s.json" % suffix
+	var save_path := "user://save_replay_%s.json" % suffix
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	main._prefs_path = prefs_path
+	main._save_path = save_path
+	add_child(main)
+	await get_tree().process_frame
+	var settings := ReversiEngine.default_settings()
+	settings["sound"] = false
+	settings["reduce_motion"] = true
+	finished_state["settings"] = settings
+	main.player_stone = ReversiEngine.BLACK
+	main.state = finished_state
+	main._interstitial_shown_this_game = true
+	main._result_animation_played_this_game = true
+	main._save_state()
+	var expected_final_state: Dictionary = main.state.duplicate(true)
+	var saved_before := FileAccess.get_file_as_string(save_path)
+	main._render()
+	await get_tree().process_frame
+	var entry_ok: bool = main.result_overlay.visible \
+		and main.result_replay_button != null \
+		and main.result_replay_button.text == "리플레이" \
+		and !main.result_replay_button.disabled \
+		and main.result_overlay.is_ancestor_of(main.result_replay_button) \
+		and !main.replay_controls.visible
+
+	main._enter_replay()
+	await get_tree().process_frame
+	var initial_replay: Dictionary = MainScript.replay_state_at_step(expected_final_state, 0)
+	var mode_ok: bool = main.replay_active \
+		and main.input_locked \
+		and main.replay_controls.visible \
+		and !main.gameplay_strip.visible \
+		and !main.result_overlay.visible \
+		and main.replay_step == 0 \
+		and main.state.get("board", []) == initial_replay.get("board", []) \
+		and main.replay_step_label.text == "0 / %d수" % main.replay_history.size()
+
+	await main._advance_replay_step(false)
+	var first_replay: Dictionary = MainScript.replay_state_at_step(expected_final_state, 1)
+	var next_ok: bool = main.replay_step == 1 \
+		and main.state.get("board", []) == first_replay.get("board", [])
+	main._set_replay_step(0)
+	var previous_ok: bool = main.replay_step == 0 \
+		and main.state.get("board", []) == initial_replay.get("board", [])
+
+	main._toggle_replay_playback()
+	await get_tree().create_timer(0.05).timeout
+	main._toggle_replay_playback()
+	var playback_pause_ok: bool = !main.replay_playing \
+		and main.replay_step > 0 \
+		and main.replay_step < main.replay_history.size() \
+		and main.replay_play_button.text == "재생"
+	await get_tree().create_timer(0.05).timeout
+	main._set_replay_step(main.replay_history.size())
+	var final_step_ok: bool = main.state.get("board", []) == expected_final_state.get("board", []) \
+		and main.replay_next_button.disabled
+	main._set_replay_step(main.replay_history.size() - 1)
+	var arbitrary_previous_ok: bool = main.replay_step == main.replay_history.size() - 1 \
+		and !main.replay_next_button.disabled
+
+	main._close_replay()
+	await get_tree().process_frame
+	var restored_ok: bool = !main.replay_active \
+		and !main.input_locked \
+		and !main.replay_controls.visible \
+		and main.gameplay_strip.visible \
+		and main.result_overlay.visible \
+		and main.state == expected_final_state
+	var save_unchanged_ok: bool = FileAccess.get_file_as_string(save_path) == saved_before
+
+	var corrupt_state: Dictionary = expected_final_state.duplicate(true)
+	var corrupt_history: Array = corrupt_state.get("move_history", [])
+	(corrupt_history[0] as Dictionary)["x"] = -1
+	corrupt_state["move_history"] = corrupt_history
+	main.state = corrupt_state
+	main._render()
+	var corrupt_ok: bool = !MainScript.replay_history_valid(corrupt_state) \
+		and main.result_replay_button.disabled
+	var locale_ok := true
+	for locale_id in ["ko", "en", "ja"]:
+		var locale_texts: Dictionary = MainScript.TEXT[locale_id]
+		for key in [
+			"replay",
+			"replay_previous",
+			"replay_play",
+			"replay_pause",
+			"replay_next",
+			"replay_close",
+			"replay_step",
+		]:
+			locale_ok = locale_ok and !str(locale_texts.get(key, "")).is_empty()
+
+	main.queue_free()
+	await get_tree().process_frame
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	return (
+		_assert(finished_ok, "replay accepts a completed game with intact move history")
+		and _assert(entry_ok, "result overlay exposes replay only as a modal entry point")
+		and _assert(mode_ok, "replay mode locks board input and shows only temporary board controls")
+		and _assert(next_ok and previous_ok, "replay next and previous rebuild exact board steps")
+		and _assert(playback_pause_ok, "replay playback starts and pauses without reaching the end")
+		and _assert(final_step_ok and arbitrary_previous_ok, "replay can seek between the last two moves")
+		and _assert(restored_ok, "closing replay restores the completed result state")
+		and _assert(save_unchanged_ok, "replay never changes the persisted game save")
+		and _assert(corrupt_ok, "empty or corrupt replay history is rejected safely")
+		and _assert(locale_ok, "replay controls cover every supported locale")
 	)
 
 
