@@ -539,6 +539,7 @@ var _shell_open_override := Callable()
 
 
 func _ready() -> void:
+	configure_screen_keep_on(DisplayServer.get_name())
 	analytics = ReversiAnalytics.new()
 	# GA4 Measurement Protocol 전송기(Node)를 씬 트리에 붙여 어댑터에 주입한다.
 	# 실제 전송은 config 존재 + 릴리스 빌드 + 비-headless 일 때만(전송기가 판단). _ready 에서 game_open 발생.
@@ -559,6 +560,19 @@ func _ready() -> void:
 	_render()
 	call_deferred("_show_first_game_how_to_play")
 	call_deferred("_maybe_play_ai_turn")
+
+
+static func configure_screen_keep_on(
+	display_name: String,
+	set_keep_on: Callable = Callable(),
+) -> bool:
+	if display_name == "headless":
+		return false
+	if set_keep_on.is_valid():
+		set_keep_on.call(true)
+	else:
+		DisplayServer.screen_set_keep_on(true)
+	return true
 
 
 func _exit_tree() -> void:
