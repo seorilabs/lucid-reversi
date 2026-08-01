@@ -8,6 +8,7 @@ const IOS_ADS_SCRIPT = preload("res://scripts/ios_ads.gd")
 const PLACE_SFX = preload("res://assets/audio/place.wav")
 const FLIP_SFX = preload("res://assets/audio/flip.wav")
 const BIG_FLIP_SFX = preload("res://assets/audio/big_flip.wav")
+const BGM_STREAM = preload("res://assets/audio/bgm_lucid_board.ogg")
 const CLASSIC_BLACK_TEXTURE = preload("res://assets/reversi/themes/classic_black.svg")
 const CLASSIC_WHITE_TEXTURE = preload("res://assets/reversi/themes/classic_white.svg")
 const ARCTIC_BLACK_TEXTURE = preload("res://assets/reversi/themes/arctic_black.svg")
@@ -40,6 +41,9 @@ const FLIP_TILT_RADIANS := 0.11
 const FLIP_EDGE_SCALE := Vector2(0.04, 1.12)
 const FLIP_HIGHLIGHT_COLOR := Color(1.0, 0.92, 0.68, 1.0)
 const FLIP_SWAP_ALPHA := 0.55
+const BGM_VOLUME_DB := -24.0
+const SFX_BUS := &"SFX"
+const MUSIC_BUS := &"Music"
 const AI_THINK_DELAY_BASE := {
 	"EASY": 0.16,
 	"MEDIUM": 0.32,
@@ -96,6 +100,7 @@ const TEXT := {
 		"settings": "설정",
 		"close": "닫기",
 		"sound": "소리",
+		"music": "음악",
 		"haptic": "진동",
 		"difficulty_setting": "난이도",
 		"opponent_mode_setting": "대전 상대",
@@ -231,6 +236,7 @@ const TEXT := {
 		"settings": "SET",
 		"close": "CLOSE",
 		"sound": "SOUND",
+		"music": "MUSIC",
 		"haptic": "HAPTIC",
 		"difficulty_setting": "LEVEL",
 		"opponent_mode_setting": "OPPONENT",
@@ -366,6 +372,7 @@ const TEXT := {
 		"settings": "設定",
 		"close": "閉じる",
 		"sound": "サウンド",
+		"music": "音楽",
 		"haptic": "振動",
 		"difficulty_setting": "難易度",
 		"opponent_mode_setting": "対戦相手",
@@ -558,6 +565,7 @@ var move_list_close_button: Button
 var move_list_empty_label: Label
 var move_list_rows: Array = []
 var sound_toggle: CheckButton
+var music_toggle: CheckButton
 var haptic_toggle: CheckButton
 var gameplay_strip: PanelContainer
 var adaptive_play_focus_slot: MarginContainer
@@ -615,6 +623,7 @@ var _shell_open_override := Callable()
 var _active_puzzle_id := ""
 var _puzzle_completed := false
 var _puzzle_success := false
+var bgm_player: Object
 
 
 func _ready() -> void:
@@ -632,6 +641,7 @@ func _ready() -> void:
 	add_child(_ios_ads)
 	preferences = _load_or_create_preferences()
 	_load_or_start()
+	_setup_bgm_player()
 	_build_ui()
 	var viewport_resize := Callable(self, "_update_adaptive_vertical_spacing")
 	if !get_viewport().size_changed.is_connected(viewport_resize):
@@ -1606,6 +1616,8 @@ func _build_settings_overlay() -> void:
 
 	sound_toggle = _make_toggle_button(_t("sound"), "sound")
 	box.add_child(sound_toggle)
+	music_toggle = _make_toggle_button(_t("music"), "music")
+	box.add_child(music_toggle)
 	haptic_toggle = _make_toggle_button(_t("haptic"), "haptic")
 	box.add_child(haptic_toggle)
 	show_moves_toggle = _make_toggle_button(_t("show_moves"), "show_moves")
@@ -2405,6 +2417,8 @@ func _make_toggle_button(text: String, key: String) -> CheckButton:
 		current_settings[key] = enabled
 		state["settings"] = current_settings
 		_save_preferences()
+		if key == "music":
+			_sync_music_playback()
 		if key == "show_moves" or key == "show_flip_counts" or key == "high_contrast":
 			_render()
 	)
@@ -3542,12 +3556,49 @@ func _play_sfx(stream: AudioStream, pitch: float) -> void:
 	player.stream = stream
 	player.pitch_scale = pitch
 	player.volume_db = -5.0
+	player.bus = SFX_BUS
 	add_child(player)
 	player.play()
 	player.finished.connect(func() -> void:
 		if is_instance_valid(player):
 			player.queue_free()
 	)
+
+
+static func looping_bgm_stream(source: AudioStream) -> AudioStream:
+	var loop_stream := source.duplicate() as AudioStream
+	if loop_stream is AudioStreamOggVorbis:
+		(loop_stream as AudioStreamOggVorbis).loop = true
+	return loop_stream
+
+
+func _setup_bgm_player(display_name: String = DisplayServer.get_name()) -> bool:
+	if bgm_player != null and is_instance_valid(bgm_player):
+		return true
+	if display_name == "headless":
+		return false
+	var player := AudioStreamPlayer.new()
+	player.name = "BGMPlayer"
+	player.add_to_group("persistent_services")
+	player.stream = looping_bgm_stream(BGM_STREAM)
+	player.volume_db = BGM_VOLUME_DB
+	player.bus = MUSIC_BUS
+	bgm_player = player
+	add_child(player)
+	_sync_music_playback()
+	return true
+
+
+func _sync_music_playback() -> bool:
+	if bgm_player == null or !is_instance_valid(bgm_player):
+		return false
+	var enabled := bool(_current_settings().get("music", true))
+	var is_playing := bool(bgm_player.get("playing"))
+	if enabled and !is_playing:
+		bgm_player.call("play")
+	elif !enabled and is_playing:
+		bgm_player.call("stop")
+	return enabled
 
 
 # safe area(물리 픽셀)를 게임 viewport 좌표의 좌/상/우/하 여백으로 환산한다.

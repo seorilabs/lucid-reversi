@@ -53,6 +53,21 @@ class _ShareResultProbe:
 		messages.append(text)
 
 
+class _MusicProbe:
+	extends RefCounted
+	var playing := false
+	var play_calls := 0
+	var stop_calls := 0
+
+	func play() -> void:
+		playing = true
+		play_calls += 1
+
+	func stop() -> void:
+		playing = false
+		stop_calls += 1
+
+
 class _ScreenKeepOnProbe:
 	extends RefCounted
 	var calls: Array[bool] = []
@@ -159,6 +174,8 @@ func _ready() -> void:
 	ok = _test_flip_wave_geometry() and ok
 	var sfx_sound_ok := await _test_sfx_respects_sound_setting()
 	ok = sfx_sound_ok and ok
+	var bgm_music_ok := await _test_bgm_loop_and_music_setting()
+	ok = bgm_music_ok and ok
 	var haptic_ok := await _test_haptic_feedback()
 	ok = haptic_ok and ok
 	get_tree().quit(0 if ok else 1)
@@ -641,6 +658,87 @@ func _test_sfx_respects_sound_setting() -> bool:
 	return _assert(off_ok, "sfx suppressed when sound is off")
 
 
+func _test_bgm_loop_and_music_setting() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var defaults := ReversiEngine.default_settings()
+	var normalized := ReversiEngine.normalize_settings({"sound": true, "music": false})
+	var loop_stream: AudioStream = MainScript.looping_bgm_stream(MainScript.BGM_STREAM)
+	var settings_contract_ok := bool(defaults.get("music", false)) \
+		and bool(normalized.get("sound", false)) \
+		and !bool(normalized.get("music", true))
+	var asset_contract_ok := FileAccess.file_exists("res://assets/audio/bgm_lucid_board.ogg") \
+		and loop_stream is AudioStreamOggVorbis \
+		and bool((loop_stream as AudioStreamOggVorbis).loop) \
+		and float(MainScript.BGM_VOLUME_DB) <= -18.0
+	var bus_contract_ok := AudioServer.get_bus_index(MainScript.SFX_BUS) >= 0 \
+		and AudioServer.get_bus_index(MainScript.MUSIC_BUS) >= 0 \
+		and AudioServer.get_bus_index(MainScript.SFX_BUS) \
+			!= AudioServer.get_bus_index(MainScript.MUSIC_BUS)
+	var labels_ok := str(MainScript.TEXT["ko"].get("music", "")) == "음악" \
+		and str(MainScript.TEXT["en"].get("music", "")) == "MUSIC"
+
+	var prefs_path := "user://prefs_music_%s.json" % str(OS.get_process_id())
+	_rm_user(prefs_path)
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+	main._prefs_path = prefs_path
+	var headless_noop_ok := main.bgm_player == null
+	var settings_residency_ok: bool = main.music_toggle != null \
+		and main.settings_panel.is_ancestor_of(main.music_toggle)
+
+	var probe := _MusicProbe.new()
+	main.bgm_player = probe
+	var music_on_settings: Dictionary = main._current_settings()
+	music_on_settings["sound"] = false
+	music_on_settings["music"] = true
+	main.state["settings"] = music_on_settings
+	main._sync_music_playback()
+	var music_independent_on_ok := probe.playing \
+		and probe.play_calls == 1 \
+		and !bool(main._current_settings().get("sound", true))
+
+	main.music_toggle.button_pressed = false
+	await get_tree().process_frame
+	var immediate_stop_ok := !probe.playing \
+		and probe.stop_calls == 1 \
+		and !bool(main._current_settings().get("music", true)) \
+		and !bool(main._current_settings().get("sound", true))
+
+	var sound_on_settings: Dictionary = main._current_settings()
+	sound_on_settings["sound"] = true
+	main.state["settings"] = sound_on_settings
+	main._save_preferences()
+	main._sync_music_playback()
+	var restored_preferences: Dictionary = main._load_preferences()
+	var restored_settings: Dictionary = restored_preferences.get("settings", {})
+	var persistence_independence_ok := bool(restored_settings.get("sound", false)) \
+		and !bool(restored_settings.get("music", true)) \
+		and probe.play_calls == 1 \
+		and probe.stop_calls == 1
+
+	main.bgm_player = null
+	probe = null
+	main.queue_free()
+	await get_tree().process_frame
+	_rm_user(prefs_path)
+	return (
+		_assert(settings_contract_ok, "music setting defaults on and normalizes independently")
+		and _assert(asset_contract_ok, "BGM uses a low-volume looping OGG stream")
+		and _assert(bus_contract_ok, "BGM and SFX use separate audio buses")
+		and _assert(labels_ok, "music toggle has Korean and English labels")
+		and _assert(settings_residency_ok, "music toggle stays inside the settings sheet")
+		and _assert(headless_noop_ok, "headless startup skips the BGM audio player")
+		and _assert(music_independent_on_ok, "music plays while sound effects are disabled")
+		and _assert(immediate_stop_ok, "music toggle stops playback immediately")
+		and _assert(
+			persistence_independence_ok,
+			"music and sound settings persist independently",
+		)
+	)
+
+
 func _test_haptic_feedback() -> bool:
 	var MainScript = load("res://scripts/bootstrap/main.gd")
 	var place_profile: Dictionary = MainScript.haptic_profile("place")
@@ -1059,6 +1157,7 @@ func _test_preferences_storage_lifecycle() -> bool:
 	legacy_settings["stone_theme"] = "ember"
 	legacy_settings["locale"] = "en"
 	legacy_settings["sound"] = false
+	legacy_settings.erase("music")
 	legacy_state["settings"] = legacy_settings
 	var legacy_payload := ReversiEngine.state_to_save_dict(legacy_state)
 	legacy_payload["difficulty"] = "HARD"
@@ -1079,6 +1178,7 @@ func _test_preferences_storage_lifecycle() -> bool:
 		and str(migrated.get("settings", {}).get("stone_theme", "")) == "ember" \
 		and str(migrated.get("settings", {}).get("locale", "")) == "en" \
 		and !bool(migrated.get("settings", {}).get("sound", true)) \
+		and bool(migrated.get("settings", {}).get("music", false)) \
 		and str(migrated_main.state.get("difficulty", "")) == "HARD"
 	migrated_main.free()
 
@@ -3305,6 +3405,8 @@ func _test_settings_persist_immediately() -> bool:
 	await get_tree().process_frame
 	main.sound_toggle.button_pressed = false
 	await get_tree().process_frame
+	main.music_toggle.button_pressed = false
+	await get_tree().process_frame
 
 	var stored: Dictionary = main._load_preferences()
 	var stored_settings: Dictionary = stored.get("settings", {})
@@ -3312,7 +3414,8 @@ func _test_settings_persist_immediately() -> bool:
 		and str(stored_settings.get("theme", "")) == "arctic" \
 		and str(stored_settings.get("stone_theme", "")) == "ember" \
 		and str(stored_settings.get("locale", "")) == "en" \
-		and !bool(stored_settings.get("sound", true))
+		and !bool(stored_settings.get("sound", true)) \
+		and !bool(stored_settings.get("music", true))
 	main.queue_free()
 	_rm_user(prefs_path)
 	return _assert(stored_ok, "every user setting writes preferences immediately")
