@@ -1,0 +1,14 @@
+{
+  "model": "stable-audio-2.5",
+  "out_dir": ".",
+  "tracks": [
+    {
+      "name": "bgm_lucid_board",
+      "type": "loop",
+      "duration": 40,
+      "crossfade": 4,
+      "formats": ["ogg"],
+      "prompt": "calm strategic Reversi puzzle game ambient background music, soft electric piano, warm analog pad, gentle marimba, sparse brushed percussion, low energy, thoughtful and unobtrusive"
+    }
+  ]
+}
