@@ -47,12 +47,13 @@ const BGM_VOLUME_DB := -24.0
 const SFX_BUS := &"SFX"
 const MUSIC_BUS := &"Music"
 const AI_THINK_DELAY_BASE := {
+	"BEGINNER": 0.10,
 	"EASY": 0.16,
 	"MEDIUM": 0.32,
 	"HARD": 0.48,
 }
 const AI_THINK_DELAY_JITTER := 0.04
-const DIFFICULTY_IDS := ["EASY", "MEDIUM", "HARD"]
+const DIFFICULTY_IDS := ["BEGINNER", "EASY", "MEDIUM", "HARD"]
 const OPPONENT_MODE_IDS := ["ai", "local"]
 const VARIANT_IDS := [ReversiEngine.VARIANT_STANDARD, ReversiEngine.VARIANT_ANTI]
 const BOARD_SIZE_IDS := ["6", "8", "10"]
@@ -73,12 +74,15 @@ const TEXT := {
 		"black": "흑",
 		"white": "백",
 		"none": "없음",
+		"beginner": "입문",
 		"easy": "쉬움",
 		"medium": "보통",
 		"hard": "어려움",
+		"beginner_short": "입문",
 		"easy_short": "쉬움",
 		"medium_short": "보통",
 		"hard_short": "어려움",
+		"difficulty_beginner_description": "위치 전략 없이 가끔 자유롭게 두며 처음 규칙을 익힙니다.",
 		"difficulty_easy_description": "다음 수를 중심으로 가볍게 살핍니다.",
 		"difficulty_medium_description": "여러 수 앞의 흐름을 균형 있게 읽습니다.",
 		"difficulty_hard_description": "장기 흐름까지 깊게 읽어 도전합니다.",
@@ -210,12 +214,15 @@ const TEXT := {
 		"black": "BLACK",
 		"white": "WHITE",
 		"none": "NONE",
+		"beginner": "BEGINNER",
 		"easy": "EASY",
 		"medium": "MEDIUM",
 		"hard": "HARD",
+		"beginner_short": "BEGIN",
 		"easy_short": "EASY",
 		"medium_short": "MED",
 		"hard_short": "HARD",
+		"difficulty_beginner_description": "Makes occasional random moves without positional strategy.",
 		"difficulty_easy_description": "Looks just ahead for a relaxed game.",
 		"difficulty_medium_description": "Reads several moves for balanced play.",
 		"difficulty_hard_description": "Reads deep into the game for a challenge.",
@@ -347,12 +354,15 @@ const TEXT := {
 		"black": "黒",
 		"white": "白",
 		"none": "なし",
+		"beginner": "入門",
 		"easy": "かんたん",
 		"medium": "ふつう",
 		"hard": "むずかしい",
+		"beginner_short": "入門",
 		"easy_short": "かんたん",
 		"medium_short": "ふつう",
 		"hard_short": "むずかしい",
+		"difficulty_beginner_description": "位置戦略を使わず、ときどき自由に置いてルールを学びます。",
 		"difficulty_easy_description": "次の一手を中心に気軽に考えます。",
 		"difficulty_medium_description": "数手先の流れをバランスよく読みます。",
 		"difficulty_hard_description": "長い流れまで深く読み、挑戦します。",
@@ -1598,7 +1608,7 @@ func _build_settings_overlay() -> void:
 	var difficulty_section := _make_choice_section(
 		_t("difficulty_setting"),
 		DIFFICULTY_IDS,
-		[_t("easy_short"), _t("medium_short"), _t("hard_short")],
+		[_t("beginner_short"), _t("easy_short"), _t("medium_short"), _t("hard_short")],
 		difficulty,
 		Callable(self, "_set_difficulty_from_choice"),
 		difficulty_buttons
@@ -3985,12 +3995,14 @@ func _turn_text(current_turn: int) -> String:
 
 func _difficulty_index() -> int:
 	match difficulty:
-		"EASY":
+		"BEGINNER":
 			return 0
-		"HARD":
-			return 2
-		_:
+		"EASY":
 			return 1
+		"HARD":
+			return 3
+		_:
+			return 2
 
 
 func _is_valid_cell(valid_moves: Array, x: int, y: int) -> bool:
@@ -4340,6 +4352,8 @@ func _piece_label(stone: int) -> String:
 
 func _difficulty_label(difficulty_id: String) -> String:
 	match difficulty_id:
+		"BEGINNER":
+			return _t("beginner")
 		"EASY":
 			return _t("easy")
 		"HARD":
@@ -4350,6 +4364,8 @@ func _difficulty_label(difficulty_id: String) -> String:
 
 func _difficulty_description(difficulty_id: String) -> String:
 	match difficulty_id:
+		"BEGINNER":
+			return _t("difficulty_beginner_description")
 		"EASY":
 			return _t("difficulty_easy_description")
 		"HARD":

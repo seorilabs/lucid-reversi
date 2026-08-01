@@ -2,6 +2,7 @@
 
 ## 2026-08-01
 
+- Added a localized BEGINNER AI tier with a seeded 75% random branch, a position-agnostic immediate-flip fallback, four-button settings layout, MEDIUM legacy fallback, and paired self-play strength regression coverage.
 - Added a persisted settings-only coordinate toggle that immediately hides or restores the existing board-edge labels without changing their player-color-independent mapping or touch-safe layout.
 - Consolidated turn status, the sole move-list counter, advantage text, and meter into one compact board-adjacent band, removed the score-strip turn badge and controls-row duplicate count, and preserved the board footprint.
 - Scheduled AI disc-difference and positional evaluation weights by opening, middle, and endgame occupancy phases, with named tuning constants and regression coverage for all three phases and existing corner/X/C semantics.

@@ -93,6 +93,7 @@ func _ready() -> void:
 	ok = _test_undo_round_trip() and ok
 	ok = _test_search_score_alpha_beta_cutoff_branches() and ok
 	ok = _test_choose_ai_move_alpha_beta_and_seeded_ties() and ok
+	ok = _test_beginner_ai_tier() and ok
 	ok = _test_alpha_beta_matches_full_search() and ok
 	ok = _test_endgame_exact_search() and ok
 	ok = _test_mobility_evaluation_boundaries() and ok
@@ -244,11 +245,16 @@ func _test_safe_area_margins() -> bool:
 
 func _test_ai_think_delay_profile_and_guard() -> bool:
 	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var beginner_base := float(MainScript.AI_THINK_DELAY_BASE["BEGINNER"])
 	var easy_base := float(MainScript.AI_THINK_DELAY_BASE["EASY"])
 	var medium_base := float(MainScript.AI_THINK_DELAY_BASE["MEDIUM"])
 	var hard_base := float(MainScript.AI_THINK_DELAY_BASE["HARD"])
-	var ordered_bases_ok: bool = easy_base < medium_base and medium_base < hard_base
-	var midpoint_ok: bool = is_equal_approx(MainScript.ai_think_delay("EASY", 0.5), easy_base) \
+	var ordered_bases_ok: bool = beginner_base < easy_base \
+		and easy_base < medium_base and medium_base < hard_base
+	var midpoint_ok: bool = is_equal_approx(
+		MainScript.ai_think_delay("BEGINNER", 0.5),
+		beginner_base,
+	) and is_equal_approx(MainScript.ai_think_delay("EASY", 0.5), easy_base) \
 		and is_equal_approx(MainScript.ai_think_delay("MEDIUM", 0.5), medium_base) \
 		and is_equal_approx(MainScript.ai_think_delay("HARD", 0.5), hard_base)
 	var jitter_range_ok: bool = is_equal_approx(
@@ -1232,8 +1238,10 @@ func _test_preferences_storage_lifecycle() -> bool:
 
 
 func _test_difficulty_stats_save_round_trip() -> bool:
-	var state := ReversiEngine.create_new_game(ReversiEngine.BLACK, "EASY")
+	var state := ReversiEngine.create_new_game(ReversiEngine.BLACK, "BEGINNER")
 	var win_ok := ReversiEngine.record_game_result(state, "win")
+	state["difficulty"] = "EASY"
+	var easy_win_ok := ReversiEngine.record_game_result(state, "win")
 	state["difficulty"] = "MEDIUM"
 	var draw_ok := ReversiEngine.record_game_result(state, "draw")
 	state["difficulty"] = "HARD"
@@ -1241,6 +1249,7 @@ func _test_difficulty_stats_save_round_trip() -> bool:
 	var saved := ReversiEngine.state_to_save_dict(state)
 	var restored := ReversiEngine.state_from_save_dict(saved)
 	var restored_stats: Dictionary = restored.get("stats", {})
+	var beginner: Dictionary = restored_stats.get("BEGINNER", {})
 	var easy: Dictionary = restored_stats.get("EASY", {})
 	var medium: Dictionary = restored_stats.get("MEDIUM", {})
 	var hard: Dictionary = restored_stats.get("HARD", {})
@@ -1252,7 +1261,8 @@ func _test_difficulty_stats_save_round_trip() -> bool:
 	var legacy_easy: Dictionary = legacy_stats.get("EASY", {})
 	var invalid_ok := !ReversiEngine.record_game_result(state, "unknown")
 	return (
-		_assert(win_ok and draw_ok and loss_ok, "stats accepts win draw and loss")
+		_assert(win_ok and easy_win_ok and draw_ok and loss_ok, "stats accepts every difficulty result")
+		and _assert(int(beginner.get("wins", 0)) == 1, "stats saves BEGINNER win")
 		and _assert(int(easy.get("wins", 0)) == 1, "stats saves EASY win")
 		and _assert(int(medium.get("draws", 0)) == 1, "stats saves MEDIUM draw")
 		and _assert(int(hard.get("losses", 0)) == 1, "stats saves HARD loss")
@@ -1493,6 +1503,133 @@ func _test_choose_ai_move_alpha_beta_and_seeded_ties() -> bool:
 			"saved EASY game seed reproduces the same tied choice",
 		)
 	)
+
+
+func _test_beginner_ai_tier() -> bool:
+	var random_branches := 0
+	var opening_choices := {}
+	for game_seed in range(100, 132):
+		var state := ReversiEngine.create_new_game(
+			ReversiEngine.BLACK,
+			"BEGINNER",
+			8,
+			game_seed,
+		)
+		var stats := {"probe": true}
+		var move := ReversiEngine.choose_ai_move(state, stats)
+		if bool(stats.get("beginner_random", false)):
+			random_branches += 1
+		opening_choices["%d,%d" % [move["x"], move["y"]]] = true
+
+	var beginner_wins := 0
+	var easy_wins := 0
+	var beginner_corners := 0
+	var easy_corners := 0
+	var completed_games := 0
+	for game_seed in range(200, 212):
+		var beginner_black := _play_ai_self_match("BEGINNER", "EASY", game_seed)
+		var beginner_white := _play_ai_self_match("EASY", "BEGINNER", game_seed + 1000)
+		for match_result in [beginner_black, beginner_white]:
+			if bool(match_result.get("complete", false)):
+				completed_games += 1
+		var first_winner := int(beginner_black.get("winner", ReversiEngine.NONE))
+		if first_winner == ReversiEngine.BLACK:
+			beginner_wins += 1
+		elif first_winner == ReversiEngine.WHITE:
+			easy_wins += 1
+		beginner_corners += int(beginner_black.get("black_corners", 0))
+		easy_corners += int(beginner_black.get("white_corners", 0))
+
+		var second_winner := int(beginner_white.get("winner", ReversiEngine.NONE))
+		if second_winner == ReversiEngine.BLACK:
+			easy_wins += 1
+		elif second_winner == ReversiEngine.WHITE:
+			beginner_wins += 1
+		easy_corners += int(beginner_white.get("black_corners", 0))
+		beginner_corners += int(beginner_white.get("white_corners", 0))
+
+	var unknown_preferences := ReversiEngine.normalize_preferences({"difficulty": "UNKNOWN"})
+	var unknown_game := ReversiEngine.create_new_game(
+		ReversiEngine.BLACK,
+		"UNKNOWN",
+		8,
+		1,
+	)
+	return (
+		_assert(
+			ReversiEngine.DIFFICULTY_DEPTH.has("BEGINNER")
+				and int(ReversiEngine.DIFFICULTY_DEPTH["BEGINNER"]) == 1,
+			"beginner difficulty is available at depth one",
+		)
+		and _assert(
+			random_branches >= 16 and random_branches <= 30 and opening_choices.size() > 1,
+			"beginner uses a seeded random move rate across legal openings",
+		)
+		and _assert(
+			completed_games == 24,
+			"beginner versus easy self-play completes every paired game",
+		)
+		and _assert(
+			easy_wins > beginner_wins,
+			"easy wins more paired self-play games than beginner: %d to %d"
+				% [easy_wins, beginner_wins],
+		)
+		and _assert(
+			easy_corners > beginner_corners,
+			"easy secures more paired self-play corners than beginner: %d to %d"
+				% [easy_corners, beginner_corners],
+		)
+		and _assert(
+			str(unknown_preferences.get("difficulty", "")) == "MEDIUM"
+				and str(unknown_game.get("difficulty", "")) == "MEDIUM",
+			"unknown saved and runtime difficulties still fall back to MEDIUM",
+		)
+	)
+
+
+func _play_ai_self_match(
+	black_difficulty: String,
+	white_difficulty: String,
+	game_seed: int,
+) -> Dictionary:
+	var state := ReversiEngine.create_new_game(
+		ReversiEngine.BLACK,
+		black_difficulty,
+		8,
+		game_seed,
+	)
+	var turn_guard := 0
+	while !bool(state.get("game_over", false)) and turn_guard < 100:
+		var turn := int(state.get("current_turn", ReversiEngine.NONE))
+		state["difficulty"] = black_difficulty \
+			if turn == ReversiEngine.BLACK else white_difficulty
+		var move := ReversiEngine.choose_ai_move(state)
+		if move.is_empty():
+			break
+		var result := ReversiEngine.play_move(
+			state,
+			int(move.get("x", -1)),
+			int(move.get("y", -1)),
+		)
+		if !bool(result.get("ok", false)):
+			break
+		turn_guard += 1
+
+	var black_corners := 0
+	var white_corners := 0
+	var board: Array = state.get("board", [])
+	for point in [Vector2i(0, 0), Vector2i(0, 7), Vector2i(7, 0), Vector2i(7, 7)]:
+		var stone := int(board[point.x][point.y])
+		if stone == ReversiEngine.BLACK:
+			black_corners += 1
+		elif stone == ReversiEngine.WHITE:
+			white_corners += 1
+	return {
+		"complete": bool(state.get("game_over", false)),
+		"winner": int(state.get("winner", ReversiEngine.NONE)),
+		"black_corners": black_corners,
+		"white_corners": white_corners,
+	}
 
 
 func _test_endgame_exact_search() -> bool:
@@ -3116,7 +3253,7 @@ func _test_settings_menu_keeps_playfield_focused() -> bool:
 		and main.black_button.custom_minimum_size.y >= 56.0 \
 		and main.white_button.custom_minimum_size.y >= 56.0 \
 		and main.new_game_button.custom_minimum_size.y >= 56.0
-	var settings_controls_hidden_ok: bool = main.difficulty_buttons.size() == 3 \
+	var settings_controls_hidden_ok: bool = main.difficulty_buttons.size() == 4 \
 		and main.board_size_buttons.size() == 3 \
 		and main.board_theme_buttons.size() == MainScript.THEME_IDS.size() \
 		and !_choice_group_first_button_visible(main.difficulty_buttons) \
@@ -3142,6 +3279,15 @@ func _test_settings_menu_keeps_playfield_focused() -> bool:
 		and _choice_group_first_button_visible(main.difficulty_buttons) \
 		and _choice_group_first_button_visible(main.board_size_buttons) \
 		and _choice_group_first_button_visible(main.board_theme_buttons)
+	var difficulty_row := (main.difficulty_buttons[0].get("button") as Button).get_parent() as Control
+	var difficulty_layout_ok: bool = main.difficulty_buttons.size() == 4 \
+		and difficulty_row != null
+	for entry in main.difficulty_buttons:
+		var difficulty_button := entry.get("button") as Button
+		difficulty_layout_ok = difficulty_button != null \
+			and difficulty_button.get_parent() == difficulty_row \
+			and main.settings_panel.get_global_rect().encloses(difficulty_button.get_global_rect()) \
+			and difficulty_layout_ok
 	var language_section: Node = main.settings_panel.find_child("LanguageSection", true, false)
 	var how_to_play_entry: Node = main.settings_panel.find_child("HowToPlayEntryButton", true, false)
 	var about_section: Node = main.settings_panel.find_child("AboutSection", true, false)
@@ -3241,6 +3387,7 @@ func _test_settings_menu_keeps_playfield_focused() -> bool:
 		and _assert(sound_disabled_ok, "ui sound setting suppresses move sound")
 		and _assert(unsupported_setting_pruned_ok, "ui prunes unsupported saved vibration setting")
 		and _assert(menu_open_ok, "ui settings menu reveals settings controls")
+		and _assert(difficulty_layout_ok, "ui fits four difficulty buttons inside one settings row")
 		and _assert(about_location_ok, "ui nests how-to entry and about section after language settings")
 		and _assert(settings_panel_fits_ok, "ui keeps the about section inside the settings overlay")
 		and _assert(about_identity_ok, "ui displays app name and export-matched version")
@@ -3710,6 +3857,7 @@ func _test_difficulty_description_subtitle() -> bool:
 	_rm_user(save_path)
 
 	var description_keys := [
+		"difficulty_beginner_description",
 		"difficulty_easy_description",
 		"difficulty_medium_description",
 		"difficulty_hard_description",
@@ -3778,6 +3926,7 @@ func _test_difficulty_description_subtitle() -> bool:
 		and main.difficulty_subtitle_label.is_visible_in_tree() \
 		and main.difficulty_subtitle_label.text \
 			== str(MainScript.TEXT["en"]["difficulty_hard_description"])
+	var four_tiers_ok: bool = main.difficulty_buttons.size() == 4
 
 	main.queue_free()
 	await get_tree().process_frame
@@ -3786,6 +3935,7 @@ func _test_difficulty_description_subtitle() -> bool:
 	return (
 		_assert(catalogs_ok, "difficulty descriptions provide distinct Korean and English copy")
 		and _assert(settings_only_ok, "difficulty subtitle stays inside the existing settings section")
+		and _assert(four_tiers_ok, "difficulty settings expose four tiers")
 		and _assert(korean_updates_ok, "difficulty buttons update the Korean subtitle immediately")
 		and _assert(english_updates_ok, "difficulty buttons update the English subtitle immediately")
 		and _assert(hidden_ok, "difficulty subtitle is not a persistent HUD element")
