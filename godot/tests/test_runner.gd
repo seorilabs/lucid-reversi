@@ -111,6 +111,8 @@ func _ready() -> void:
 	ok = theme_ok and ok
 	var forest_theme_ok := await _test_forest_board_theme()
 	ok = forest_theme_ok and ok
+	var sakura_theme_ok := await _test_sakura_visual_theme()
+	ok = sakura_theme_ok and ok
 	var ui_ok := await _test_ui_hints_return_after_animation()
 	ok = ui_ok and ok
 	var show_moves_ok := await _test_show_moves_setting()
@@ -3661,7 +3663,7 @@ func _test_forest_board_theme() -> bool:
 	var stone_before: Texture2D = main._texture_for_stone(ReversiEngine.BLACK)
 	main._show_settings_menu()
 	await get_tree().process_frame
-	var korean_button_ok: bool = main.board_theme_buttons.size() == 4
+	var korean_button_ok: bool = main.board_theme_buttons.size() == MainScript.THEME_IDS.size()
 	for entry_value in main.board_theme_buttons:
 		var entry: Dictionary = entry_value
 		if str(entry.get("id", "")) == "forest":
@@ -3700,7 +3702,7 @@ func _test_forest_board_theme() -> bool:
 
 	main._set_locale("en", false)
 	await get_tree().process_frame
-	var english_button_ok: bool = main.board_theme_buttons.size() == 4
+	var english_button_ok: bool = main.board_theme_buttons.size() == MainScript.THEME_IDS.size()
 	for entry_value in main.board_theme_buttons:
 		var entry: Dictionary = entry_value
 		if str(entry.get("id", "")) == "forest":
@@ -3729,6 +3731,133 @@ func _test_forest_board_theme() -> bool:
 		and _assert(contrast_ok, "forest hint and last-move accent contrast with the felt surface")
 		and _assert(persisted_ok, "forest theme persists immediately")
 		and _assert(restored_ok, "forest theme restores without changing stone textures")
+	)
+
+
+func _test_sakura_visual_theme() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var suffix := str(OS.get_process_id())
+	var prefs_path := "user://prefs_sakura_theme_%s.json" % suffix
+	var save_path := "user://save_sakura_theme_%s.json" % suffix
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	main._prefs_path = prefs_path
+	main._save_path = save_path
+	add_child(main)
+	await get_tree().process_frame
+	var initial_game_root: Node = main.find_child("GameRoot", true, false)
+	var initial_game_root_child_count: int = initial_game_root.get_child_count()
+	main._show_settings_menu()
+	await get_tree().process_frame
+
+	var korean_board_label_ok := false
+	for entry_value in main.board_theme_buttons:
+		var entry: Dictionary = entry_value
+		if str(entry.get("id", "")) == "sakura":
+			var button := entry.get("button") as Button
+			korean_board_label_ok = button != null and button.text == "벚꽃"
+	var korean_stone_label_ok := false
+	for entry_value in main.stone_theme_buttons:
+		var entry: Dictionary = entry_value
+		if str(entry.get("id", "")) == "sakura":
+			var button := entry.get("button") as Button
+			korean_stone_label_ok = button != null and button.text == "벚꽃"
+
+	var board_config: Dictionary = main._theme_config("sakura")
+	var board_required_keys := [
+		"bg", "hud", "hud_dark", "board_frame", "board_frame_border",
+		"board_dark", "board_light", "board_surface", "board_grid", "meter_bg",
+		"text_primary", "text_muted", "accent", "danger", "success",
+		"hint", "hint_border", "board_highlight", "board_shadow", "board_guide",
+	]
+	var board_contract_ok: bool = MainScript.THEME_IDS.has("sakura")
+	for key in board_required_keys:
+		board_contract_ok = board_contract_ok \
+			and board_config.has(key) \
+			and typeof(board_config[key]) == TYPE_COLOR \
+			and Color(board_config[key]) != Color.WHITE
+
+	var stone_config: Dictionary = main._stone_theme_config("sakura")
+	var sakura_black := stone_config.get("black_texture") as Texture2D
+	var sakura_white := stone_config.get("white_texture") as Texture2D
+	var stone_contract_ok: bool = MainScript.STONE_THEME_IDS.has("sakura") \
+		and sakura_black != null \
+		and sakura_white != null \
+		and sakura_black != sakura_white \
+		and sakura_black.resource_path == "res://assets/reversi/themes/sakura_black.svg" \
+		and sakura_white.resource_path == "res://assets/reversi/themes/sakura_white.svg" \
+		and typeof(stone_config.get("black_meter")) == TYPE_COLOR \
+		and typeof(stone_config.get("white_meter")) == TYPE_COLOR \
+		and Color(stone_config["black_meter"]) != Color.WHITE \
+		and Color(stone_config["white_meter"]) != Color.WHITE
+
+	main._set_theme("sakura")
+	await get_tree().process_frame
+	main._set_stone_theme("sakura")
+	await get_tree().process_frame
+	var rendered_board_style := main.cell_buttons[0][0].get_theme_stylebox("normal") as StyleBoxFlat
+	var selection_render_ok: bool = rendered_board_style != null \
+		and rendered_board_style.bg_color == board_config["board_surface"] \
+		and _choice_group_has_active_id(main.board_theme_buttons, "sakura") \
+		and _choice_group_has_active_id(main.stone_theme_buttons, "sakura")
+	var board_texture_ok: bool = main.cell_piece_views[3][3].texture == sakura_white \
+		and main.cell_piece_views[3][4].texture == sakura_black
+	var score_texture_ok: bool = main.player_stone_view.texture \
+			== main._texture_for_stone(main.player_stone) \
+		and main.ai_stone_view.texture \
+			== main._texture_for_stone(ReversiEngine.opponent(main.player_stone))
+	var stored: Dictionary = main._load_preferences()
+	var persisted_ok: bool = str(stored.get("settings", {}).get("theme", "")) == "sakura" \
+		and str(stored.get("settings", {}).get("stone_theme", "")) == "sakura"
+	var current_game_root: Node = main.find_child("GameRoot", true, false)
+	var existing_settings_depth_ok: bool = main.settings_overlay.visible \
+		and current_game_root.get_child_count() == initial_game_root_child_count
+
+	main._set_locale("en", false)
+	await get_tree().process_frame
+	var english_board_label_ok := false
+	for entry_value in main.board_theme_buttons:
+		var entry: Dictionary = entry_value
+		if str(entry.get("id", "")) == "sakura":
+			var button := entry.get("button") as Button
+			english_board_label_ok = button != null and button.text == "SAKURA"
+	var english_stone_label_ok := false
+	for entry_value in main.stone_theme_buttons:
+		var entry: Dictionary = entry_value
+		if str(entry.get("id", "")) == "sakura":
+			var button := entry.get("button") as Button
+			english_stone_label_ok = button != null and button.text == "SAKURA"
+	main.queue_free()
+	await get_tree().process_frame
+
+	var restored = main_scene.instantiate()
+	restored._prefs_path = prefs_path
+	restored._save_path = save_path
+	add_child(restored)
+	await get_tree().process_frame
+	var restored_ok: bool = restored._current_theme_id() == "sakura" \
+		and restored._current_stone_theme_id() == "sakura" \
+		and _choice_group_has_active_id(restored.board_theme_buttons, "sakura") \
+		and _choice_group_has_active_id(restored.stone_theme_buttons, "sakura") \
+		and restored.cell_piece_views[3][3].texture == sakura_white \
+		and restored.cell_piece_views[3][4].texture == sakura_black
+	restored.queue_free()
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	return (
+		_assert(korean_board_label_ok and korean_stone_label_ok, "sakura board and stone labels render in Korean")
+		and _assert(english_board_label_ok and english_stone_label_ok, "sakura board and stone labels render in English")
+		and _assert(board_contract_ok, "sakura board theme avoids color fallback with a complete palette")
+		and _assert(stone_contract_ok, "sakura stone theme imports distinct black and white SVG textures")
+		and _assert(selection_render_ok, "sakura board and stone selectors rerender as active")
+		and _assert(board_texture_ok, "sakura textures render on the board")
+		and _assert(score_texture_ok, "sakura textures render in both score panels")
+		and _assert(persisted_ok, "sakura board and stone selections persist immediately")
+		and _assert(restored_ok, "sakura board and stone selections restore after restart")
+		and _assert(existing_settings_depth_ok, "sakura reuses existing settings selectors without a new HUD")
 	)
 
 
