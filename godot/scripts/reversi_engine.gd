@@ -11,9 +11,17 @@ const VALID := 3
 const SEARCH_MIN := -9223372036854775807
 const SEARCH_MAX := 9223372036854775807
 const MOBILITY_WEIGHT := DEFAULT_BOARD_SIZE
+const PHASE_OPENING := "opening"
+const PHASE_MIDDLE := "middle"
+const PHASE_ENDGAME := "endgame"
+const PHASE_OPENING_MAX_OCCUPIED_RATIO := 1.0 / 3.0
+const PHASE_MIDDLE_MAX_OCCUPIED_RATIO := 2.0 / 3.0
 const DISC_WEIGHT_OPENING := 0
 const DISC_WEIGHT_MIDDLE := 1
 const DISC_WEIGHT_ENDGAME := 4
+const POSITION_WEIGHT_OPENING := 2
+const POSITION_WEIGHT_MIDDLE := 1
+const POSITION_WEIGHT_ENDGAME := 1
 const CODEC_MAGIC_0 := 0x4c
 const CODEC_MAGIC_1 := 0x52
 const CODEC_VERSION := 2
@@ -982,12 +990,14 @@ static func _evaluate_board(
 	if board_size == 0:
 		return 0
 	var counts := count_pieces(board)
+	var phase := _phase_for_board(board)
 	var score := int(counts["black"]) - int(counts["white"])
 	if stone == WHITE:
 		score *= -1
-	score *= _disc_weight_for_board(board)
+	score *= _disc_weight_for_phase(phase)
 
 	score += _mobility_score(board, stone)
+	var position_score := 0
 
 	var corner_value := board_size * 3
 	var edge_value := board_size * 2
@@ -1016,7 +1026,7 @@ static func _evaluate_board(
 		c_squares.append(pair[0])
 
 	for point in [Vector2i(0, 0), Vector2i(0, last), Vector2i(last, 0), Vector2i(last, last)]:
-		score += _weighted_cell(board, point, stone, corner_value)
+		position_score += _weighted_cell(board, point, stone, corner_value)
 
 	for pair in x_square_pairs:
 		var point: Vector2i = pair[0]
@@ -1025,7 +1035,7 @@ static func _evaluate_board(
 		var cell := int(board[point.x][point.y])
 		if cell != NONE and cell == int(board[corner.x][corner.y]):
 			value = 0
-		score += _weighted_cell(board, point, stone, value)
+		position_score += _weighted_cell(board, point, stone, value)
 
 	for pair in c_square_pairs:
 		var point: Vector2i = pair[0]
@@ -1034,7 +1044,7 @@ static func _evaluate_board(
 		var cell := int(board[point.x][point.y])
 		if cell != NONE and cell == int(board[corner.x][corner.y]):
 			value = 0
-		score += _weighted_cell(board, point, stone, value)
+		position_score += _weighted_cell(board, point, stone, value)
 
 	for x in range(board_size):
 		for y in range(board_size):
@@ -1042,7 +1052,7 @@ static func _evaluate_board(
 			var is_corner := (x == 0 or x == last) and (y == 0 or y == last)
 			var point := Vector2i(x, y)
 			if is_edge and !is_corner and !c_squares.has(point):
-				score += _weighted_cell(board, point, stone, edge_value)
+				position_score += _weighted_cell(board, point, stone, edge_value)
 
 	for offset in range(2, board_size - 2):
 		for point in [
@@ -1051,7 +1061,9 @@ static func _evaluate_board(
 			Vector2i(near_last, offset),
 			Vector2i(offset, near_last),
 		]:
-			score += _weighted_cell(board, point, stone, corner_path_value)
+			position_score += _weighted_cell(board, point, stone, corner_path_value)
+
+	score += position_score * _position_weight_for_phase(phase)
 
 	return -score if normalize_variant(variant) == VARIANT_ANTI else score
 
@@ -1064,16 +1076,44 @@ static func _variant_from_state(state: Dictionary) -> String:
 
 
 static func _disc_weight_for_board(board: Array) -> int:
+	return _disc_weight_for_phase(_phase_for_board(board))
+
+
+static func _phase_for_board(board: Array) -> String:
 	var board_size := get_board_size(board)
 	if board_size == 0:
-		return DISC_WEIGHT_OPENING
+		return PHASE_OPENING
 	var total_cells := board_size * board_size
-	var empty_cells := _count_empty_cells(board)
-	if empty_cells * 3 >= total_cells * 2:
-		return DISC_WEIGHT_OPENING
-	if empty_cells * 3 >= total_cells:
-		return DISC_WEIGHT_MIDDLE
-	return DISC_WEIGHT_ENDGAME
+	var occupied_ratio := float(total_cells - _count_empty_cells(board)) / float(total_cells)
+	if occupied_ratio <= PHASE_OPENING_MAX_OCCUPIED_RATIO:
+		return PHASE_OPENING
+	if occupied_ratio <= PHASE_MIDDLE_MAX_OCCUPIED_RATIO:
+		return PHASE_MIDDLE
+	return PHASE_ENDGAME
+
+
+static func _disc_weight_for_phase(phase: String) -> int:
+	match phase:
+		PHASE_MIDDLE:
+			return DISC_WEIGHT_MIDDLE
+		PHASE_ENDGAME:
+			return DISC_WEIGHT_ENDGAME
+		_:
+			return DISC_WEIGHT_OPENING
+
+
+static func _position_weight_for_board(board: Array) -> int:
+	return _position_weight_for_phase(_phase_for_board(board))
+
+
+static func _position_weight_for_phase(phase: String) -> int:
+	match phase:
+		PHASE_MIDDLE:
+			return POSITION_WEIGHT_MIDDLE
+		PHASE_ENDGAME:
+			return POSITION_WEIGHT_ENDGAME
+		_:
+			return POSITION_WEIGHT_OPENING
 
 
 static func _mobility_score(board: Array, stone: int) -> int:

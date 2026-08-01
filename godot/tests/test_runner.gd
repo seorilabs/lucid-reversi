@@ -96,6 +96,7 @@ func _ready() -> void:
 	ok = _test_alpha_beta_matches_full_search() and ok
 	ok = _test_endgame_exact_search() and ok
 	ok = _test_mobility_evaluation_boundaries() and ok
+	ok = _test_phase_aware_evaluation_weights() and ok
 	ok = _test_c_square_evaluation() and ok
 	ok = _test_x_square_evaluation() and ok
 	ok = _test_phase_aware_mobility_choice() and ok
@@ -1744,6 +1745,58 @@ func _test_mobility_evaluation_boundaries() -> bool:
 	)
 
 
+func _test_phase_aware_evaluation_weights() -> bool:
+	var opening_board: Array = ReversiEngine.create_new_game()["board"]
+	var middle_board := _board_from_strings([
+		"BBBBBBBB",
+		"WWWWWWWW",
+		"BBBBBBBB",
+		"WWWWWWWW",
+		"........",
+		"........",
+		"........",
+		"........",
+	])
+	var endgame_board: Array = []
+	for _x in range(ReversiEngine.BOARD_SIZE):
+		var row: Array = []
+		for _y in range(ReversiEngine.BOARD_SIZE):
+			row.append(ReversiEngine.BLACK)
+		endgame_board.append(row)
+
+	var phases_ok := (
+		ReversiEngine._phase_for_board(opening_board) == ReversiEngine.PHASE_OPENING
+		and ReversiEngine._phase_for_board(middle_board) == ReversiEngine.PHASE_MIDDLE
+		and ReversiEngine._phase_for_board(endgame_board) == ReversiEngine.PHASE_ENDGAME
+	)
+	var disc_schedule_ok := (
+		ReversiEngine._disc_weight_for_board(opening_board)
+			== ReversiEngine.DISC_WEIGHT_OPENING
+		and ReversiEngine._disc_weight_for_board(middle_board)
+			== ReversiEngine.DISC_WEIGHT_MIDDLE
+		and ReversiEngine._disc_weight_for_board(endgame_board)
+			== ReversiEngine.DISC_WEIGHT_ENDGAME
+		and ReversiEngine.DISC_WEIGHT_OPENING < ReversiEngine.DISC_WEIGHT_MIDDLE
+		and ReversiEngine.DISC_WEIGHT_MIDDLE < ReversiEngine.DISC_WEIGHT_ENDGAME
+	)
+	var position_schedule_ok := (
+		ReversiEngine._position_weight_for_board(opening_board)
+			== ReversiEngine.POSITION_WEIGHT_OPENING
+		and ReversiEngine._position_weight_for_board(middle_board)
+			== ReversiEngine.POSITION_WEIGHT_MIDDLE
+		and ReversiEngine._position_weight_for_board(endgame_board)
+			== ReversiEngine.POSITION_WEIGHT_ENDGAME
+		and ReversiEngine.POSITION_WEIGHT_OPENING > ReversiEngine.POSITION_WEIGHT_MIDDLE
+		and ReversiEngine.POSITION_WEIGHT_MIDDLE > 0
+		and ReversiEngine.POSITION_WEIGHT_ENDGAME > 0
+	)
+	return (
+		_assert(phases_ok, "evaluation derives opening middle and endgame from occupied cells")
+		and _assert(disc_schedule_ok, "disc weight rises from opening to endgame")
+		and _assert(position_schedule_ok, "position weight is phase scheduled and remains positive")
+	)
+
+
 func _test_c_square_evaluation() -> bool:
 	var c_squares := [
 		Vector2i(0, 1),
@@ -1827,11 +1880,11 @@ func _test_x_square_evaluation() -> bool:
 			secured_corner_board[corner.x][corner.y] = ReversiEngine.BLACK
 			dynamic_coordinates_ok = (
 				ReversiEngine._evaluate_board(open_corner_board, ReversiEngine.BLACK)
-					== -board_size * 2
+					== -board_size * 2 * ReversiEngine.POSITION_WEIGHT_OPENING
 				and ReversiEngine._evaluate_board(
 					secured_corner_board,
 					ReversiEngine.BLACK,
-				) == board_size * 3
+				) == board_size * 3 * ReversiEngine.POSITION_WEIGHT_OPENING
 				and dynamic_coordinates_ok
 			)
 
@@ -1864,7 +1917,8 @@ func _test_x_square_evaluation() -> bool:
 		)
 		and _assert(
 			int(chosen_move.get("x", -1)) == 6 and int(chosen_move.get("y", -1)) == 1,
-			"easy AI can choose a secured X-square instead of retaining the open-corner penalty",
+			"easy AI can choose a secured X-square instead of retaining the open-corner penalty: %s"
+				% [chosen_move],
 		)
 	)
 
