@@ -3,6 +3,7 @@ extends Node
 const ReversiEngine = preload("res://scripts/reversi_engine.gd")
 const ReversiAnalytics = preload("res://scripts/analytics.gd")
 const GA4Sender = preload("res://scripts/ga4_mp_sender.gd")
+const PuzzleCatalog = preload("res://scripts/puzzle_catalog.gd")
 
 
 # analytics 어댑터 포워딩 검증용 프로브(sender 자리에 주입).
@@ -82,6 +83,7 @@ func _ready() -> void:
 	ok = _test_c_square_evaluation() and ok
 	ok = _test_phase_aware_mobility_choice() and ok
 	ok = _test_anti_reversi_rules_and_ai() and ok
+	ok = _test_puzzle_catalog_and_goals() and ok
 	var ai_delay_ok := await _test_ai_think_delay_profile_and_guard()
 	ok = ai_delay_ok and ok
 	var local_two_player_ok := await _test_local_two_player_mode()
@@ -96,6 +98,8 @@ func _ready() -> void:
 	ok = difficulty_description_ok and ok
 	var anti_reversi_ui_ok := await _test_anti_reversi_ui()
 	ok = anti_reversi_ui_ok and ok
+	var puzzle_ui_ok := await _test_puzzle_mode_ui_and_save_isolation()
+	ok = puzzle_ui_ok and ok
 	var how_to_play_ok := await _test_how_to_play_sheet()
 	ok = how_to_play_ok and ok
 	var move_list_ok := await _test_move_list_panel()
@@ -1815,6 +1819,62 @@ func _test_anti_reversi_rules_and_ai() -> bool:
 	)
 
 
+func _test_puzzle_catalog_and_goals() -> bool:
+	var definitions := PuzzleCatalog.all()
+	var ids := {}
+	var catalog_contract_ok := definitions.size() >= 3
+	for definition_value in definitions:
+		var definition: Dictionary = definition_value
+		var puzzle_id := str(definition.get("id", ""))
+		var puzzle_state := PuzzleCatalog.create_state(definition, 590059)
+		ids[puzzle_id] = true
+		catalog_contract_ok = catalog_contract_ok \
+			and PuzzleCatalog.definition_is_valid(definition) \
+			and ReversiEngine.get_board_size(puzzle_state.get("board", [])) == 8 \
+			and int(puzzle_state.get("current_turn", ReversiEngine.NONE)) \
+				== int(definition.get("current_turn", ReversiEngine.NONE)) \
+			and str(puzzle_state.get("difficulty", "")) \
+				== str(definition.get("difficulty", "")) \
+			and !str(definition.get("description", "")).is_empty() \
+			and typeof(definition.get("goal", {})) == TYPE_DICTIONARY
+
+	var corner_definition := PuzzleCatalog.get_by_id("corner_capture")
+	var corner_state := PuzzleCatalog.create_state(corner_definition, 590001)
+	var corner_before := PuzzleCatalog.evaluate_goal(corner_definition, corner_state)
+	var corner_move := ReversiEngine.play_move(corner_state, 0, 0)
+	var corner_after := PuzzleCatalog.evaluate_goal(corner_definition, corner_state)
+	var corner_goal_ok: bool = !bool(corner_before.get("complete", true)) \
+		and bool(corner_move.get("ok", false)) \
+		and bool(corner_after.get("complete", false)) \
+		and bool(corner_after.get("success", false))
+
+	var win_definition := PuzzleCatalog.get_by_id("white_finish")
+	var win_state := PuzzleCatalog.create_state(win_definition, 590002)
+	var finish_move := ReversiEngine.play_move(win_state, 5, 7)
+	var win_result := PuzzleCatalog.evaluate_goal(win_definition, win_state)
+	var win_goal_ok: bool = bool(finish_move.get("ok", false)) \
+		and bool(win_state.get("game_over", false)) \
+		and int(win_state.get("winner", ReversiEngine.NONE)) == ReversiEngine.WHITE \
+		and bool(win_result.get("complete", false)) \
+		and bool(win_result.get("success", false))
+	var failed_state := PuzzleCatalog.create_state(win_definition, 590003)
+	failed_state["game_over"] = true
+	failed_state["winner"] = ReversiEngine.BLACK
+	var failed_result := PuzzleCatalog.evaluate_goal(win_definition, failed_state)
+	var failed_goal_ok: bool = bool(failed_result.get("complete", false)) \
+		and !bool(failed_result.get("success", true))
+
+	return (
+		_assert(
+			catalog_contract_ok and ids.size() == definitions.size(),
+			"puzzle catalog defines three valid board turn description goal and difficulty fixtures",
+		)
+		and _assert(corner_goal_ok, "puzzle corner goal completes only after the target corner is captured")
+		and _assert(win_goal_ok, "puzzle win goal succeeds on the matching terminal winner")
+		and _assert(failed_goal_ok, "puzzle win goal reports a failed terminal winner")
+	)
+
+
 func _move_flip_and_mobility(
 	board: Array,
 	stone: int,
@@ -3331,6 +3391,146 @@ func _test_anti_reversi_ui() -> bool:
 		and _assert(persistence_ok, "anti variant saves immediately in preferences")
 		and _assert(result_overlay_ok, "anti winner drives the existing result overlay verdict")
 		and _assert(restore_ok, "anti variant restores after restart")
+	)
+
+
+func _test_puzzle_mode_ui_and_save_isolation() -> bool:
+	var MainScript = load("res://scripts/bootstrap/main.gd")
+	var suffix := str(OS.get_process_id())
+	var prefs_path := "user://prefs_puzzle_%s.json" % suffix
+	var save_path := "user://save_puzzle_%s.json" % suffix
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	main._prefs_path = prefs_path
+	main._save_path = save_path
+	add_child(main)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	main._finish_how_to_play()
+	var standard_settings: Dictionary = main._current_settings()
+	standard_settings["reduce_motion"] = true
+	main.state["settings"] = standard_settings
+	main._start_new_game(ReversiEngine.BLACK)
+	var standard_save_before := FileAccess.get_file_as_string(save_path)
+	var standard_stats := ReversiEngine.normalize_stats(main.state.get("stats", {}))
+
+	var section: Node = main.settings_panel.find_child("PuzzleSection", true, false)
+	var settings_depth_ok: bool = section != null \
+		and main.puzzle_entry_button != null \
+		and section.is_ancestor_of(main.puzzle_entry_button) \
+		and main.settings_panel.is_ancestor_of(section) \
+		and !main.puzzle_entry_button.is_visible_in_tree()
+	main._show_settings_menu()
+	main.puzzle_entry_button.emit_signal("pressed")
+	await get_tree().process_frame
+	var selector_ok: bool = main.puzzle_overlay.visible \
+		and !main.settings_overlay.visible \
+		and main.puzzle_panel != null \
+		and main.puzzle_cards.size() == PuzzleCatalog.all().size() \
+		and main.puzzle_cards.size() >= 3
+	var localized_catalog_ok := true
+	var puzzle_text_keys := [
+		"puzzle_section",
+		"puzzle_entry",
+		"puzzle_select_title",
+		"puzzle_select_intro",
+		"puzzle_start",
+		"puzzle_complete",
+		"puzzle_failed",
+		"puzzle_standard_game",
+		"puzzle_corner_title",
+		"puzzle_corner_description",
+		"puzzle_corner_goal",
+		"puzzle_comeback_title",
+		"puzzle_comeback_description",
+		"puzzle_comeback_goal",
+		"puzzle_white_title",
+		"puzzle_white_description",
+		"puzzle_white_goal",
+	]
+	for locale_id in ["ko", "en", "ja"]:
+		var catalog: Dictionary = MainScript.TEXT[locale_id]
+		for key in puzzle_text_keys:
+			localized_catalog_ok = !str(catalog.get(key, "")).is_empty() \
+				and localized_catalog_ok
+	var korean_cards_ok := true
+	for entry_value in main.puzzle_cards:
+		var entry: Dictionary = entry_value
+		var definition := PuzzleCatalog.get_by_id(str(entry.get("id", "")))
+		var title_label := entry.get("title_label") as Label
+		var description_label := entry.get("description_label") as Label
+		var goal_label := entry.get("goal_label") as Label
+		korean_cards_ok = title_label != null \
+			and description_label != null \
+			and goal_label != null \
+			and title_label.text == str(MainScript.TEXT["ko"][definition["title_key"]]) \
+			and description_label.text \
+				== str(MainScript.TEXT["ko"][definition["description"]]) \
+			and goal_label.text == str(MainScript.TEXT["ko"][definition["goal_key"]]) \
+			and korean_cards_ok
+
+	var corner_entry: Dictionary = main.puzzle_cards[0]
+	var corner_start_button := corner_entry.get("start_button") as Button
+	corner_start_button.emit_signal("pressed")
+	await get_tree().process_frame
+	var corner_definition := PuzzleCatalog.get_by_id("corner_capture")
+	var expected_board := PuzzleCatalog.board_from_definition(corner_definition)
+	var puzzle_loaded_ok: bool = main._active_puzzle_id == "corner_capture" \
+		and !main.puzzle_overlay.visible \
+		and main.state.get("board", []) == expected_board \
+		and int(main.state.get("current_turn", ReversiEngine.NONE)) \
+			== int(corner_definition["current_turn"]) \
+		and str(main.state.get("difficulty", "")) == str(corner_definition["difficulty"])
+	var ad_probe := _InterstitialProbe.new()
+	main._interstitial_probe = Callable(ad_probe, "request")
+	var corner_move := ReversiEngine.play_move(main.state, 0, 0)
+	var goal_result: Dictionary = main._evaluate_active_puzzle_goal()
+	main._save_state()
+	main._render()
+	await get_tree().process_frame
+	var standard_save_after_puzzle := FileAccess.get_file_as_string(save_path)
+	var puzzle_result_ok: bool = bool(corner_move.get("ok", false)) \
+		and bool(goal_result.get("complete", false)) \
+		and bool(goal_result.get("success", false)) \
+		and main._puzzle_completed \
+		and main._puzzle_success \
+		and main.result_overlay.visible \
+		and main.result_title_label.text == str(MainScript.TEXT["ko"]["puzzle_complete"]) \
+		and main.result_stats_label.text == str(MainScript.TEXT["ko"]["puzzle_corner_goal"]) \
+		and main.result_restart_button.text \
+			== str(MainScript.TEXT["ko"]["puzzle_standard_game"]) \
+		and main.result_replay_button.disabled \
+		and ad_probe.requests == 0
+	var save_isolation_ok: bool = standard_save_before == standard_save_after_puzzle \
+		and ReversiEngine.normalize_stats(main.state.get("stats", {})) == standard_stats
+
+	main._start_new_game(ReversiEngine.BLACK)
+	await get_tree().process_frame
+	var restored_standard: Dictionary = main._load_state()
+	var restored_counts := ReversiEngine.count_pieces(restored_standard.get("board", []))
+	var standard_return_ok: bool = !main._is_puzzle_active() \
+		and !main.result_overlay.visible \
+		and main.state.get("move_history", []).is_empty() \
+		and int(restored_counts.get("black", -1)) == 2 \
+		and int(restored_counts.get("white", -1)) == 2 \
+		and ReversiEngine.get_board_size(restored_standard.get("board", [])) == 8 \
+		and !restored_standard.has("puzzle_id")
+
+	main.queue_free()
+	await get_tree().process_frame
+	_rm_user(prefs_path)
+	_rm_user(save_path)
+	return (
+		_assert(settings_depth_ok, "puzzle entry stays inside the settings sheet")
+		and _assert(selector_ok and korean_cards_ok, "puzzle entry opens a localized three-card selector modal")
+		and _assert(localized_catalog_ok, "puzzle labels descriptions and goals cover every supported locale")
+		and _assert(puzzle_loaded_ok, "puzzle selection creates the configured board turn and difficulty state")
+		and _assert(puzzle_result_ok, "puzzle goal reuses the result overlay without stats ads or replay")
+		and _assert(save_isolation_ok, "puzzle play leaves the standard save and stats unchanged")
+		and _assert(standard_return_ok, "puzzle result returns to a persisted standard new game")
 	)
 
 

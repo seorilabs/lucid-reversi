@@ -27,7 +27,8 @@
 
 - Mobile playfield-first: 게임판, 점수, 차례, 착수 가능 위치, 돌 뒤집힘 애니메이션을 화면 중심 경험으로 둔다.
 - Board-adjacent feedback starts immediately under the board: full-width advantage meter first, then one compact row for 새 게임, 선공/후공, 착수 가능 수.
-- Non-gameplay controls live in the top-right settings menu: 대전 상대 AI·2인, 난이도, 보드 크기, 사운드, 진동, 착수 표시, 보드/돌 테마, 언어, 글자 크기, 모션 줄이기, 플레이 방법, 정보. 대전 상대 변경은 새 대국을 시작하며 선택은 환경설정에 즉시 저장된다. 설정 패널은 기준 화면 안에 고정되고 내용이 길면 세로 스크롤한다. 플레이 방법은 착수·뒤집기·패스·종료/승패를 설명하는 4단계 스크롤 시트이며, 단계 이동 때 실제 보드 셀을 강조한다. 최초 대국에서 자동 표시하고 완료·건너뛰기·닫기를 한 뒤에는 다시 자동 표시하지 않으며 설정에서 언제든 다시 열 수 있다. 정보 섹션은 앱 이름·export와 동기화된 버전·지원 이메일을 표시하고, 개인정보 처리방침 URL이 확정되어 주입된 경우에만 링크를 노출한다. Mobile settings use large segmented buttons instead of select boxes, and tapping outside the settings panel closes it.
+- Non-gameplay controls live in the top-right settings menu: 대전 상대 AI·2인, 난이도, 보드 크기, 사운드, 진동, 착수 표시, 보드/돌 테마, 퍼즐, 언어, 글자 크기, 모션 줄이기, 플레이 방법, 정보. 대전 상대 변경은 새 대국을 시작하며 선택은 환경설정에 즉시 저장된다. 설정 패널은 기준 화면 안에 고정되고 내용이 길면 세로 스크롤한다. 플레이 방법은 착수·뒤집기·패스·종료/승패를 설명하는 4단계 스크롤 시트이며, 단계 이동 때 실제 보드 셀을 강조한다. 최초 대국에서 자동 표시하고 완료·건너뛰기·닫기를 한 뒤에는 다시 자동 표시하지 않으며 설정에서 언제든 다시 열 수 있다. 정보 섹션은 앱 이름·export와 동기화된 버전·지원 이메일을 표시하고, 개인정보 처리방침 URL이 확정되어 주입된 경우에만 링크를 노출한다. Mobile settings use large segmented buttons instead of select boxes, and tapping outside the settings panel closes it.
+- 퍼즐은 설정 안의 진입점에서 별도 선택 모달로 열고, 내장된 8x8 국면·시작 차례·플레이어 돌·목표·권장 난이도로 기존 대국 루프를 시작한다. 코너 확보 또는 종국 승리를 달성하면 기존 결과 오버레이에 성공/실패를 표시한다. 퍼즐 진행·결과는 일반 대국 save, 난이도별 전적, 광고·게임오버 분석에 합산하지 않으며 결과의 `일반 새 게임`으로 표준 초기 배치에 복귀한다.
 - In-play fun feedback should stay close to the board: a single theme-derived board surface with thin grid lines, last-move highlight, default-on legal move markers, midpoint color-swap disc flip with a placement-origin wave, placement sound, flip sound, big-flip sound, and a full-width advantage meter. Classic uses the traditional green Othello surface while Arctic and Ember derive their own surface/grid pair.
 - 보드 상단과 왼쪽에는 셀 중심에 맞춘 열 문자와 행 숫자 좌표를 표시한다. 기본 8x8은 좌상단 A1부터 우하단 H8이며 6x6/10x10 보드에서는 A-F/1-6, A-J/1-10으로 확장한다. 좌표는 셀 버튼 밖에서 입력을 무시한다.
 - 대국 중 상태 바의 기보 진입점은 누적 수와 마지막 착수 좌표를 표시한다. 기보 패널은 수순을 시간순으로 번호·흑백 돌·표준 좌표와 함께 보여 주고, 긴 대국에서는 세로 스크롤하며 결과 오버레이에서도 다시 열 수 있다. 새 게임을 시작하면 기보와 열린 패널 상태를 초기화한다.
@@ -47,6 +48,7 @@
   - 최근 대국/보드 상태 로컬 자동 저장/복원
   - 돌 착수 사운드, 일반 뒤집힘 사운드, 대량 뒤집힘 보너스 사운드와 상황별 햅틱
   - 설정: 사운드, 진동, 착수 표시, 보드 테마, 돌 테마, 언어, 글자 크기, 모션 줄이기, 플레이 방법, 정보
+  - 설정 내부 퍼즐 선택 모달과 내장 국면 3개
   - 한국어 기본 UI와 영어·일본어 보조 UI
 - Should-have:
   - 게임 종료 광고 hook
@@ -101,6 +103,7 @@
 - 결과 오버레이의 공유 버튼은 현재 로케일의 앱 이름·승패·최종 흑백 점수 텍스트를 만든다. AppsInToss Web은 `__aitBridge.shareResult`와 공식 `setClipboardText`를 사용하고, 네이티브는 OS 클립보드로 폴백하며 채널 부재 시 no-op 한다.
 - 대국별 AI seed를 game save에 저장한다. seed가 없는 기존 save는 board payload에서 결정론적으로 복원한다.
 - `opponent_mode`는 `ai`를 안전한 기본값으로 사용하고 `local` 선택을 `prefs_v1.json`에 저장한다. 게임 save 복원 뒤에도 환경설정을 적용해 같은 모드로 이어간다.
+- 퍼즐 상태는 `save_v1.json`에 기록하지 않는다. 퍼즐을 닫거나 앱을 재실행하면 마지막 일반 대국 save를 유지하고, 퍼즐 결과에서 일반 새 게임을 선택하면 표준 상태만 새로 저장한다.
 
 ## 승인
 
