@@ -4147,12 +4147,27 @@ func _test_board_coordinate_labels() -> bool:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
+	var defaults := ReversiEngine.default_settings()
+	var legacy_normalized := ReversiEngine.normalize_settings({})
+	var disabled_normalized := ReversiEngine.normalize_settings({"show_coordinates": false})
+	var normalization_ok: bool = bool(defaults.get("show_coordinates", false)) \
+		and bool(legacy_normalized.get("show_coordinates", false)) \
+		and !bool(disabled_normalized.get("show_coordinates", true))
+	var settings_depth_ok: bool = main.show_coordinates_toggle != null \
+		and main.settings_panel.is_ancestor_of(main.show_coordinates_toggle) \
+		and str(MainScript.TEXT["ko"].get("show_coordinates", "")) == "좌표 표시" \
+		and str(MainScript.TEXT["en"].get("show_coordinates", "")) == "COORDINATES" \
+		and str(MainScript.TEXT["ja"].get("show_coordinates", "")) == "座標表示"
+
 	var default_mapping_ok: bool = main.board_column_labels.size() == 8 \
 		and main.board_row_labels.size() == 8 \
 		and (main.board_column_labels[0] as Label).text == "A" \
 		and (main.board_column_labels[7] as Label).text == "H" \
 		and (main.board_row_labels[0] as Label).text == "1" \
-		and (main.board_row_labels[7] as Label).text == "8"
+		and (main.board_row_labels[7] as Label).text == "8" \
+		and main.show_coordinates_toggle.button_pressed \
+		and (main.board_column_labels[0] as Label).visible \
+		and (main.board_row_labels[0] as Label).visible
 	var aligned_ok := true
 	var input_safe_ok := true
 	for index in range(8):
@@ -4194,6 +4209,14 @@ func _test_board_coordinate_labels() -> bool:
 		!= before_locale_id \
 		and (main.board_column_labels[0] as Label).text == "A" \
 		and (main.board_column_labels[7] as Label).text == "H"
+	main.player_stone = ReversiEngine.WHITE
+	main._build_ui()
+	main._render()
+	await get_tree().process_frame
+	var white_mapping_ok: bool = (main.board_column_labels[0] as Label).text == "A" \
+		and (main.board_column_labels[7] as Label).text == "H" \
+		and (main.board_row_labels[0] as Label).text == "1" \
+		and (main.board_row_labels[7] as Label).text == "8"
 
 	main._set_board_size_from_choice("6")
 	await get_tree().process_frame
@@ -4208,19 +4231,56 @@ func _test_board_coordinate_labels() -> bool:
 		and (main.board_column_labels[9] as Label).text == "J" \
 		and (main.board_row_labels[9] as Label).text == "10"
 
+	main.show_coordinates_toggle.button_pressed = false
+	await get_tree().process_frame
+	var hidden_ok := true
+	for label_value in main.board_column_labels + main.board_row_labels:
+		hidden_ok = hidden_ok and !(label_value as Label).visible
+	var stored_off: Dictionary = main._load_preferences()
+	var persisted_off_ok: bool = !bool(
+		stored_off.get("settings", {}).get("show_coordinates", true)
+	)
+
 	main.queue_free()
+	await get_tree().process_frame
+	var restored = main_scene.instantiate()
+	restored._prefs_path = prefs_path
+	restored._save_path = save_path
+	add_child(restored)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var restored_off_ok: bool = !restored.show_coordinates_toggle.button_pressed \
+		and restored.board_column_labels.size() == 10 \
+		and !(restored.board_column_labels[0] as Label).visible \
+		and !(restored.board_row_labels[0] as Label).visible
+	restored.show_coordinates_toggle.button_pressed = true
+	await get_tree().process_frame
+	var restored_on_ok: bool = restored._show_board_coordinates_enabled() \
+		and (restored.board_column_labels[0] as Label).visible \
+		and (restored.board_row_labels[0] as Label).visible \
+		and bool(
+			restored._load_preferences().get("settings", {}).get("show_coordinates", false)
+		)
+	restored.queue_free()
 	await get_tree().process_frame
 	_rm_user(prefs_path)
 	_rm_user(save_path)
 	return (
-		_assert(default_mapping_ok, "board coordinates map A-H and 1-8 from the top-left")
+		_assert(normalization_ok, "board coordinate visibility defaults on and preserves explicit off")
+		and _assert(settings_depth_ok, "board coordinate toggle stays localized inside settings")
+		and _assert(default_mapping_ok, "board coordinates map A-H and 1-8 from the top-left")
 		and _assert(aligned_ok, "board coordinates align with cell centers")
 		and _assert(input_safe_ok, "board coordinates ignore input outside cell buttons")
 		and _assert(theme_readability_ok, "board coordinates use the UI font and readable muted theme colors")
 		and _assert(theme_rebuild_ok, "board coordinates rebuild after every board theme change")
 		and _assert(locale_rebuild_ok, "board coordinates rebuild after a locale change")
+		and _assert(white_mapping_ok, "board coordinates keep the same mapping for the white player")
 		and _assert(six_size_ok, "board coordinates adapt to the 6x6 board")
 		and _assert(ten_size_ok, "board coordinates adapt to the 10x10 board")
+		and _assert(hidden_ok, "board coordinate toggle hides every board-edge label immediately")
+		and _assert(persisted_off_ok, "board coordinate off state persists to preferences")
+		and _assert(restored_off_ok, "board coordinate off state restores after restart")
+		and _assert(restored_on_ok, "board coordinate labels restore and persist when re-enabled")
 	)
 
 

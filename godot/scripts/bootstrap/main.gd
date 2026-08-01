@@ -161,6 +161,7 @@ const TEXT := {
 		"reduce_motion": "모션 줄이기",
 		"high_contrast": "고대비 색상",
 		"show_moves": "착수 표시",
+		"show_coordinates": "좌표 표시",
 		"show_flip_counts": "뒤집기 수",
 		"board_theme": "보드 %s",
 		"stone_theme": "돌 %s",
@@ -297,6 +298,7 @@ const TEXT := {
 		"reduce_motion": "REDUCE MOTION",
 		"high_contrast": "HIGH CONTRAST",
 		"show_moves": "MOVES",
+		"show_coordinates": "COORDINATES",
 		"show_flip_counts": "FLIP COUNTS",
 		"board_theme": "BOARD %s",
 		"stone_theme": "STONE %s",
@@ -433,6 +435,7 @@ const TEXT := {
 		"reduce_motion": "動きを減らす",
 		"high_contrast": "ハイコントラスト",
 		"show_moves": "着手表示",
+		"show_coordinates": "座標表示",
 		"show_flip_counts": "反転数",
 		"board_theme": "盤面 %s",
 		"stone_theme": "石 %s",
@@ -588,6 +591,7 @@ var font_scale_buttons: Array = []
 var reduce_motion_toggle: CheckButton
 var high_contrast_toggle: CheckButton
 var show_moves_toggle: CheckButton
+var show_coordinates_toggle: CheckButton
 var show_flip_counts_toggle: CheckButton
 var result_overlay: ColorRect
 var result_panel: PanelContainer
@@ -924,6 +928,7 @@ func _build_board(root: VBoxContainer) -> void:
 			Vector2(cell_size, BOARD_COORDINATE_GUTTER),
 		)
 		column_label.name = "BoardColumn%s" % column_label.text
+		column_label.visible = _show_board_coordinates_enabled()
 		column_coordinates.add_child(column_label)
 		board_column_labels.append(column_label)
 
@@ -940,6 +945,7 @@ func _build_board(root: VBoxContainer) -> void:
 			Vector2(BOARD_COORDINATE_GUTTER, cell_size),
 		)
 		row_label.name = "BoardRow%s" % row_label.text
+		row_label.visible = _show_board_coordinates_enabled()
 		row_coordinates.add_child(row_label)
 		board_row_labels.append(row_label)
 
@@ -1143,6 +1149,18 @@ func _make_board_coordinate_label(text: String, minimum_size: Vector2) -> Label:
 	label.add_theme_color_override("font_color", _theme_color("text_muted"))
 	_apply_text_visibility(label, 1, _theme_color("text_muted"))
 	return label
+
+
+func _sync_board_coordinate_visibility() -> void:
+	var enabled := _show_board_coordinates_enabled()
+	for label_value in board_column_labels:
+		var label := label_value as Label
+		if label != null:
+			label.visible = enabled
+	for label_value in board_row_labels:
+		var label := label_value as Label
+		if label != null:
+			label.visible = enabled
 
 
 func _build_replay_controls(root: VBoxContainer) -> void:
@@ -1613,6 +1631,8 @@ func _build_settings_overlay() -> void:
 	box.add_child(haptic_toggle)
 	show_moves_toggle = _make_toggle_button(_t("show_moves"), "show_moves")
 	box.add_child(show_moves_toggle)
+	show_coordinates_toggle = _make_toggle_button(_t("show_coordinates"), "show_coordinates")
+	box.add_child(show_coordinates_toggle)
 	show_flip_counts_toggle = _make_toggle_button(_t("show_flip_counts"), "show_flip_counts")
 	box.add_child(show_flip_counts_toggle)
 	reduce_motion_toggle = _make_toggle_button(_t("reduce_motion"), "reduce_motion")
@@ -2410,6 +2430,8 @@ func _make_toggle_button(text: String, key: String) -> CheckButton:
 		_save_preferences()
 		if key == "music":
 			_sync_music_playback()
+		if key == "show_coordinates":
+			_sync_board_coordinate_visibility()
 		if key == "show_moves" or key == "show_flip_counts" or key == "high_contrast":
 			_render()
 	)
@@ -4109,6 +4131,10 @@ func _reduce_motion_enabled() -> bool:
 
 func _show_moves_enabled() -> bool:
 	return bool(_current_settings().get("show_moves", true))
+
+
+func _show_board_coordinates_enabled() -> bool:
+	return bool(_current_settings().get("show_coordinates", true))
 
 
 func _legal_move_preview_stone() -> int:

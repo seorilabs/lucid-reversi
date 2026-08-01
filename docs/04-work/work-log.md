@@ -2,6 +2,7 @@
 
 ## 2026-08-01
 
+- Added a persisted settings-only coordinate toggle that immediately hides or restores the existing board-edge labels without changing their player-color-independent mapping or touch-safe layout.
 - Consolidated turn status, the sole move-list counter, advantage text, and meter into one compact board-adjacent band, removed the score-strip turn badge and controls-row duplicate count, and preserved the board footprint.
 - Scheduled AI disc-difference and positional evaluation weights by opening, middle, and endgame occupancy phases, with named tuning constants and regression coverage for all three phases and existing corner/X/C semantics.
 - Replaced legal-move dot-only guidance with current-color translucent ghost discs inside board cells, hidden during locked and AI turns and blended into the existing placement animation across every board theme.
