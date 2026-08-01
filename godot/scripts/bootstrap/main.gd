@@ -47,6 +47,7 @@ const AI_THINK_DELAY_BASE := {
 const AI_THINK_DELAY_JITTER := 0.04
 const DIFFICULTY_IDS := ["EASY", "MEDIUM", "HARD"]
 const OPPONENT_MODE_IDS := ["ai", "local"]
+const VARIANT_IDS := [ReversiEngine.VARIANT_STANDARD, ReversiEngine.VARIANT_ANTI]
 const BOARD_SIZE_IDS := ["6", "8", "10"]
 const BOARD_SIZE_LABELS := ["6×6", "8×8", "10×10"]
 const THEME_IDS := ["classic", "arctic", "ember", "forest", "sakura"]
@@ -99,6 +100,9 @@ const TEXT := {
 		"opponent_mode_setting": "대전 상대",
 		"opponent_ai": "AI",
 		"opponent_local": "2인",
+		"variant_setting": "규칙",
+		"variant_standard": "표준",
+		"variant_anti": "역",
 		"black_player": "흑 플레이어",
 		"white_player": "백 플레이어",
 		"board_size_setting": "보드 크기",
@@ -209,6 +213,9 @@ const TEXT := {
 		"opponent_mode_setting": "OPPONENT",
 		"opponent_ai": "AI",
 		"opponent_local": "2 PLAYERS",
+		"variant_setting": "RULES",
+		"variant_standard": "STANDARD",
+		"variant_anti": "ANTI",
 		"black_player": "BLACK PLAYER",
 		"white_player": "WHITE PLAYER",
 		"board_size_setting": "BOARD SIZE",
@@ -319,6 +326,9 @@ const TEXT := {
 		"opponent_mode_setting": "対戦相手",
 		"opponent_ai": "AI",
 		"opponent_local": "2人",
+		"variant_setting": "ルール",
+		"variant_standard": "標準",
+		"variant_anti": "逆転",
 		"black_player": "黒プレイヤー",
 		"white_player": "白プレイヤー",
 		"board_size_setting": "盤面サイズ",
@@ -487,6 +497,7 @@ var new_game_button: Button
 var difficulty_buttons: Array = []
 var difficulty_subtitle_label: Label
 var opponent_mode_buttons: Array = []
+var variant_buttons: Array = []
 var board_size_buttons: Array = []
 var board_theme_buttons: Array = []
 var stone_theme_buttons: Array = []
@@ -1416,6 +1427,17 @@ func _build_settings_overlay() -> void:
 		Callable(self, "_set_opponent_mode_from_choice"),
 		opponent_mode_buttons
 	))
+
+	var variant_section := _make_choice_section(
+		_t("variant_setting"),
+		VARIANT_IDS,
+		[_t("variant_standard"), _t("variant_anti")],
+		_current_variant(),
+		Callable(self, "_set_variant_from_choice"),
+		variant_buttons
+	)
+	variant_section.name = "VariantSection"
+	box.add_child(variant_section)
 
 	var difficulty_section := _make_choice_section(
 		_t("difficulty_setting"),
@@ -3131,6 +3153,7 @@ func _update_mode_buttons() -> void:
 
 func _update_settings_choice_buttons() -> void:
 	_update_choice_buttons(opponent_mode_buttons, _current_opponent_mode())
+	_update_choice_buttons(variant_buttons, _current_variant())
 	_update_choice_buttons(difficulty_buttons, difficulty)
 	if difficulty_subtitle_label != null:
 		difficulty_subtitle_label.text = _difficulty_description(difficulty)
@@ -3485,6 +3508,12 @@ func _current_opponent_mode() -> String:
 	)
 
 
+func _current_variant() -> String:
+	return ReversiEngine.normalize_variant(
+		str(_current_settings().get("variant", ReversiEngine.VARIANT_STANDARD))
+	)
+
+
 func _is_local_game() -> bool:
 	return _current_opponent_mode() == "local"
 
@@ -3547,6 +3576,7 @@ func _apply_preferences_to_state() -> void:
 		state.get("board", []),
 	)
 	state["settings"] = preferred_settings
+	ReversiEngine._refresh_result(state)
 	preferences["settings"] = preferred_settings.duplicate(true)
 
 
@@ -3615,6 +3645,23 @@ func _set_opponent_mode_from_choice(opponent_mode: String) -> void:
 	state["settings"] = settings
 	if analytics != null:
 		analytics.on_settings_changed("opponent_mode", opponent_mode)
+	_save_preferences()
+	_start_new_game(player_stone)
+	if keep_settings_open:
+		_show_settings_menu()
+
+
+func _set_variant_from_choice(variant: String) -> void:
+	var normalized_variant := ReversiEngine.normalize_variant(variant)
+	if normalized_variant != variant or normalized_variant == _current_variant():
+		_update_settings_choice_buttons()
+		return
+	var keep_settings_open := settings_overlay != null and settings_overlay.visible
+	var settings := _current_settings()
+	settings["variant"] = normalized_variant
+	state["settings"] = settings
+	if analytics != null:
+		analytics.on_settings_changed("variant", normalized_variant)
 	_save_preferences()
 	_start_new_game(player_stone)
 	if keep_settings_open:
