@@ -43,7 +43,6 @@ function loadGodotLoader(): Promise<void> {
 
 export default function GodotCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [progress, setProgress] = useState(0);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,12 +67,7 @@ export default function GodotCanvas() {
         }
 
         engine = new EngineCtor({ ...GODOT_CONFIG, canvas });
-        await engine.startGame({
-          onProgress: (current, total) => {
-            if (cancelled) return;
-            if (current > 0 && total > 0) setProgress(Math.round((current / total) * 100));
-          },
-        });
+        await engine.startGame();
         if (!cancelled) setReady(true);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
@@ -87,7 +81,7 @@ export default function GodotCanvas() {
   }, []);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#000' }}>
+    <div style={{ position: 'fixed', inset: 0, background: '#f9fbfb' }}>
       <canvas
         ref={canvasRef}
         id="canvas"
@@ -98,7 +92,7 @@ export default function GodotCanvas() {
 
       {!ready && !error && (
         <div style={overlayStyle}>
-          <span>루시드 리버시 로딩 중… {progress > 0 ? `${progress}%` : ''}</span>
+          <img src={`${GODOT_BASE}/index.png`} alt="서리랩스" style={splashImageStyle} />
         </div>
       )}
 
@@ -117,7 +111,14 @@ const overlayStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  color: '#fff',
+  color: '#10140f',
+  background: '#f9fbfb',
   font: '15px/1.4 -apple-system, system-ui, sans-serif',
   pointerEvents: 'none',
+};
+
+const splashImageStyle: CSSProperties = {
+  display: 'block',
+  width: 'min(56vw, 320px)',
+  height: 'auto',
 };
