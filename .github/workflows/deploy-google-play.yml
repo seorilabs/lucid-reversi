@@ -77,3 +77,6 @@ jobs:
       release_status: ${{ inputs.release_status }}
       project_dir: godot
       scripts_dir: scripts
+      # Android AAB 를 vzyx-cluster 의 x64 셀프호스티드 ARC 러너에서 빌드한다.
+      # GitHub-hosted 분량과 Cloud Build 과금을 모두 쓰지 않는다.
+      runs_on: seorilabs-x64-android
