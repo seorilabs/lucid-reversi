@@ -18,8 +18,7 @@ concurrency:
 
 jobs:
   checks:
-    uses: seorilabs/.github/.github/workflows/godot-checks.yml@main
-    secrets: inherit
+    uses: seorilabs/.github/.github/workflows/godot-checks.yml@8a11a145fed35479a4a89ebc7ca97edd0a0f05fd
     with:
       runs_on: ${{ github.event.repository.private && 'seorilabs-rpi-arm64' || 'ubuntu-latest' }}
       project_dir: godot
@@ -27,4 +26,5 @@ jobs:
         npm run test:core
         npm run check:architecture
         npm run check:docs
+        npm run check:workflows
         bash scripts/godot_quality_gate.sh --project godot --smoke-scene res://tests/test_runner.tscn
