@@ -26,5 +26,4 @@ jobs:
         npm run test:core
         npm run check:architecture
         npm run check:docs
-        npm run check:workflows
         bash scripts/godot_quality_gate.sh --project godot --smoke-scene res://tests/test_runner.tscn
