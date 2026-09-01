@@ -37,7 +37,7 @@ concurrency:
 
 jobs:
   deploy:
-    uses: seorilabs/.github/.github/workflows/godot-deploy-app-store.yml@main
+    uses: seorilabs/.github/.github/workflows/godot-deploy-app-store.yml@9afa357f9ba6c8d6a813c7cec7ad3d35c626bdd5
     secrets: inherit
     with:
       release_tag: ${{ inputs.release_tag }}
@@ -46,5 +46,7 @@ jobs:
       # config/name("루시드 리버시")이 아니라 lucidreversi 여야 xcodebuild -scheme 이 매칭된다.
       ios_scheme: "lucidreversi"
       ios_bundle_id: com.etlegame.reversi
+      # 주입 대상 preset과 export 대상 preset이 같아야 한다.
+      ios_export_preset: iOS
       project_dir: godot
       ensure_godot_script: scripts/ensure_godot.sh

@@ -25,15 +25,6 @@ on:
         options:
           - internal
           - production
-      version_name:
-        description: "Google Play versionName SemVer. 예: 1.0.1"
-        required: true
-        type: string
-      version_code:
-        description: "비우면 versionName에서 파생"
-        required: false
-        default: ""
-        type: string
   workflow_call:
     inputs:
       release_tag:
@@ -49,13 +40,6 @@ on:
         required: false
         default: "internal"
         type: string
-      version_name:
-        required: true
-        type: string
-      version_code:
-        required: false
-        default: ""
-        type: string
 
 permissions:
   contents: read
@@ -67,13 +51,13 @@ concurrency:
 
 jobs:
   deploy:
-    uses: seorilabs/.github/.github/workflows/godot-deploy-google-play.yml@main
+    uses: seorilabs/.github/.github/workflows/godot-deploy-google-play.yml@9afa357f9ba6c8d6a813c7cec7ad3d35c626bdd5
     secrets: inherit
     with:
       release_tag: ${{ inputs.release_tag }}
-      version_name: ${{ inputs.version_name }}
-      version_code: ${{ inputs.version_code }}
       track: ${{ inputs.track }}
       release_status: ${{ inputs.release_status }}
       project_dir: godot
       scripts_dir: scripts
+      # 주입 대상 preset과 export 대상 preset이 같아야 한다. 다르면 중앙 워크플로우가 fail-closed한다.
+      android_export_preset: Android
