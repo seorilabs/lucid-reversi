@@ -1,0 +1,30 @@
+Asset License — All Rights Reserved
+
+Copyright (c) 2026 Seori Labs
+
+The MIT license in LICENSE applies to source code only. The following are
+proprietary and are NOT licensed for reuse, redistribution, or derivative
+works:
+
+  godot/assets/audio/**            in-game music and sound effects
+  godot/assets/branding/**         in-game branding art
+  godot/assets/reversi/themes/**   board and stone theme art
+  godot/branding/**                application icons and launch imagery
+  app-store/assets/**              App Store icon
+  app-store/screenshots/**         App Store screenshots
+  apps-in-toss/release-assets/**   AppsInToss logo, thumbnail, screenshots
+  store listing copy in app-store/app-store.config.json,
+  play-store/google-play.config.json, and
+  apps-in-toss/apps-in-toss.config.json
+
+The names "Seori Labs", "Lucid Reversi", and "루시드 리버시", together with the
+associated logos and icons, are marks of Seori Labs. Neither the MIT license
+nor this file grants any right to use them.
+
+Exception: bundled fonts under godot/assets/fonts/ are third-party works under
+the SIL Open Font License 1.1. Their own license files ship alongside them and
+govern their use. See THIRD-PARTY-NOTICES.md.
+
+You may read, study, build, and run this project. You may not ship the art,
+audio, branding, or store identity — in whole or in part — as your own or as
+part of another product.
