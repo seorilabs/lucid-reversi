@@ -4,7 +4,7 @@
 
 - Godot: `4.6.3.stable`
 - Node in CI: major `24`
-- Seorilabs ARC shared source: `/Users/syous/Workspace/kubectl/github-actions-runners/global-versions.yaml`
+- Seorilabs ARC shared source: ARC 운영 저장소의 `global-versions.yaml` (경로는 `seorilabs-arc-runners` 스킬 참조)
 
 ## GitHub Actions
 

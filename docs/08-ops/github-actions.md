@@ -4,7 +4,7 @@
 
 - `Godot Compile`: Godot import, compile, smoke scene.
 - `Repository Checks`: core, architecture, docs checks.
-- `Deploy Godot Web Pages`: `main` push 후 Godot Web export를 GitHub Pages로 배포. private repo에서는 build/deploy 모두 `seorilabs-rpi-arm64`를 사용한다.
+- `Deploy Godot Web Pages`: `main` push 후 Godot Web export를 GitHub Pages로 배포. **현재 저장소에 Pages가 활성화돼 있지 않아 `Configure Pages` 단계에서 실패한다.** Pages를 켜거나 이 workflow를 내리는 결정이 필요하다.
 - `Release Inventory`: manual release blocker inventory.
 
 ## Runner Routing
@@ -16,15 +16,6 @@
 
 ## Central Source
 
-수정 전 확인:
-
-```bash
-cat /Users/syous/Workspace/kubectl/github-actions-runners/global-versions.yaml
-```
-
-2026-06-18 확인값:
-
-- `seorilabs-rpi-arm64`: `minRunners: 1`, `maxRunners: 3`
-- `seorilabs-rpi-arm64-dind`: `minRunners: 0`, `maxRunners: 1`
-
-수치는 운영 중 바뀔 수 있으므로 workflow 수정 전 중앙 파일을 다시 확인한다.
+runner 이름과 scale set 용량의 정본은 Seorilabs ARC 운영 저장소의
+`global-versions.yaml`이다. 값은 운영 중 바뀌므로 workflow를 수정하기 전에
+`seorilabs-arc-runners` 스킬로 현재 값을 다시 확인한다.

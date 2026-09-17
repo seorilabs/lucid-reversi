@@ -34,4 +34,10 @@ npm run build:godot:web
 
 `check:release:ait`는 AppsInToss-first 후보 경로만 점검한다. Google Play/App Store 미확정값은 이 경로의 blocker로 취급하지 않는다.
 
-`main`에 push되면 GitHub Actions가 Godot Web export를 만들고 GitHub Pages에 배포한다. private repo의 Pages 사이트는 조직/플랜 설정에 따라 외부 공개될 수 있으므로, 민감한 리소스를 export에 포함하지 않는다.
+`main`에 push되면 `Deploy Godot Web Pages` workflow가 Godot Web export를 만들어 GitHub Pages에 배포하도록 구성돼 있다. 다만 저장소에 Pages가 활성화돼 있지 않아 현재는 `Configure Pages` 단계에서 실패한다(docs/08-ops/github-actions.md 참고). Pages 사이트는 공개 URL이므로 민감한 리소스를 export에 포함하지 않는다.
+
+## 라이선스
+
+- 소스 코드: MIT (`LICENSE`)
+- 아트, 오디오, 브랜딩, 스토어 등록 이미지와 문구: 독점, 재사용 불가 (`LICENSE-ASSETS`)
+- 서드파티 구성요소 고지: `THIRD-PARTY-NOTICES.md`

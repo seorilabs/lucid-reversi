@@ -52,6 +52,9 @@ godot/export_credentials.cfg
 /godot/ios/framework/
 /godot/ios/plugins/*.xcframework/
 
+# 오디오 루프 이음새 QA 중간산출물(재생성 가능, 용량 큼). 마스터 wav는 커밋한다.
+/godot/assets/audio/raw/seamtest_*.wav
+
 # Build outputs
 build/
 dist/

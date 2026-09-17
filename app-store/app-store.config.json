@@ -1,6 +1,6 @@
 {
   "bundleId": "com.etlegame.reversi",
-  "bundleIdNote": "Lucid Reversi 전용 bundle id(사용자 확정). 이전 시도: MatchPictureUnity=ASC 삭제됨(사용 불가), MatchSymbol=잘못된 id(그 앱 레코드로 v1.0.5 빌드가 오업로드됨 — 콘솔에서 무시/삭제 요망).",
+  "bundleIdNote": "Lucid Reversi 전용 bundle id(확정).",
   "sku": "lucid-reversi",
   "teamId": "HCDUXX4Z3X",
   "ascProvider": "HCDUXX4Z3X",
@@ -90,7 +90,7 @@
   },
   "consoleGates": {
     "appShell": "com.etlegame.reversi 앱 레코드가 ASC에 있어야 업로드 성공. 없으면 콘솔에서 새 앱 생성 필요.",
-    "appPrivacy": "빌드별로 답이 다르다. (1) v2.2.1(현재 심사 중, GA4 analytics 미포함): No Data Collected 유지 — 2026-06-30 Guideline 5.1.2(i) 반려는 기존 레코드 잔여값(User ID/Advertising Data/Device ID를 추적 수집으로 오선언) 탓. No Data Collected로 정정 + 버그수정 회신(재업로드 없이 현재 빌드 승인 요청)으로 대응. (2) GA4 Analytics 포함 다음 빌드부터: Data Collected로 전환 — 상세는 최상위 dataCollection 필드. 광고는 v2.3 iOS AdMob 네이티브 연동에서 별도.",
+    "appPrivacy": "빌드별로 답이 다르다. (1) GA4 analytics 미포함 빌드: No Data Collected. (2) GA4 Analytics 포함 빌드부터: Data Collected — 상세는 최상위 dataCollection 필드.",
     "ageRating": "광고 none, 폭력/도박/UGC 없음 → 4+ 예상",
     "contentRights": "v1은 third-party 광고 콘텐츠 없음(first-party 게임 자산만) → no third-party content",
     "exportCompliance": "비면제 암호화 없음으로 답변(ITSAppUsesNonExemptEncryption=false)",

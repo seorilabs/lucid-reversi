@@ -45,7 +45,7 @@ flowchart LR
 ## GitHub Actions / ARC
 
 - Seorilabs GitHub Actions 또는 ARC runner 라우팅을 작성/수정/진단할 때는 `seorilabs-arc-runners` 스킬을 사용한다.
-- 먼저 `/Users/syous/Workspace/kubectl/github-actions-runners/global-versions.yaml`을 확인한다. runner 이름, Node/Godot 버전, action 버전의 shared source of truth다.
+- runner 이름, Node/Godot 버전, action 버전의 shared source of truth는 Seorilabs ARC 운영 저장소의 `global-versions.yaml`이다. 경로는 `seorilabs-arc-runners` 스킬에서 확인한다.
 - GitHub Actions action/module 버전은 GitHub 공식 repo/API 또는 공식 문서 기준 최신 stable major를 확인한다. `@latest`나 branch 참조보다 확인된 major tag를 선호한다.
 - 현재 확인 기준: `actions/checkout@v6`, `actions/setup-node@v6`, `actions/upload-artifact@v7`.
 - private repo의 JS/TS lint/test/typecheck, Web build, AppsInToss candidate, Godot Web/AIT candidate는 `seorilabs-rpi-arm64`를 우선 검토한다.
