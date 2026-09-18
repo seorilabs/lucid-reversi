@@ -28,11 +28,11 @@ on:
       upload:
         description: "Google Play 업로드. false면 AAB 빌드·검증만 합니다."
         required: false
-        default: "false"
+        default: "true"
         type: choice
         options:
-          - "false"
           - "true"
+          - "false"
   workflow_call:
     inputs:
       release_tag:
@@ -50,7 +50,7 @@ on:
         type: string
       upload:
         required: false
-        default: false
+        default: true
         type: boolean
 
 permissions:
@@ -75,7 +75,8 @@ jobs:
       release_tag: ${{ inputs.release_tag }}
       track: ${{ inputs.track }}
       release_status: ${{ inputs.release_status }}
-      # 기본값 false. 업로드는 versionCode를 소비하고 되돌릴 수 없으므로 명시적으로 켠다.
+      # 실제 방어선은 google-play Environment의 required_reviewers와 배포 브랜치 제한이다.
+      # 기본값을 false로 두면 릴리스마다 켜는 것을 잊어 빌드만 하고 끝나는 쪽이 더 잦다.
       upload: ${{ inputs.upload == true || inputs.upload == 'true' }}
       project_dir: godot
       scripts_dir: scripts

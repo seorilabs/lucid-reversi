@@ -26,8 +26,10 @@
 ## Release
 
 - First track: internal testing
-- `Deploy to Google Play`의 `upload` 기본값은 **false**다. 업로드는 versionCode를 소비하고
-  되돌릴 수 없으므로 명시적으로 켠다. `google-play` Environment에 `required_reviewers`가 걸려 있다.
+- `Deploy to Google Play`의 `upload` 기본값은 **true**다. 업로드를 막는 실제 장치는
+  `google-play` Environment의 `required_reviewers`(사람 승인)와 배포 브랜치 제한(`main`, `v*`)이다.
+  기본값을 false로 두면 릴리스마다 켜는 것을 잊어 빌드만 하고 끝나는 쪽이 더 잦다.
+  빌드만 확인하려면 dispatch에서 `upload: false`를 명시한다.
 - AAB 서명: org 워크플로우가 업로드 키스토어(secrets `GOOGLE_PLAY_UPLOAD_KEYSTORE_BASE64`/`GOOGLE_PLAY_UPLOAD_KEYSTORE_PASSWORD`, alias var `GOOGLE_PLAY_UPLOAD_KEY_ALIAS`)로 서명.
 - Play App Signing: 권장(업로드 키 → Play가 최종 서명). Play Console 앱 등록 시 설정.
 - 업로드: WIF(`GOOGLE_WORKLOAD_IDENTITY_PROVIDER` + `GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL` vars)로 Android Publisher API 업로드.
