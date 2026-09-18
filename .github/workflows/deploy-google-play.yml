@@ -25,6 +25,14 @@ on:
         options:
           - internal
           - production
+      upload:
+        description: "Google Play 업로드. false면 AAB 빌드·검증만 합니다."
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
   workflow_call:
     inputs:
       release_tag:
@@ -40,6 +48,10 @@ on:
         required: false
         default: "internal"
         type: string
+      upload:
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -63,6 +75,8 @@ jobs:
       release_tag: ${{ inputs.release_tag }}
       track: ${{ inputs.track }}
       release_status: ${{ inputs.release_status }}
+      # 기본값 false. 업로드는 versionCode를 소비하고 되돌릴 수 없으므로 명시적으로 켠다.
+      upload: ${{ inputs.upload == true || inputs.upload == 'true' }}
       project_dir: godot
       scripts_dir: scripts
       # 주입 대상 preset과 export 대상 preset이 같아야 한다. 다르면 중앙 워크플로우가 fail-closed한다.
