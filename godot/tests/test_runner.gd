@@ -115,6 +115,8 @@ func _ready() -> void:
 	ok = settings_menu_ok and ok
 	var consolidated_hud_ok := await _test_hud_information_consolidation()
 	ok = consolidated_hud_ok and ok
+	var moonlit_lacquer_skin_ok := await _test_moonlit_lacquer_skin()
+	ok = moonlit_lacquer_skin_ok and ok
 	var difficulty_description_ok := await _test_difficulty_description_subtitle()
 	ok = difficulty_description_ok and ok
 	var anti_reversi_ui_ok := await _test_anti_reversi_ui()
@@ -4431,6 +4433,60 @@ func _test_board_coordinate_labels() -> bool:
 		and _assert(persisted_off_ok, "board coordinate off state persists to preferences")
 		and _assert(restored_off_ok, "board coordinate off state restores after restart")
 		and _assert(restored_on_ok, "board coordinate labels restore and persist when re-enabled")
+	)
+
+
+func _test_moonlit_lacquer_skin() -> bool:
+	var main_scene = load("res://scenes/main.tscn")
+	var main = main_scene.instantiate()
+	add_child(main)
+	await get_tree().process_frame
+
+	var backdrop := main.find_child("MoonlitLacquerBackdrop", true, false) as TextureRect
+	var score_strip := main.find_child("ScoreStrip", true, false) as PanelContainer
+	var controls_strip := main.find_child("PlayControlsStrip", true, false) as PanelContainer
+	var score_style := score_strip.get_theme_stylebox("panel") as StyleBoxTexture
+	var controls_style := controls_strip.get_theme_stylebox("panel") as StyleBoxTexture
+	var normal_style := main.new_game_button.get_theme_stylebox("normal") as StyleBoxFlat
+	var pressed_style := main.new_game_button.get_theme_stylebox("pressed") as StyleBoxFlat
+	var disabled_style := main.new_game_button.get_theme_stylebox("disabled") as StyleBoxFlat
+	var assets_ok: bool = (
+		backdrop != null
+		and backdrop.texture.resource_path
+			== "res://assets/art/ui/style/moonlit-lacquer-backdrop.png"
+		and score_style != null
+		and score_style.texture.resource_path
+			== "res://assets/art/ui/style/moonlit-lacquer-panel.png"
+		and controls_style != null
+		and controls_style.texture == score_style.texture
+	)
+	var nine_slice_ok: bool = (
+		is_equal_approx(score_style.texture_margin_left, 42.0)
+		and is_equal_approx(score_style.texture_margin_top, 28.0)
+		and is_equal_approx(score_style.texture_margin_right, 42.0)
+		and is_equal_approx(score_style.texture_margin_bottom, 28.0)
+	)
+	var state_depth_ok: bool = (
+		normal_style != null
+		and pressed_style != null
+		and disabled_style != null
+		and normal_style.shadow_size > pressed_style.shadow_size
+		and pressed_style.shadow_size > disabled_style.shadow_size
+	)
+	var classic_palette: Dictionary = main._theme_config("classic")
+	var palette_ok: bool = (
+		Color(classic_palette["board_surface"]).g
+			> Color(classic_palette["board_surface"]).r
+		and Color(classic_palette["board_frame_border"]).r
+			> Color(classic_palette["board_frame_border"]).b
+	)
+	main.queue_free()
+	await get_tree().process_frame
+	return (
+		_assert(assets_ok, "moonlit lacquer runtime uses the generated backdrop and panel")
+		and _assert(nine_slice_ok, "moonlit lacquer panel keeps its 9-slice margins")
+		and _assert(state_depth_ok, "moonlit lacquer buttons distinguish normal pressed and disabled depth")
+		and _assert(palette_ok, "moonlit lacquer classic board keeps green felt and warm brass")
 	)
 
 

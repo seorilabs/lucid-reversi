@@ -1,5 +1,11 @@
 # Work Log
 
+## 2026-09-18
+
+- Approved direction B, Moonlit Lacquer, as the representative gameplay-screen visual baseline.
+- Generated a textless GPT Image backdrop and stretch-safe lacquer panel, recorded their prompts and 9-slice contract, and kept localized labels in Godot.
+- Applied the selected material system to the live score/status/control trays, classic board frame and palette, and explicit tactile button states without changing game rules or information architecture.
+
 ## 2026-08-01
 
 - Added a localized BEGINNER AI tier with a seeded 75% random branch, a position-agnostic immediate-flip fallback, four-button settings layout, MEDIUM legacy fallback, and paired self-play strength regression coverage.
