@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "release": {
-    "lastTag": null,
-    "lastSourceSha": null,
-    "marketingVersion": null
+    "lastTag": "v2.2.6",
+    "lastSourceSha": "0c40515a9d2a52b82951f56e904f0d22d5a1dd01",
+    "marketingVersion": "2.2.6"
   },
   "android": {
     "authority": "github-ledger",
-    "lastVersionCode": 47,
-    "legacyFallbackSealed": false
+    "lastVersionCode": 48,
+    "legacyFallbackSealed": true
   },
   "ios": {
     "authority": "xcode-cloud",
