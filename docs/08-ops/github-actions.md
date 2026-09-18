@@ -1,18 +1,56 @@
 # GitHub Actions
 
+이 저장소는 **public**이다. 아래 내용은 모두 그 전제에서 쓴다.
+
 ## Workflows
 
 - `Godot Compile`: Godot import, compile, smoke scene.
 - `Repository Checks`: core, architecture, docs checks.
-- `Deploy Godot Web Pages`: `main` push 후 Godot Web export를 GitHub Pages로 배포. **현재 저장소에 Pages가 활성화돼 있지 않아 `Configure Pages` 단계에서 실패한다.** Pages를 켜거나 이 workflow를 내리는 결정이 필요하다.
+- `Deploy Godot Web Pages`: `main` push 후 Godot Web export를 GitHub Pages로 배포. Pages는 활성화돼 있고 사이트는 <https://seorilabs.github.io/lucid-reversi/> 이다.
 - `Release Inventory`: manual release blocker inventory.
+- `Deploy App Store (disabled)`: 빌드 없이 즉시 실패하는 human gate. Xcode Cloud provider binding 전까지 이 상태를 유지한다. 파일 자체는 지우지 않는다(Backoffice의 마켓 타깃 감지가 파일 존재로 "appstore"를 판정한다).
 
 ## Runner Routing
 
-- 템플릿 workflow는 public/private 양쪽에서 안전하게 동작하도록 `github.event.repository.private` 조건을 둔다.
-- private repo에서는 `seorilabs-rpi-arm64`를 사용한다.
-- public repo 또는 public PR path에서는 `ubuntu-latest` fallback을 사용한다.
-- Android release build와 App Store build는 RPI ARC로 보내지 않는다.
+public repo는 ARC(`seorilabs-rpi-arm64`)에 **접근할 수 없다**. 조직 러너 그룹이 모두
+`allows_public_repositories: false`라 job이 러너를 못 잡고 영구 pending 된다. 실패가 아니라
+무한 대기라서 알아차리기 어렵다.
+
+중앙 재사용 워크플로우는 셋 중 하나다. 새 caller를 추가할 때 어느 쪽인지 먼저 확인한다.
+
+| 중앙 워크플로우 유형 | 대응 |
+|---|---|
+| `runs_on` 입력을 노출 (`godot-checks`, `godot-pages`, `cleanup-actions-storage`, `godot-deploy-ait`) | caller에서 `runs_on: ${{ github.event.repository.private && 'seorilabs-rpi-arm64' \|\| 'ubuntu-latest' }}` 를 **반드시 전달**한다. 기본값이 ARC라 생략하면 깨진다 |
+| `ubuntu-latest` 하드코딩 (`godot-deploy-google-play`) | 전달할 것이 없다. 그대로 둔다 |
+| ARC 하드코딩, 입력 없음 (`release-tag`, `init-release-version-ledger`) | **caller에서 고칠 수 없다.** 중앙 저장소에 `runs_on` 입력 추가가 필요하다 |
+
+세 번째 유형을 로컬 복사본으로 우회하지 않는다. 중앙 원장을 정본으로 유지하고,
+중앙에 하위호환 입력을 추가하는 방향으로만 해결한다.
+
+## 플랫폼별 빌드 위치
+
+- **Android(AAB)**: `ubuntu-latest`. 중앙 워크플로우가 하드코딩하고 있어 별도 조치가 없다.
+- **Web / AIT**: `ubuntu-latest`. public repo는 GitHub-hosted standard runner가 무료·무제한이다.
+- **iOS**: `ubuntu-latest`에서 **archive·서명·업로드를 할 수 없다.** Xcode는 macOS 전용이다.
+  Godot의 iOS export는 `export_project_only=true`라 Xcode 프로젝트 생성까지만 Linux에서 가능하고,
+  그 다음 단계는 macOS 러너 또는 Xcode Cloud가 필요하다. 현재는 Xcode Cloud로 정한 상태다.
+
+## 시크릿 배치
+
+조직 시크릿의 `visibility: private`는 "조직 내 private 저장소 전체"라는 의도와 맞다.
+이 저장소 하나가 public이 됐다고 해서 `selected`로 바꾸지 않는다. 신규 private 저장소마다
+수동 등록을 요구하게 되고 빠뜨리면 fail-closed로 조용히 깨진다.
+
+대신 **이 저장소가 필요한 값을 독자적으로 보유**한다. 배치 우선순위는 이렇다.
+
+1. **Environment 시크릿**(권장): 중앙 워크플로우의 job이 `environment:`를 선언하면
+   환경 시크릿이 caller가 넘긴 값을 덮어쓴다. `google-play`/`apps-in-toss`/`app-store`
+   환경에는 `required_reviewers`가 걸려 있어 **사람이 승인한 job만 값을 읽는다.**
+   서명 키처럼 민감한 값은 여기에 둔다.
+2. **repo 시크릿**: 환경이 없는 경로에만 쓴다. 저장소의 모든 workflow가 읽는다.
+
+caller job에서는 환경 시크릿을 못 쓴다. reusable workflow를 `uses:`로 호출하는 job에는
+`environment` 키워드 자체가 허용되지 않는다.
 
 ## Central Source
 
