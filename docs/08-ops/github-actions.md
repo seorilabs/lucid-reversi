@@ -20,12 +20,18 @@ public repo는 ARC(`seorilabs-rpi-arm64`)에 **접근할 수 없다**. 조직 �
 
 | 중앙 워크플로우 유형 | 대응 |
 |---|---|
-| `runs_on` 입력을 노출 (`godot-checks`, `godot-pages`, `cleanup-actions-storage`, `godot-deploy-ait`) | caller에서 `runs_on: ${{ github.event.repository.private && 'seorilabs-rpi-arm64' \|\| 'ubuntu-latest' }}` 를 **반드시 전달**한다. 기본값이 ARC라 생략하면 깨진다 |
+| `runs_on` 입력을 노출 (`godot-checks`, `godot-pages`, `cleanup-actions-storage`, `godot-deploy-ait`) | caller가 아래 조건식을 **반드시 전달**한다. 기본값이 ARC라 생략하면 깨진다 |
 | `ubuntu-latest` 하드코딩 (`godot-deploy-google-play`) | 전달할 것이 없다. 그대로 둔다 |
-| ARC 하드코딩, 입력 없음 (`release-tag`, `init-release-version-ledger`) | **caller에서 고칠 수 없다.** 중앙 저장소에 `runs_on` 입력 추가가 필요하다 |
+| 중앙이 공개 여부로 스스로 결정 (`release-tag`, `init-release-version-ledger`) | caller가 관여하지 않는다. 태그와 원장을 push하는 `contents: write` job이라 러너 선택권을 caller에게 열지 않는 것이 중앙의 결정이다 |
+
+첫 번째 유형에서 caller가 전달하는 조건식은 이렇다.
+
+```yaml
+runs_on: ${{ github.event.repository.private && 'seorilabs-rpi-arm64' || 'ubuntu-latest' }}
+```
 
 세 번째 유형을 로컬 복사본으로 우회하지 않는다. 중앙 원장을 정본으로 유지하고,
-중앙에 하위호환 입력을 추가하는 방향으로만 해결한다.
+중앙 워크플로우 안에서 해결한다.
 
 ## 플랫폼별 빌드 위치
 
