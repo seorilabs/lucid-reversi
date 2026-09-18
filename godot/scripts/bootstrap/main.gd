@@ -17,6 +17,8 @@ const EMBER_BLACK_TEXTURE = preload("res://assets/reversi/themes/ember_black.svg
 const EMBER_WHITE_TEXTURE = preload("res://assets/reversi/themes/ember_white.svg")
 const SAKURA_BLACK_TEXTURE = preload("res://assets/reversi/themes/sakura_black.svg")
 const SAKURA_WHITE_TEXTURE = preload("res://assets/reversi/themes/sakura_white.svg")
+const MOONLIT_LACQUER_BACKDROP = preload("res://assets/art/ui/style/moonlit-lacquer-backdrop.png")
+const MOONLIT_LACQUER_PANEL = preload("res://assets/art/ui/style/moonlit-lacquer-panel.png")
 const UI_FONT = preload("res://assets/fonts/DoHyeon-Regular.ttf")
 const JAPANESE_FONT = preload("res://assets/fonts/MPLUSRounded1c-Regular.ttf")
 
@@ -489,12 +491,12 @@ const TEXT := {
 	},
 }
 
-const BG_COLOR := Color(0.025, 0.035, 0.055, 1.0)
-const HUD_COLOR := Color(0.075, 0.095, 0.14, 1.0)
-const HUD_DARK := Color(0.045, 0.06, 0.09, 1.0)
-const TEXT_PRIMARY := Color(0.96, 0.98, 1.0, 1.0)
-const TEXT_MUTED := Color(0.74, 0.80, 0.88, 1.0)
-const ACCENT := Color(1.0, 0.82, 0.18, 1.0)
+const BG_COLOR := Color(0.018, 0.020, 0.023, 1.0)
+const HUD_COLOR := Color(0.050, 0.047, 0.043, 0.97)
+const HUD_DARK := Color(0.025, 0.024, 0.023, 0.98)
+const TEXT_PRIMARY := Color(0.955, 0.925, 0.855, 1.0)
+const TEXT_MUTED := Color(0.69, 0.67, 0.62, 1.0)
+const ACCENT := Color(0.92, 0.82, 0.62, 1.0)
 const DANGER := Color(0.96, 0.31, 0.35, 1.0)
 const SUCCESS := Color(0.28, 0.88, 0.54, 1.0)
 
@@ -723,10 +725,21 @@ func _build_ui() -> void:
 
 	theme = _make_ui_theme()
 
-	var background := ColorRect.new()
-	background.color = _theme_color("bg")
+	var background := TextureRect.new()
+	background.name = "MoonlitLacquerBackdrop"
+	background.texture = MOONLIT_LACQUER_BACKDROP
+	background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	background.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	background.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(background)
+
+	var background_veil := ColorRect.new()
+	background_veil.name = "MoonlitLacquerBackdropVeil"
+	background_veil.color = Color(_theme_color("bg"), 0.34)
+	background_veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	background_veil.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(background_veil)
 
 	var screen := MarginContainer.new()
 	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -740,7 +753,7 @@ func _build_ui() -> void:
 	var root := VBoxContainer.new()
 	root.name = "GameRoot"
 	root.alignment = BoxContainer.ALIGNMENT_BEGIN
-	root.add_theme_constant_override("separation", 6)
+	root.add_theme_constant_override("separation", 7)
 	screen.add_child(root)
 
 	_build_top_bar(root)
@@ -809,8 +822,8 @@ func _build_top_bar(root: VBoxContainer) -> void:
 func _build_score_strip(root: VBoxContainer) -> void:
 	var strip := PanelContainer.new()
 	strip.name = "ScoreStrip"
-	strip.custom_minimum_size = Vector2(0, 78)
-	strip.add_theme_stylebox_override("panel", _make_style(_theme_color("hud_dark"), 1, Color(1, 1, 1, 0.08), 8))
+	strip.custom_minimum_size = Vector2(0, 84)
+	strip.add_theme_stylebox_override("panel", _make_lacquer_panel_style())
 	root.add_child(strip)
 
 	var margin := MarginContainer.new()
@@ -841,7 +854,7 @@ func _build_score_strip(root: VBoxContainer) -> void:
 func _make_compact_score_panel(name_text: String, stone: int) -> Dictionary:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(250, 58)
-	panel.add_theme_stylebox_override("panel", _make_style(_theme_color("hud"), 1, Color(1, 1, 1, 0.08), 8))
+	panel.add_theme_stylebox_override("panel", _make_style(Color(0, 0, 0, 0)))
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 8)
@@ -899,7 +912,7 @@ func _build_board(root: VBoxContainer) -> void:
 	var board_frame_size := board_frame_size_for_board(board_size)
 	board_frame.custom_minimum_size = Vector2(board_frame_size, board_frame_size)
 	board_frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	board_frame.add_theme_stylebox_override("panel", _make_style(_theme_color("board_frame"), 2, _theme_color("board_frame_border"), 6))
+	board_frame.add_theme_stylebox_override("panel", _make_board_frame_style())
 	root.add_child(board_frame)
 
 	var board_margin := MarginContainer.new()
@@ -1248,7 +1261,7 @@ func _build_play_focus_strip(root: VBoxContainer) -> void:
 	gameplay_strip.name = "GameplayStatusStrip"
 	gameplay_strip.custom_minimum_size = Vector2(0, 52)
 	gameplay_strip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	gameplay_strip.add_theme_stylebox_override("panel", _make_style(_theme_color("hud_dark"), 1, Color(1, 1, 1, 0.08), 8))
+	gameplay_strip.add_theme_stylebox_override("panel", _make_lacquer_panel_style(10.0, 7.0))
 	adaptive_play_focus_slot.add_child(gameplay_strip)
 
 	var margin := MarginContainer.new()
@@ -1327,7 +1340,7 @@ func _build_play_focus_strip(root: VBoxContainer) -> void:
 	controls_strip.name = "PlayControlsStrip"
 	controls_strip.custom_minimum_size = Vector2(0, 74)
 	controls_strip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	controls_strip.add_theme_stylebox_override("panel", _make_style(_theme_color("hud"), 1, Color(1, 1, 1, 0.07), 8))
+	controls_strip.add_theme_stylebox_override("panel", _make_lacquer_panel_style(10.0, 7.0))
 	root.add_child(controls_strip)
 
 	var controls_margin := MarginContainer.new()
@@ -2311,13 +2324,28 @@ func _make_action_button(text: String, action: Callable, primary: bool = false) 
 	button.focus_mode = Control.FOCUS_NONE
 	button.add_theme_font_size_override("font_size", _font_size(20))
 	var bg := _theme_color("accent") if primary else _theme_color("hud")
-	var fg := Color(0.055, 0.048, 0.025, 1.0) if primary else _theme_color("text_primary")
-	button.add_theme_stylebox_override("normal", _make_style(bg, 1, Color(1, 1, 1, 0.13), 6))
-	button.add_theme_stylebox_override("hover", _make_style(bg.lightened(0.08), 1, Color(1, 1, 1, 0.22), 6))
-	button.add_theme_stylebox_override("pressed", _make_style(bg.darkened(0.08), 1, Color(0, 0, 0, 0.22), 6))
+	var fg := Color(0.055, 0.050, 0.041, 1.0) if primary else _theme_color("text_primary")
+	var normal_border := bg.lightened(0.18) if primary else Color(0.82, 0.72, 0.54, 0.34)
+	button.add_theme_stylebox_override(
+		"normal",
+		_make_tactile_button_style(bg, normal_border, 4, 3),
+	)
+	button.add_theme_stylebox_override(
+		"hover",
+		_make_tactile_button_style(bg.lightened(0.07), normal_border.lightened(0.10), 5, 3),
+	)
+	button.add_theme_stylebox_override(
+		"pressed",
+		_make_tactile_button_style(bg.darkened(0.12), Color(0, 0, 0, 0.34), 1, 1),
+	)
+	button.add_theme_stylebox_override(
+		"disabled",
+		_make_tactile_button_style(_theme_color("hud_dark"), Color(1, 1, 1, 0.08), 0, 0),
+	)
 	button.add_theme_color_override("font_color", fg)
 	button.add_theme_color_override("font_hover_color", fg)
 	button.add_theme_color_override("font_pressed_color", fg)
+	button.add_theme_color_override("font_disabled_color", Color(_theme_color("text_muted"), 0.46))
 	_apply_text_visibility(button, 1, fg)
 	button.pressed.connect(action)
 	return button
@@ -3711,13 +3739,16 @@ func _update_choice_buttons(button_entries: Array, selected_id: String) -> void:
 
 func _apply_segment_style(button: Button, active: bool) -> void:
 	var bg := _theme_color("accent") if active else _theme_color("hud")
-	var fg := Color(0.055, 0.048, 0.025, 1.0) if active else _theme_color("text_primary")
-	button.add_theme_stylebox_override("normal", _make_style(bg, 1, Color(1, 1, 1, 0.13), 6))
-	button.add_theme_stylebox_override("hover", _make_style(bg.lightened(0.08), 1, Color(1, 1, 1, 0.22), 6))
-	button.add_theme_stylebox_override("pressed", _make_style(bg.darkened(0.08), 1, Color(0, 0, 0, 0.22), 6))
+	var fg := Color(0.055, 0.050, 0.041, 1.0) if active else _theme_color("text_primary")
+	var border := bg.lightened(0.18) if active else Color(0.82, 0.72, 0.54, 0.34)
+	button.add_theme_stylebox_override("normal", _make_tactile_button_style(bg, border, 3, 2))
+	button.add_theme_stylebox_override("hover", _make_tactile_button_style(bg.lightened(0.07), border.lightened(0.10), 4, 2))
+	button.add_theme_stylebox_override("pressed", _make_tactile_button_style(bg.darkened(0.12), Color(0, 0, 0, 0.34), 1, 1))
+	button.add_theme_stylebox_override("disabled", _make_tactile_button_style(_theme_color("hud_dark"), Color(1, 1, 1, 0.08), 0, 0))
 	button.add_theme_color_override("font_color", fg)
 	button.add_theme_color_override("font_hover_color", fg)
 	button.add_theme_color_override("font_pressed_color", fg)
+	button.add_theme_color_override("font_disabled_color", Color(_theme_color("text_muted"), 0.46))
 	_apply_text_visibility(button, 1, fg)
 
 
@@ -4534,11 +4565,11 @@ func _theme_config(theme_id: String = "") -> Dictionary:
 				"bg": BG_COLOR,
 				"hud": HUD_COLOR,
 				"hud_dark": HUD_DARK,
-				"board_frame": Color(0.12, 0.055, 0.025, 1.0),
-				"board_frame_border": Color(0.58, 0.28, 0.10, 0.78),
-				"board_surface": Color(0.045, 0.45, 0.22, 1.0),
-				"board_grid": Color(0.012, 0.105, 0.045, 0.94),
-				"meter_bg": Color(0.015, 0.02, 0.035, 1.0),
+				"board_frame": Color(0.055, 0.047, 0.040, 1.0),
+				"board_frame_border": Color(0.72, 0.58, 0.37, 0.82),
+				"board_surface": Color(0.050, 0.31, 0.17, 1.0),
+				"board_grid": Color(0.010, 0.075, 0.038, 0.96),
+				"meter_bg": Color(0.014, 0.014, 0.013, 1.0),
 				"text_primary": TEXT_PRIMARY,
 				"text_muted": TEXT_MUTED,
 				"accent": ACCENT,
@@ -4625,6 +4656,54 @@ func _texture_for_stone(stone: int) -> Texture2D:
 	if stone == ReversiEngine.WHITE:
 		return _stone_theme_texture("white_texture")
 	return _stone_theme_texture("black_texture")
+
+
+func _make_lacquer_panel_style(
+	horizontal_content_margin: float = 12.0,
+	vertical_content_margin: float = 8.0,
+) -> StyleBoxTexture:
+	var style := StyleBoxTexture.new()
+	style.texture = MOONLIT_LACQUER_PANEL
+	style.texture_margin_left = 42.0
+	style.texture_margin_top = 28.0
+	style.texture_margin_right = 42.0
+	style.texture_margin_bottom = 28.0
+	style.content_margin_left = horizontal_content_margin
+	style.content_margin_top = vertical_content_margin
+	style.content_margin_right = horizontal_content_margin
+	style.content_margin_bottom = vertical_content_margin
+	style.draw_center = true
+	return style
+
+
+func _make_board_frame_style() -> StyleBoxFlat:
+	var style := _make_style(
+		_theme_color("board_frame"),
+		3,
+		_theme_color("board_frame_border"),
+		12,
+	)
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.72)
+	style.shadow_size = 10
+	style.shadow_offset = Vector2(0, 5)
+	return style
+
+
+func _make_tactile_button_style(
+	bg: Color,
+	border_color: Color,
+	shadow_size: int,
+	shadow_offset_y: int,
+) -> StyleBoxFlat:
+	var style := _make_style(bg, 1, border_color, 12)
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.62)
+	style.shadow_size = shadow_size
+	style.shadow_offset = Vector2(0, shadow_offset_y)
+	style.content_margin_left = 8
+	style.content_margin_top = 4
+	style.content_margin_right = 8
+	style.content_margin_bottom = 4
+	return style
 
 
 func _make_style(bg: Color, border_width: int = 0, border_color: Color = Color.TRANSPARENT, radius: int = 0) -> StyleBoxFlat:

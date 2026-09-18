@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "provider": "codex-imagegen",
+  "model": "gpt-image-2",
+  "style_reference": "../../../../docs/game-design/ui/reference-moonlit-lacquer.png",
+  "assets": [
+    {
+      "id": "moonlit-lacquer-backdrop",
+      "source": "raw/moonlit-lacquer-backdrop-gpt-image.png",
+      "output": "style/moonlit-lacquer-backdrop.png",
+      "transparent": false,
+      "final_canvas": {
+        "mode": "preserve-layout",
+        "width": 720,
+        "height": 1280
+      },
+      "prompt": "Production-ready portrait mobile game UI background texture derived from the Moonlit Lacquer reference. No interface, board, buttons, pieces, icons, text, letters, numerals, or logos. Quiet near-black charcoal tabletop, subtle matte lacquer depth, soft cool moonlight, restrained pale-ash and brass edge details, dark readable negative space, global timeless premium craft aesthetic."
+    },
+    {
+      "id": "moonlit-lacquer-panel",
+      "source": "raw/moonlit-lacquer-panel-gpt-image.png",
+      "output": "style/moonlit-lacquer-panel.png",
+      "transparent": true,
+      "final_canvas": {
+        "mode": "preserve-layout",
+        "width": 370,
+        "height": 180
+      },
+      "nine_patch": {
+        "left": 42,
+        "top": 28,
+        "right": 42,
+        "bottom": 28
+      },
+      "prompt": "One centered textless 2D mobile game UI panel skin inspired by the Moonlit Lacquer score tray. Matte black lacquer, quiet smoked-glass center, thin warm-brass edge, pale ash micro-inlay on the lower rim, straight-on symmetrical geometry for 9-slice stretching, transparent outside the panel. No text, numbers, symbols, icons, game pieces, board, or extra objects."
+    }
+  ]
+}

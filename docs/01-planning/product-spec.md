@@ -26,6 +26,7 @@
 
 ## UX Direction
 
+- Approved visual direction: Moonlit Lacquer. The representative gameplay screen uses a quiet charcoal moonlit backdrop, black-lacquer score/status/control trays with restrained brass and pale-ash detail, a muted classic-green board, and warm-ivory primary actions. Runtime text remains localized Godot UI rather than baked artwork. The implementation contract and reference are in docs/game-design/ui/moonlit-lacquer.md.
 - Mobile playfield-first: 게임판, 점수, 차례, 착수 가능 위치, 돌 뒤집힘 애니메이션을 화면 중심 경험으로 둔다.
 - Board-adjacent feedback starts immediately under the board: one compact band combines the single turn/status surface, the sole move-count entry, the advantage label, and the full-width meter; the control row follows without another move counter. The score strip keeps only player identities, stones, and scores so turn information is not duplicated.
 - Non-gameplay controls live in the top-right settings menu: 대전 상대 AI·2인, 난이도, 보드 크기, 효과음, 음악, 진동, 착수 표시, 좌표 표시, 보드/돌 테마, 퍼즐, 언어, 글자 크기, 모션 줄이기, 플레이 방법, 정보. 효과음과 음악은 독립 설정으로 즉시 적용·저장한다. 대전 상대 변경은 새 대국을 시작하며 선택은 환경설정에 즉시 저장된다. 설정 패널은 기준 화면 안에 고정되고 내용이 길면 세로 스크롤한다. 플레이 방법은 착수·뒤집기·패스·종료/승패를 설명하는 4단계 스크롤 시트이며, 단계 이동 때 실제 보드 셀을 강조한다. 최초 대국에서 자동 표시하고 완료·건너뛰기·닫기를 한 뒤에는 다시 자동 표시하지 않으며 설정에서 언제든 다시 열 수 있다. 정보 섹션은 앱 이름·export와 동기화된 버전·지원 이메일을 표시하고, 개인정보 처리방침 URL이 확정되어 주입된 경우에만 링크를 노출한다. Mobile settings use large segmented buttons instead of select boxes, and tapping outside the settings panel closes it.
