@@ -4445,11 +4445,19 @@ func _test_moonlit_lacquer_skin() -> bool:
 	var backdrop := main.find_child("MoonlitLacquerBackdrop", true, false) as TextureRect
 	var score_strip := main.find_child("ScoreStrip", true, false) as PanelContainer
 	var controls_strip := main.find_child("PlayControlsStrip", true, false) as PanelContainer
-	var score_style := score_strip.get_theme_stylebox("panel") as StyleBoxTexture
-	var controls_style := controls_strip.get_theme_stylebox("panel") as StyleBoxTexture
-	var normal_style := main.new_game_button.get_theme_stylebox("normal") as StyleBoxFlat
-	var pressed_style := main.new_game_button.get_theme_stylebox("pressed") as StyleBoxFlat
-	var disabled_style := main.new_game_button.get_theme_stylebox("disabled") as StyleBoxFlat
+	var score_style: StyleBoxTexture
+	var controls_style: StyleBoxTexture
+	var normal_style: StyleBoxFlat
+	var pressed_style: StyleBoxFlat
+	var disabled_style: StyleBoxFlat
+	if score_strip != null:
+		score_style = score_strip.get_theme_stylebox("panel") as StyleBoxTexture
+	if controls_strip != null:
+		controls_style = controls_strip.get_theme_stylebox("panel") as StyleBoxTexture
+	if main.new_game_button != null:
+		normal_style = main.new_game_button.get_theme_stylebox("normal") as StyleBoxFlat
+		pressed_style = main.new_game_button.get_theme_stylebox("pressed") as StyleBoxFlat
+		disabled_style = main.new_game_button.get_theme_stylebox("disabled") as StyleBoxFlat
 	var assets_ok: bool = (
 		backdrop != null
 		and backdrop.texture.resource_path
@@ -4461,7 +4469,8 @@ func _test_moonlit_lacquer_skin() -> bool:
 		and controls_style.texture == score_style.texture
 	)
 	var nine_slice_ok: bool = (
-		is_equal_approx(score_style.texture_margin_left, 42.0)
+		score_style != null
+		and is_equal_approx(score_style.texture_margin_left, 42.0)
 		and is_equal_approx(score_style.texture_margin_top, 28.0)
 		and is_equal_approx(score_style.texture_margin_right, 42.0)
 		and is_equal_approx(score_style.texture_margin_bottom, 28.0)
