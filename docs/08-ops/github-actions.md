@@ -8,7 +8,11 @@
 - `Repository Checks`: core, architecture, docs checks.
 - `Deploy Godot Web Pages`: `main` push 후 Godot Web export를 GitHub Pages로 배포. Pages는 활성화돼 있고 사이트는 <https://seorilabs.github.io/lucid-reversi/> 이다.
 - `Release Inventory`: manual release blocker inventory.
-- `Deploy App Store (disabled)`: 빌드 없이 즉시 실패하는 human gate. Xcode Cloud provider binding 전까지 이 상태를 유지한다. 파일 자체는 지우지 않는다(Backoffice의 마켓 타깃 감지가 파일 존재로 "appstore"를 판정한다).
+- `Deploy to App Store`: 중앙 `godot-deploy-app-store.yml` 호출. `macos-26`에서 Godot iOS export → xcodebuild archive → App Store Connect 업로드. 파일 자체는 지우지 않는다(Backoffice의 마켓 타깃 감지가 파일 존재로 "appstore"를 판정한다).
+
+  `CFBundleVersion`은 Xcode Cloud 예외 경로가 아니라 중앙 계약의
+  `derivation.appleBuildNumber`(`encoded-version`)를 쓴다. 태그가 곧 build number라
+  **같은 태그를 다시 올리면 App Store가 중복으로 거부한다.** 재업로드는 패치 태그로 한다.
 
 ## Runner Routing
 
@@ -37,9 +41,11 @@ runs_on: ${{ github.event.repository.private && 'seorilabs-rpi-arm64' || 'ubuntu
 
 - **Android(AAB)**: `ubuntu-latest`. 중앙 워크플로우가 하드코딩하고 있어 별도 조치가 없다.
 - **Web / AIT**: `ubuntu-latest`. public repo는 GitHub-hosted standard runner가 무료·무제한이다.
-- **iOS**: `ubuntu-latest`에서 **archive·서명·업로드를 할 수 없다.** Xcode는 macOS 전용이다.
-  Godot의 iOS export는 `export_project_only=true`라 Xcode 프로젝트 생성까지만 Linux에서 가능하고,
-  그 다음 단계는 macOS 러너 또는 Xcode Cloud가 필요하다. 현재는 Xcode Cloud로 정한 상태다.
+- **iOS**: `macos-26`. `ubuntu-latest`에서는 **archive·서명·업로드가 성립하지 않는다**(Xcode는 macOS 전용).
+  public 저장소는 GitHub-hosted 표준 러너가 무료·무제한이라 macOS도 비용이 들지 않는다.
+  Godot export까지만 Linux로 분리하는 2-job 구성도 가능하지만 쓰지 않는다. release binding과
+  artifact digest가 job 경계를 넘으면 "검증한 그 artifact만 올린다"는 계약 보장이 artifact 전달
+  신뢰로 약해지고, 분리해서 얻는 비용 이점도 없다.
 
 ## 시크릿 배치
 
@@ -57,6 +63,26 @@ runs_on: ${{ github.event.repository.private && 'seorilabs-rpi-arm64' || 'ubuntu
 
 caller job에서는 환경 시크릿을 못 쓴다. reusable workflow를 `uses:`로 호출하는 job에는
 `environment` 키워드 자체가 허용되지 않는다.
+
+App Store 배포에 필요한 값은 아래 표가 정본이다. 조직 레벨 Apple 시크릿은 `private`
+가시성이라 public인 이 저장소로는 상속되지 않는다. 서명 키와 ASC 키처럼 민감한 값은
+`app-store` Environment에 두고, 그 밖의 값은 표에 적힌 위치를 따른다.
+
+| 이름 | 위치 | 상태 |
+|---|---|---|
+| `APPLE_DISTRIBUTION_CERTIFICATE_BASE64` | `app-store` Environment | 등록됨 |
+| `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD` | `app-store` Environment | 등록됨 |
+| `APPLE_KEYCHAIN_PASSWORD` | `app-store` Environment | 등록됨 (러너 임시 keychain 잠금용) |
+| `APP_STORE_CONNECT_API_KEY_ID` | `app-store` Environment | 등록됨 |
+| `APP_STORE_CONNECT_ISSUER_ID` | `app-store` Environment | 등록됨 |
+| `APP_STORE_CONNECT_PRIVATE_KEY_BASE64` | `app-store` Environment | 등록됨 |
+| `APPLE_PROVISIONING_PROFILE_BASE64` | repo 시크릿 | 보유 중. **선택값** — `-allowProvisioningUpdates`로 자동 발급하므로 없어도 동작한다 |
+| `GODOT_ANALYTICS_CONFIG_JSON_BASE64` | repo 시크릿 | 보유 중 |
+| `APPLE_TEAM_ID` | repo 변수 | 등록됨. 비밀값이 아니다(`app-store/exportOptions.plist`에 이미 공개) |
+
+원본은 `~/.config/seorilabs`가 정본이다. 조회·등록 절차는 `seorilabs-credentials` 스킬을 따른다.
+macOS Keychain이 내보낸 `.p12`는 RC2-40-CBC를 쓰므로 OpenSSL 3.x로 열 때 `-legacy`가 필요하다.
+CI는 `security import`(Apple 자체 crypto)를 쓰므로 이 제약을 받지 않는다.
 
 ## Central Source
 
