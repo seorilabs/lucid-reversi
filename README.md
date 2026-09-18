@@ -34,7 +34,7 @@ npm run build:godot:web
 
 `check:release:ait`는 AppsInToss-first 후보 경로만 점검한다. Google Play/App Store 미확정값은 이 경로의 blocker로 취급하지 않는다.
 
-`main`에 push되면 `Deploy Godot Web Pages` workflow가 Godot Web export를 만들어 GitHub Pages에 배포하도록 구성돼 있다. 다만 저장소에 Pages가 활성화돼 있지 않아 현재는 `Configure Pages` 단계에서 실패한다(docs/08-ops/github-actions.md 참고). Pages 사이트는 공개 URL이므로 민감한 리소스를 export에 포함하지 않는다.
+`main`에 push되면 `Deploy Godot Web Pages` workflow가 Godot Web export를 만들어 GitHub Pages에 배포한다. 사이트는 <https://seorilabs.github.io/lucid-reversi/> 이며 공개 URL이므로 민감한 리소스를 export에 포함하지 않는다. 러너 라우팅과 시크릿 배치 규칙은 `docs/08-ops/github-actions.md`를 따른다.
 
 ## 라이선스
 
