@@ -8,7 +8,7 @@
 - `Repository Checks`: core, architecture, docs checks.
 - `Deploy Godot Web Pages`: `main` push 후 Godot Web export를 GitHub Pages로 배포. Pages는 활성화돼 있고 사이트는 <https://seorilabs.github.io/lucid-reversi/> 이다.
 - `Release Inventory`: manual release blocker inventory.
-- `Deploy to App Store`: 중앙 `godot-deploy-app-store.yml` 호출. `macos-26`에서 Godot iOS export → xcodebuild archive → App Store Connect 업로드. 파일 자체는 지우지 않는다(Backoffice의 마켓 타깃 감지가 파일 존재로 "appstore"를 판정한다).
+- `Deploy to App Store`: 중앙 `godot-deploy-app-store.yml` 호출. `upload` 기본값은 **true**이고, 실제 방어선은 `app-store` Environment의 `required_reviewers`와 배포 브랜치 제한이다. 빌드만 확인하려면 dispatch에서 `upload: false`를 명시한다. `macos-26`에서 Godot iOS export → xcodebuild archive → App Store Connect 업로드. 파일 자체는 지우지 않는다(Backoffice의 마켓 타깃 감지가 파일 존재로 "appstore"를 판정한다).
 
   `CFBundleVersion`은 Xcode Cloud 예외 경로가 아니라 중앙 계약의
   `derivation.appleBuildNumber`(`encoded-version`)를 쓴다. 태그가 곧 build number라
