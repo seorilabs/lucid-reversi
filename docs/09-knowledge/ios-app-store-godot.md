@@ -13,6 +13,10 @@ Godot 4.6.3 게임을 Apple App Store에 올리며 실증한 항목.
 
 1. **`Metal 렌더러는 iOS 14 이상이 필요합니다`** — GL Compatibility 렌더러도 iOS에서 ANGLE-over-Metal을 쓰므로
    `application/min_ios_version`을 **14.0 이상**으로.
+   다만 Apple이 상한을 올렸다. 2026-09-18 업로드에서 ASC가 경고했다:
+   *"Starting in Spring 2027, all iOS apps must have a MinimumOSVersion of 15.0 or later
+   in order to be uploaded to App Store Connect or submitted for distribution."*
+   따라서 현재 기준은 **15.0**이다. 이 저장소는 2026-09-18에 15.0으로 올렸다.
 
 2. **설정 오류 메시지가 빈 문자열**(가장 헷갈림) — Godot 4.6 iOS export는
    `ResourceImporterTextureSettings::should_import_etc2_astc()`가 false면 **메시지 없이 export를 막는다**.
