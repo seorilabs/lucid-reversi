@@ -64,20 +64,25 @@ runs_on: ${{ github.event.repository.private && 'seorilabs-rpi-arm64' || 'ubuntu
 caller job에서는 환경 시크릿을 못 쓴다. reusable workflow를 `uses:`로 호출하는 job에는
 `environment` 키워드 자체가 허용되지 않는다.
 
-App Store 배포에 필요한 값은 다음과 같다. Apple 관련 시크릿은 조직 레벨이 `private`
-가시성이라 public인 이 저장소로는 상속되지 않으므로, `app-store` Environment에 직접 등록한다.
+App Store 배포에 필요한 값은 아래 표가 정본이다. 조직 레벨 Apple 시크릿은 `private`
+가시성이라 public인 이 저장소로는 상속되지 않는다. 서명 키와 ASC 키처럼 민감한 값은
+`app-store` Environment에 두고, 그 밖의 값은 표에 적힌 위치를 따른다.
 
-| 이름 | 종류 | 상태 |
+| 이름 | 위치 | 상태 |
 |---|---|---|
-| `APPLE_DISTRIBUTION_CERTIFICATE_BASE64` | Environment 시크릿 | 등록 필요 |
-| `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD` | Environment 시크릿 | 등록 필요 |
-| `APPLE_KEYCHAIN_PASSWORD` | Environment 시크릿 | 등록 필요 |
-| `APPLE_PROVISIONING_PROFILE_BASE64` | repo 시크릿 | 보유 중 |
-| `APP_STORE_CONNECT_API_KEY_ID` | Environment 시크릿 | 등록 필요 |
-| `APP_STORE_CONNECT_ISSUER_ID` | Environment 시크릿 | 등록 필요 |
-| `APP_STORE_CONNECT_PRIVATE_KEY_BASE64` | Environment 시크릿 | 등록 필요 |
+| `APPLE_DISTRIBUTION_CERTIFICATE_BASE64` | `app-store` Environment | 등록됨 |
+| `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD` | `app-store` Environment | 등록됨 |
+| `APPLE_KEYCHAIN_PASSWORD` | `app-store` Environment | 등록됨 (러너 임시 keychain 잠금용) |
+| `APP_STORE_CONNECT_API_KEY_ID` | `app-store` Environment | 등록됨 |
+| `APP_STORE_CONNECT_ISSUER_ID` | `app-store` Environment | 등록됨 |
+| `APP_STORE_CONNECT_PRIVATE_KEY_BASE64` | `app-store` Environment | 등록됨 |
+| `APPLE_PROVISIONING_PROFILE_BASE64` | repo 시크릿 | 보유 중. **선택값** — `-allowProvisioningUpdates`로 자동 발급하므로 없어도 동작한다 |
 | `GODOT_ANALYTICS_CONFIG_JSON_BASE64` | repo 시크릿 | 보유 중 |
-| `APPLE_TEAM_ID` | repo 변수 | 등록됨 |
+| `APPLE_TEAM_ID` | repo 변수 | 등록됨. 비밀값이 아니다(`app-store/exportOptions.plist`에 이미 공개) |
+
+원본은 `~/.config/seorilabs`가 정본이다. 조회·등록 절차는 `seorilabs-credentials` 스킬을 따른다.
+macOS Keychain이 내보낸 `.p12`는 RC2-40-CBC를 쓰므로 OpenSSL 3.x로 열 때 `-legacy`가 필요하다.
+CI는 `security import`(Apple 자체 crypto)를 쓰므로 이 제약을 받지 않는다.
 
 ## Central Source
 
