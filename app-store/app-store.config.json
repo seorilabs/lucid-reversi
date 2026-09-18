@@ -22,6 +22,11 @@
     "verificationNote": "TestFlight 실기기에서 전면광고 표시 확인 완료(테스트 광고로 검증). 미표시 원인은 main.gd _build_ui()가 광고 어댑터·GA4 전송기를 queue_free로 삭제하던 버그였고 build 5에서 수정(persistent_services 그룹).",
     "remaining": "App Privacy를 GA4+AdMob(비맞춤형·IDFA 미사용) 반영해 갱신 → 콘솔에서 빌드 선택(build 5) → Submit for Review. (실기기 광고 표시 확인 완료, 심사 제출은 미수행)"
   },
+  "minimumOsPolicy": {
+    "current": "15.0",
+    "reason": "Apple은 2027년 봄부터 MinimumOSVersion 15.0 미만 업로드를 거부한다. 2026-09-18 v2.2.6 업로드에서 ASC가 경고했고, 같은 날 export_presets.cfg를 15.0으로 올렸다.",
+    "floor": "Godot iOS는 GL Compatibility도 ANGLE-over-Metal이라 14.0 미만으로는 내릴 수 없다."
+  },
   "signing": {
     "style": "manual",
     "certificate": "Apple Distribution",
