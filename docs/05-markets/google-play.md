@@ -7,9 +7,27 @@
 - Default language: Korean
 - Category: Games / Board
 
+## 기존 앱 승계
+
+`com.etlegame.reversi`는 Play에서 이미 쓰이고 있는 패키지다. 등록정보는
+**'Reversi Online' / '리버시 온라인'**(온라인 통신대국)이고 production 2.1.2(versionCode 47)까지
+배포된 이력이 있다. 루시드 리버시는 이 앱을 **리브랜딩해 승계**한다.
+
+- 배포하면 기존 등록정보를 교체하고, 기존 사용자에게 업데이트로 나간다.
+- 설치수와 리뷰를 승계하는 대신 온라인 대국을 기대하는 사용자에게 다른 게임이 전달된다.
+- 업로드 키는 versionCode 47을 서명한 그 키여야 한다. Play App Signing이 켜져 있으면
+  Play Console에서 업로드 키 재설정으로 복구할 수 있다.
+
+**versionCode 주의**: 원장 `android.lastVersionCode=47`이 baseline이다. 원장 도입 이전 태그
+(`v2.2.3`~`v2.2.5`)는 legacy 공식(`1,000,000,000 + encodedVersion`)으로 떨어져 `1002002005`가
+나온다. 상한이 2,100,000,000이고 되돌릴 수 없으므로 **기존 태그를 Play에 직접 올리지 않는다.**
+`release-tag` 워크플로우로 새 태그를 끊어 원장이 48을 할당하게 한다.
+
 ## Release
 
 - First track: internal testing
+- `Deploy to Google Play`의 `upload` 기본값은 **false**다. 업로드는 versionCode를 소비하고
+  되돌릴 수 없으므로 명시적으로 켠다. `google-play` Environment에 `required_reviewers`가 걸려 있다.
 - AAB 서명: org 워크플로우가 업로드 키스토어(secrets `GOOGLE_PLAY_UPLOAD_KEYSTORE_BASE64`/`GOOGLE_PLAY_UPLOAD_KEYSTORE_PASSWORD`, alias var `GOOGLE_PLAY_UPLOAD_KEY_ALIAS`)로 서명.
 - Play App Signing: 권장(업로드 키 → Play가 최종 서명). Play Console 앱 등록 시 설정.
 - 업로드: WIF(`GOOGLE_WORKLOAD_IDENTITY_PROVIDER` + `GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL` vars)로 Android Publisher API 업로드.
