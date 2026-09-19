@@ -16,7 +16,7 @@
 
 ## Runner Routing
 
-public repo는 ARC(`seorilabs-rpi-arm64`)에 **접근할 수 없다**. 조직 러너 그룹이 모두
+public repo는 ARC(`seorilabs-x64`)에 **접근할 수 없다**. 조직 러너 그룹이 모두
 `allows_public_repositories: false`라 job이 러너를 못 잡고 영구 pending 된다. 실패가 아니라
 무한 대기라서 알아차리기 어렵다.
 
@@ -31,7 +31,7 @@ public repo는 ARC(`seorilabs-rpi-arm64`)에 **접근할 수 없다**. 조직 �
 첫 번째 유형에서 caller가 전달하는 조건식은 이렇다.
 
 ```yaml
-runs_on: ${{ github.event.repository.private && 'seorilabs-rpi-arm64' || 'ubuntu-latest' }}
+runs_on: ${{ github.event.repository.private && 'seorilabs-x64' || 'ubuntu-latest' }}
 ```
 
 세 번째 유형을 로컬 복사본으로 우회하지 않는다. 중앙 원장을 정본으로 유지하고,

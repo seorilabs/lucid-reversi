@@ -25,7 +25,7 @@
 - Wrapper path: `apps/ait/`
 - Build artifact: `.ait`
 - First launch priority: yes
-- Build runner: private repo 기준 Web/AIT 후보 빌드는 `seorilabs-rpi-arm64` 사용 가능
+- Build runner: private repo 기준 Web/AIT 후보 빌드는 `seorilabs-x64` 사용 가능
 
 ## Review / Sandbox
 
