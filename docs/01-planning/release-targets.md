@@ -32,7 +32,7 @@
 - Delivery shape: Godot Web export wrapper
 - Default locale: Korean
 - Sandbox QA status: 확정 필요
-- Runner policy: Web/AIT 후보 빌드는 private repo 기준 `seorilabs-rpi-arm64` 사용 가능.
+- Runner policy: Web/AIT 후보 빌드는 private repo 기준 `seorilabs-x64` 사용 가능.
 
 ## Current Phase Boundary
 

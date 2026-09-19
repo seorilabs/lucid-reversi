@@ -49,9 +49,9 @@ jobs:
       VITE_TOSS_LEVEL_REWARD_AD_GROUP_ID: ${{ secrets.VITE_TOSS_LEVEL_REWARD_AD_GROUP_ID }}
       VITE_TOSS_REWARDED_AD_GROUP_ID: ${{ secrets.VITE_TOSS_REWARDED_AD_GROUP_ID }}
     with:
-      # public repo는 ARC(seorilabs-rpi-arm64)에 접근할 수 없다(러너 그룹 allows_public_repositories=false).
+      # public repo는 ARC(seorilabs-x64)에 접근할 수 없다(러너 그룹 allows_public_repositories=false).
       # 중앙 워크플로우의 runs_on 기본값이 ARC라, 전달하지 않으면 job이 러너를 못 잡고 영구 pending 된다.
-      runs_on: ${{ github.event.repository.private && 'seorilabs-rpi-arm64' || 'ubuntu-latest' }}
+      runs_on: ${{ github.event.repository.private && 'seorilabs-x64' || 'ubuntu-latest' }}
       release_tag: ${{ inputs.release_tag }}
       memo: ${{ inputs.memo }}
       project_dir: godot
