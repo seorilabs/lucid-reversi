@@ -4,7 +4,8 @@
 
 - Package name: `com.etlegame.reversi` (iOS bundle id와 통일)
 - App name: 루시드 리버시
-- Default language: Korean
+- Default language: `en-US` (Play 실측. 2015년 등록 당시 기준이며 게임 내 기본 로케일 `ko`와는 별개)
+- 지원 언어: 한국어, 영어, 일본어
 - Category: Games / Board
 
 ## 기존 앱 승계
@@ -15,13 +16,29 @@
 
 - 배포하면 기존 등록정보를 교체하고, 기존 사용자에게 업데이트로 나간다.
 - 설치수와 리뷰를 승계하는 대신 온라인 대국을 기대하는 사용자에게 다른 게임이 전달된다.
-- 업로드 키는 versionCode 47을 서명한 그 키여야 한다. Play App Signing이 켜져 있으면
-  Play Console에서 업로드 키 재설정으로 복구할 수 있다.
+- **서명 키 이관 완료(2026-09-18)**: 원 서명 키(2015년 ETLE 명의)를 PEPK로 Google에 이관해
+  Play App Signing 앱 서명 키가 됐다. CI는 분리된 전용 업로드 키로 서명하므로, 원본 키는
+  더 이상 업로드 경로에 필요하지 않다.
 
-**versionCode 주의**: 원장 `android.lastVersionCode=47`이 baseline이다. 원장 도입 이전 태그
+### 등재정보 교체 (2026-09-21 기준 미반영)
+
+Play 실측으로 등재정보는 아직 `Reversi Online` / `리버시 온라인`이고, 설명 본문이 푸시 알림
+턴제 온라인 대전, 전세계 매칭, 구글 플레이 리더보드처럼 **현재 게임에 없는 기능**을 설명한다.
+
+- 교체 문안: `play-store/listing/{ko-KR,en-US,ja-JP}.json` (Play 한도 검증 통과)
+- 교체 이전 원본: `play-store/listing/legacy-reversi-online.json` (되돌림 근거로 보존)
+- 게임이 일본어를 지원하는데 Play에는 ja-JP 등재정보가 없어 새로 추가한다.
+- 이미지 자산은 기본 언어(en-US)에만 있다 — 아이콘 1, 피처그래픽 1, 폰 3, 7인치 3, 10인치 3.
+  ko-KR은 이미지가 없어 en-US를 상속한다. 전부 루시드 리버시 자산으로 교체해야 한다.
+- **반영 시점**: 스토어 페이지는 트랙과 무관하게 즉시 반영된다. production에 옛 앱이 남아 있는
+  동안 문구만 바꾸면 설명과 실제 내려받는 앱이 달라져 "오해를 부르는 등재정보"에 걸릴 소지가
+  있다. 등재정보 교체는 **루시드 리버시 빌드의 production 승격과 동시에** 한다.
+
+**versionCode 주의**: 원장 `android.lastVersionCode`는 2026-09-21 기준 **48**(v2.2.6이 소비)이고
+Play production은 47이다. 다음 태그가 49를 받는다. 원장 도입 이전 태그
 (`v2.2.3`~`v2.2.5`)는 legacy 공식(`1,000,000,000 + encodedVersion`)으로 떨어져 `1002002005`가
 나온다. 상한이 2,100,000,000이고 되돌릴 수 없으므로 **기존 태그를 Play에 직접 올리지 않는다.**
-`release-tag` 워크플로우로 새 태그를 끊어 원장이 48을 할당하게 한다.
+`release-tag` 워크플로우로 새 태그를 끊어 원장이 다음 값을 할당하게 한다.
 
 ## Release
 
@@ -56,11 +73,18 @@
 - Playable MVP: AI 대전, 로컬 2인 패스 앤 플레이, 난이도, 합법 수 표시, 패스, 게임오버, 로컬 저장
 - Android device smoke: `npm run build:android:smoke` creates `build/android/lucid-reversi-device-smoke.apk` by packaging the Godot export pack into the local Android debug template.
 - **릴리스 AAB 빌드 인프라 구성 완료**:
-  - `godot/export_presets.cfg`에 Android preset(`Android`) 커밋 — `package/unique_name=com.etlegame.reversi`, gradle AAB(`gradle_build/use_gradle_build=true`, `export_format=0`), arm64-v8a, keystore는 env 주입용으로 비움.
+  - `godot/export_presets.cfg`에 Android preset(`Android`) 커밋 — `package/unique_name=com.etlegame.reversi`, gradle AAB(`gradle_build/use_gradle_build=true`, `export_format=1`), arm64-v8a, keystore는 env 주입용으로 비움.
   - `scripts/install_android_build_template.sh`(org 워크플로우가 export 직전 호출): editor settings에 Android SDK/JDK 경로 주입 + Godot Android build template(`godot/android/build`, `.gitignore` 대상) 설치.
   - 배포 경로: `.github/workflows/deploy-google-play.yml` → org `godot-deploy-google-play.yml`(`godot --export-release Android` → 서명 → WIF 업로드).
 - 실 배포 전 필요한 GitHub secrets/vars:
   - secrets: `GOOGLE_PLAY_UPLOAD_KEYSTORE_BASE64`, `GOOGLE_PLAY_UPLOAD_KEYSTORE_PASSWORD`, `GOOGLE_PLAY_UPLOAD_KEY_PASSWORD`
   - vars: `GOOGLE_PLAY_UPLOAD_KEY_ALIAS`, `GOOGLE_WORKLOAD_IDENTITY_PROVIDER`, `GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL`
   - Android 광고 미탑재이므로 `ADMOB_APP_ID`는 **미설정**(설정 시 AdMob 강제 포함).
-- 남은 것: Play Console 앱 레코드 생성, store graphics(아이콘/피처그래픽/스크린샷), Android 런처 아이콘 자산(현재 preset은 기본 아이콘).
+- **AAB 빌드 검증 완료(2026-09-21)**: `Deploy to Google Play`(upload=false, main) run
+  [35612098803](https://github.com/seorilabs/lucid-reversi/actions/runs/35612098803) 성공.
+  `build/android/lucid-reversi.aab`, versionName 2.2.6 / versionCode 48, 업로드 키 서명까지 통과했다.
+  2026-08-29 실패 원인(`Target folder does not exist: "build/android"`)은 org 워크플로우에서 이미
+  해결돼 재현되지 않았다.
+- 남은 것: 등재정보 텍스트 교체 반영, store graphics(아이콘/피처그래픽/스크린샷) 제작,
+  Android 런처 아이콘 자산(현재 preset은 기본 아이콘), 앱 콘텐츠 섹션(Data safety·콘텐츠 등급·
+  광고 선언·target API) 재확인. 앱 레코드는 승계라 새로 만들지 않는다.

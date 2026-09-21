@@ -1,0 +1,98 @@
+{
+  "capturedAt": "2026-09-21",
+  "packageName": "com.etlegame.reversi",
+  "note": "루시드 리버시 리브랜딩 승계 이전의 'Reversi Online' 등재정보 원본. 되돌림 근거로 보존한다.",
+  "details": {
+    "defaultLanguage": "en-US",
+    "contactWebsite": "https://www.facebook.com/reversionline",
+    "contactEmail": "wellknowngeek@gmail.com"
+  },
+  "listings": {
+    "en-US": {
+      "title": "Reversi Online",
+      "shortDescription": "Correspondence match! Make your move and then get an alert when it is your turn.",
+      "fullDescription": "You can connect and play with your friends through a network. \nPlayers are able to play Reversi with other players across the world through whenever they are connected online.\n\nReversi Online supports single gameplay as well as a multiplayer game.\nYou can compete with your friends and practice against computer.\n\nFeatures:\n- Online match(also called correspondence or turn-based match) allows you play Reversi at any time! Make your move and then get an alert when it is your turn.\n- Friend match allows you invite your friends and play turn-based match.\n- Single game plays against computer opponent\n- Unlimited matches \n- Simple and intuitive interface\n\nGame Rule\n-   Player will be automatically assigned with certain color of pieces once game begins\n-   Possible spots to place the piece will be displayed in faded color\n-   Once player places a piece in certain position, opponent’s pieces in between your existing piece and the one you  newly placed will turn into your color in a row\n-   Player can place a single piece in each turn\n-   Game will be finished if game board is full or if there is no other way for one opponent to win the other\n-   Player who has more number of pieces in their color will win the game when the game is finished\n\nDownload Riversi Online now and have fun with your friends!",
+      "video": null,
+      "images": {
+        "icon": [
+          {
+            "id": "16833642038242014962",
+            "url": "https://lh3.googleusercontent.com/f8ZzpjJGYinimKvlT1_9NaUCGLwaYKj-xAyI0iujrGFB4yLclJTBgFUoGlBYmQcN5FE",
+            "sha256": "b5071a330f6779aa62c096493f8d55f1d29f01debfdd7e7026abcd1dc621ab7d"
+          }
+        ],
+        "featureGraphic": [
+          {
+            "id": "13178541083994620270",
+            "url": "https://lh3.googleusercontent.com/YCg6sR0FEaAf2lopKUI6FWdrbrUNAGbQw1hXx1cHL0And1T7bk-Dwq_WcoKUKKju5w",
+            "sha256": "2b0759d8aee6f043a0862a49238897955b2ccb1c053b99a1065a8110ccc05211"
+          }
+        ],
+        "phoneScreenshots": [
+          {
+            "id": "17579638249928575432",
+            "url": "https://lh3.googleusercontent.com/g-HJl91BI-kT5DdE3JZi_DyhDLjcKO08n-wQLnI1S5E_rzo7camI6SdTrOHtIqLWRJw",
+            "sha256": "cd2eca6f3dc93e7c833b3b966f547492e02e5289f052b0321fe3288d32125ea8"
+          },
+          {
+            "id": "6553913508913314035",
+            "url": "https://lh3.googleusercontent.com/Uvv0OpHxZD1xqLtVWdRJNYKBCEVe7dSTwvRLpuHZsA8iSRTfnL8bhnCPs5qDP0a26Q0c",
+            "sha256": "917e27b48bac9120e19a3ac7fc5557f9cd972e1a7e93ce00a4a470b5c20cd729"
+          },
+          {
+            "id": "14011192258681108705",
+            "url": "https://lh3.googleusercontent.com/ItteIMYcTwCbovZ4BdTfsj8ID4ETDkgBUsi-DfjuPjzzvmfFCtN1-uSg-_ZnWkROfg",
+            "sha256": "bc60dc4ac8af04328cdbecd939d890e3a4e813888e907c03cc25d0471a6cd7e2"
+          }
+        ],
+        "sevenInchScreenshots": [
+          {
+            "id": "6456624290553979113",
+            "url": "https://lh3.googleusercontent.com/c6qDpJwYVkAOR_s0T4zezZgS7Uy7vwSwoC1TRibn4msIQ2QYrLLZ1NPPtME8cKKrLd8",
+            "sha256": "f15ac726a9edb3d73612dfd3b0c8e15b15eb47e866bb30cdf5b5ebf44576ae95"
+          },
+          {
+            "id": "438333600422626233",
+            "url": "https://lh3.googleusercontent.com/47ogNH3YxT2F8giGojXFbRRf76s-2PDsFxMJzWAgUqk-LKysapD2KMVkYT3xDZTAdbA",
+            "sha256": "8aa4503e0c3865866248f9c79c98c2f84e5f1cc54f8ef7d62a2cdc10996468f1"
+          },
+          {
+            "id": "9250175087096292700",
+            "url": "https://lh3.googleusercontent.com/1_wGFsaJhjgTc4N_TGeOe1eJZeIwqDAcIzgKwryBYNACmEo1_h4-WXUFA0vblV9l-w",
+            "sha256": "1dcb8fea2559c829133cb03bd042171ed7e3355fe77296c8dfbee3c3204852a4"
+          }
+        ],
+        "tenInchScreenshots": [
+          {
+            "id": "5023935359569934979",
+            "url": "https://lh3.googleusercontent.com/t5MajdPH8hkboYunbFS3db24BdzIrYyzuc4PLRKYKEuR9SlEYeMPw1pYiulPDtyJxtc",
+            "sha256": "f15ac726a9edb3d73612dfd3b0c8e15b15eb47e866bb30cdf5b5ebf44576ae95"
+          },
+          {
+            "id": "17432464994199935681",
+            "url": "https://lh3.googleusercontent.com/YIYpC9S7oCXTy9w9qXcbidaC5uYFDCB20XYJT601rNk-MUNsob0tpsATBeAyuJKdRA",
+            "sha256": "8aa4503e0c3865866248f9c79c98c2f84e5f1cc54f8ef7d62a2cdc10996468f1"
+          },
+          {
+            "id": "17426783902182297986",
+            "url": "https://lh3.googleusercontent.com/Gde1gJWqeEbyqf2DPJ-PciKO793WxS7t2zOXFywOl0v93h0GRSw-qE4VA0Z6cGH4SZIg",
+            "sha256": "1dcb8fea2559c829133cb03bd042171ed7e3355fe77296c8dfbee3c3204852a4"
+          }
+        ]
+      }
+    },
+    "ko-KR": {
+      "title": "리버시 온라인",
+      "shortDescription": "언제 어디서나 간편하게 전세계 사람들과 리버시 한판!",
+      "fullDescription": "심심할 때 한판씩 하기 좋은 리버시 배틀입니다.\n\n대전경기는 매칭이 된 이후에 한 수를 두시면 상대방에게 푸시 알람이 전송됩니다. 상대방이 게임을 진행하고 싶을 때 자신의 턴을 진행하고 나면 다시 나에게로 알람이 옵니다. 항상 앱을 들여다 볼 필요 없이, 한수 한수 시간될 때 마다 진행하시면 됩니다.\n\n언제 어디서나 전세계 사람들과 간편하게 리버시로 대전하세요.\n혹시 실제 사람과 플레이 하는게 부담스럽다면 먼저 혼자하기로 쉬움, 중간, 어려움의 3단계 레벨을 플레이 해서 자신만의 전략과 움직임을 학습해 보세요.\n\n같이하기 대전결과는 점수로 환산되어 구글 플레이 서비스의 리더보드에 저장됩니다^^\n\n혹시 리버시를 어떻게 플레이 하는지 모르신다구요?\n\n- 게임이 시작되면 판 가운데에 엇갈리게 4개의 돌(각각 2개씩)이 배치 될 거에요.\n- 돌은 반드시 상대방 돌을 양쪽 끝에서 포위할 수 있는 곳에 놓아야 해요.\n- 포위된 상대방 돌들은 뒤집어지면 자신의 돌과 똑같은 색으로 변해요.\n- 혹시 포위할 곳이 없다면 턴은 상대방에게 자동으로 넘어가요.\n- 게임이 끝나는 조건은 아래와 같아요.\n-- 모든 돌이 판을 가득 채운 경우\n-- 어느 한 쪽이 돌을 모두 뒤집은 경우\n-- 한 차례에 양쪽 모두 서로 차례를 넘겨야 하는 경우\n- 게임이 끝났을 때 돌이 많이 있는 플레이어가 승리하게 되고, 만일 돌의 개수가 같을 경우는 무승부가 되요.",
+      "video": null,
+      "images": {
+        "icon": [],
+        "featureGraphic": [],
+        "phoneScreenshots": [],
+        "sevenInchScreenshots": [],
+        "tenInchScreenshots": []
+      }
+    }
+  }
+}

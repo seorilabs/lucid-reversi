@@ -5,10 +5,12 @@
     "decision": "기존 Play 앱 리브랜딩 승계",
     "existingListing": "com.etlegame.reversi는 Play에서 'Reversi Online' / '리버시 온라인'(온라인 통신대국)으로 production 2.1.2(versionCode 47)까지 배포된 이력이 있다.",
     "effect": "루시드 리버시 배포는 그 등록정보를 교체하고 기존 사용자에게 업데이트로 내보낸다. 설치수와 리뷰를 승계하는 대신, 온라인 대국을 기대하는 기존 사용자에게는 다른 게임이 전달된다.",
-    "uploadKey": "versionCode 47을 서명한 업로드 키가 필요하다. Play App Signing이 켜져 있으면 Play Console에서 업로드 키 재설정으로 복구할 수 있다.",
-    "versionCode": "원장 android.lastVersionCode=47이 baseline이다. 원장 도입 이전 태그(v2.2.3~v2.2.5)는 legacy 공식으로 1002002005가 나오므로 Play에 직접 올리지 않는다. release-tag 워크플로우로 새 태그를 끊어 원장이 48을 할당하게 한다."
+    "uploadKey": "Play App Signing 이관이 끝나 CI는 전용 업로드 키(app/lucid-reversi/google-play/upload-key)로 서명한다. 47을 서명한 원본 키는 더 이상 업로드에 필요하지 않다.",
+    "versionCode": "원장 android.lastVersionCode는 2026-09-21 기준 48(v2.2.6이 소비)이며 Play production은 47이다. 다음 태그가 49를 받는다. 원장 도입 이전 태그(v2.2.3~v2.2.5)는 legacy 공식으로 1002002005가 나오므로 Play에 직접 올리지 않는다.",
+    "appSigningKey": "2026-09-18 원 서명 키(2015년 ETLE 명의)를 PEPK로 Google에 이관해 Play App Signing 앱 서명 키가 됐다. CI는 분리된 업로드 키로 서명한다.",
+    "storeListing": "등재정보는 아직 'Reversi Online'이다. 교체 문안은 play-store/listing/{ko-KR,en-US,ja-JP}.json에 있고, 교체 이전 원본은 legacy-reversi-online.json에 보존한다. 스토어 페이지는 트랙과 무관하게 즉시 반영되므로, production에 옛 앱이 있는 동안 문구만 바꾸면 설명과 실제 앱이 불일치한다. 반영은 production 승격과 동시에 한다."
   },
-  "defaultLanguage": "ko-KR",
+  "defaultLanguage": "en-US",
   "track": "internal",
   "serviceAccountSecretName": "WIF 사용 — org 워크플로우가 GOOGLE_WORKLOAD_IDENTITY_PROVIDER + GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL(vars)로 인증(서비스 계정 JSON 키 미사용).",
   "aabPath": "release-artifacts/android/app-release.aab",
@@ -16,5 +18,7 @@
   "ads": {
     "enabled": false,
     "note": "Android는 릴리스 빌드 인프라만 구성(광고 미탑재). org 워크플로우는 vars.ADMOB_APP_ID가 비어 있으면 AdMob 단계를 자동 스킵한다. Android AdMob 도입 시 addons/AdmobPlugin의 AndroidExportPlugin 재활성화 + Android AdMob App ID/Unit ID 발급 필요."
-  }
+  },
+  "defaultLanguageNote": "Play 실측값. 2015년 등록 당시 기준이며 게임 내 기본 로케일(ko)과는 별개다. 변경하려면 Play Console에서 기본 언어를 바꿔야 한다.",
+  "listingDir": "play-store/listing"
 }
