@@ -52,6 +52,45 @@ Play production은 47이다. 다음 태그가 49를 받는다. 원장 도입 이
 - 업로드: WIF(`GOOGLE_WORKLOAD_IDENTITY_PROVIDER` + `GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL` vars)로 Android Publisher API 업로드.
 - Build runner: x64 Linux runner. RPI ARC runner는 Android release AAB/APK 대상이 아니다.
 
+## Play Console 실측 (2026-09-22)
+
+`Seolee Apps` 개발자 계정(계정 ID `5547060480954653351`)에서 읽기 전용으로 확인했다.
+프로덕션은 `활성`, **활성 기기 15대**, 171개 국가다. 활성 기기가 적어 승계로 인한 기존 사용자
+영향은 작다.
+
+### 승계 때문에 옛 게임 기준으로 남은 선언 — 교체 전 정리 대상
+
+| 항목 | Console 현재 값 | 실제 |
+|---|---|---|
+| 광고 ID | `앱에서 광고 ID를 사용한다고 지정하셨습니다`(2022-09-16) | **불일치.** `AD_ID` 권한 미선언, Android 광고 미탑재 |
+| 콘텐츠 등급 | IARC 완료지만 설문이 **2015-06-02** 제출본 | 리브랜딩 후 재설문 필요. 대한민국은 `Google Play 3세 이상`이고 GRAC 별도 등급은 표시되지 않음 |
+| 개인정보처리방침 | `http://35.221.214.124/privacypolicy.html`(2019-06-13) | 평문 HTTP + 원시 IP. 교체 필요 |
+| 스토어 등재정보 | `Reversi Online`, 온라인 대전·차례 알림·멀티플레이 설명 | `play-store/listing/`의 새 문안으로 교체 예정 |
+
+### 확인된 상태
+
+- 앱 액세스 권한: `특수한 액세스 권한 없이 모든 기능 이용 가능` — 현재 구현과 일치
+- 광고 포함 선언: **아니오** — 현재 Android 빌드와 일치
+- 데이터 보안: `앱에서 데이터를 수집 또는 공유하지 않습니다`(2025-10-09).
+  GA4 Measurement Protocol로 익명 `client_id`를 외부 전송하므로 **재검토가 필요한 지점**이다.
+- 건강 앱·금융 기능: 해당 없음으로 완료(2025-10-09)
+- **정부 앱 선언만 미완료** — 앱 콘텐츠의 유일한 `주의 필요` 항목
+- 타겟층: 6~8세부터 만 18세 이상까지
+- Play 앱 서명: `사용 중`, 업로드 키 인증서 등록됨 — 승계 경로가 열려 있음을 확인
+- 기본 언어 `en-US`, 등록 언어는 `en-US`, `ko-KR` 2개
+
+### 타겟 API 정책 오류 2건 — 새 빌드로 해소된다
+
+프로덕션의 규정 미준수 최고 대상 API 수준이 **Android 10(API 29)**이다.
+
+1. 제공 범위 제한 — `Android 15(API 35) 이상을 타겟팅해야 함` (2023-08-31부터)
+2. 업데이트 거부 — `Android 16(API 36) 이상을 타겟팅해야 함` (**2026-08-31 시행**)
+
+Godot 4.6.3과 4.7.2의 Android build template 모두 `config.gradle`의 기본
+`targetSdk`가 **36**이고, export preset의 `gradle_build/target_sdk`가 비어 있으면 그 기본값을
+쓴다. 따라서 새로 빌드한 AAB는 두 요건을 모두 충족한다. 기존 versionCode 47(API 29) 때문에
+표시되는 오류이며, 새 빌드를 올리면 해소된다.
+
 ## Policy / Data Safety
 
 - Ads: **미탑재**(릴리스 빌드 인프라만 구성). org 워크플로우는 `vars.ADMOB_APP_ID`가 비면 AdMob 단계를 자동 스킵. AdMob은 현재 iOS 전용.
@@ -73,8 +112,10 @@ Play production은 47이다. 다음 태그가 49를 받는다. 원장 도입 이
 
 - 태블릿 캡처는 게임 저장 데이터(`prefs_v1.json`, `save_v1.json`)로 테마·보드 크기·진행 국면을 만들어 찍었다.
   작업 전 백업하고 끝나면 원복한다.
-- **런처 아이콘은 아직 Godot 기본 아이콘이다.** 스토어 아이콘과 런처 아이콘이 다르므로 릴리스 전에
-  `godot/export_presets.cfg`의 Android 아이콘 슬롯을 채워야 한다.
+- **런처 아이콘은 서리 랩스 로고로 채웠다**(2026-09-22). `godot/branding/android/`의
+  `launcher_192.png`, `adaptive_foreground_432.png`, `adaptive_background_432.png`를
+  export preset의 `launcher_icons/*`에 연결했다. 부트 스플래시(`splash_screen/icon`)와 같은
+  로고라 실행 흐름이 이어진다. 스토어 아이콘(흑백 돌)과는 의도적으로 다르다.
 - iOS 아이콘(`app-store/assets/AppIcon-1024.png`)은 청록 다이아몬드로 이 아이콘과 다르다. 마켓 간
   아이콘 통일 여부는 별도 결정 사항이다.
 
@@ -87,6 +128,13 @@ Play production은 47이다. 다음 태그가 49를 받는다. 원장 도입 이
   - `godot/export_presets.cfg`에 Android preset(`Android`) 커밋 — `package/unique_name=com.etlegame.reversi`, gradle AAB(`gradle_build/use_gradle_build=true`, `export_format=1`), arm64-v8a, keystore는 env 주입용으로 비움.
   - `scripts/install_android_build_template.sh`(org 워크플로우가 export 직전 호출): editor settings에 Android SDK/JDK 경로 주입 + Godot Android build template(`godot/android/build`, `.gitignore` 대상) 설치.
   - 배포 경로: `.github/workflows/deploy-google-play.yml` → org `godot-deploy-google-play.yml`(`godot --export-release Android` → 서명 → WIF 업로드).
+- **플랫폼 SDK vendoring 완료(2026-09-22)**: `godot/addons/seorilabs_platform` v0.7.8.
+  GitHub Release asset(`seorilabs-platform-gdscript-0.7.8.tar.gz`)을 `.sha256`으로 검증한 뒤 풀었고,
+  `SOURCE`가 그 asset URL을 가리킨다. plugin.cfg 없는 순수 스크립트 라이브러리라 editor plugin
+  등록은 필요 없다. `seorilabs/platform` 레지스트리에 `lucid-reversi`는 이미 `active`이고
+  `features`는 `firebase_custom_token_bridge`만 true, 나머지(config·events·iap·ads)는 false다.
+  기능을 켜는 배선은 후속 작업이며, 그때 `docs/07-qa/test-strategy.md`의 "platform SDK import는
+  adapter 계층으로 제한한다" 규칙을 따른다.
 - 실 배포 전 필요한 GitHub secrets/vars:
   - secrets: `GOOGLE_PLAY_UPLOAD_KEYSTORE_BASE64`, `GOOGLE_PLAY_UPLOAD_KEYSTORE_PASSWORD`, `GOOGLE_PLAY_UPLOAD_KEY_PASSWORD`
   - vars: `GOOGLE_PLAY_UPLOAD_KEY_ALIAS`, `GOOGLE_WORKLOAD_IDENTITY_PROVIDER`, `GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL`
