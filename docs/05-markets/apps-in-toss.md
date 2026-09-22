@@ -75,16 +75,28 @@
 | `ait build`가 웹 빌드까지 수행 | **`ait build`는 `webBundleDir`를 그대로 패킹만 한다.** 앞에 `vite build`가 필요 |
 | `granite dev` (Metro 8081 + vite 5173) | `vite --host`. **`ait dev`/`granite dev` 둘 다 없다** |
 | — | `@apps-in-toss/devtools` 추가(브라우저 mock SDK) |
+| — | `ait deploy --timeout` **삭제** — 업로드 대기시간을 늘릴 수단이 없다 |
 | — | `navigationBar`, `webView` config 지원 |
 
 `package.json` 스크립트: `dev`는 `vite --host`, `build`는 `tsc --noEmit && vite build && ait build`.
 
-`ait deploy`의 `--api-key` / `--memo` / `--location`은 그대로라 org 재사용 워크플로(`godot-deploy-ait.yml`)의 `npm run deploy -- ...` 계약은 깨지지 않는다. 2.x에 있던 `--timeout`은 사라졌으나 워크플로가 쓰지 않는다.
+`ait deploy`의 `--api-key` / `--memo` / `--location`은 그대로라 org 재사용 워크플로(`godot-deploy-ait.yml`)의 `npm run deploy -- ...` 계약은 깨지지 않는다.
+
+**다만 2.x에 있던 `--timeout`이 3.x에서 사라졌다.** 워크플로가 그 옵션을 쓰지 않으니 무해하다고 볼 게 아니라, **업로드가 느릴 때 늘릴 수단이 없어진 것**이 리스크다. 실제로 v2.2.9 첫 배포가 약 106초 만에 `최대 대기시간을 초과했어요`로 실패했다. 같은 아티팩트를 재시도하니 **17초 만에 성공**해 일시적 장애로 판명됐다. 크기 문제도 아니다 — lucid-chess는 Godot 번들이 47MB인데도 3.x로 배포에 성공한다(우리는 15MB). **배포가 타임아웃으로 실패하면 먼저 그대로 재시도한다.**
 
 ### 검증한 것
 
 - `npm run build` 성공 → `lucid-reversi.ait` 생성. `.ait` 안에 `sources/assets/index-*.js`와 `sources/godot/*`가 정상 포함됐다.
-- **devtools가 프로덕션 번들에 섞이지 않는다.** 플러그인은 `NODE_ENV !== "production"`일 때만 켜지고 web-framework를 mock으로 alias한다. `vite build` 산출물에서 `devtools`/`mock`/`panel` 문자열이 **0건**이고 실제 SDK 참조만 남은 것을 확인했다.
+- **devtools가 프로덕션 번들에 섞이지 않는다.** 이 플러그인은 web-framework를 mock으로 alias하므로 배포 번들에 들어가면 실 SDK 대신 mock이 올라간다. `vite build` 산출물에서 `devtools`/`mock`/`panel` 문자열이 **0건**이고 실제 SDK 참조만 남은 것을 확인했다.
+- **devtools는 `command === 'serve'`일 때만 켠다.** 플러그인 자체도 `NODE_ENV !== "production"`으로 스스로를 끄지만 그건 환경변수 의존 방어라 뚫린다. 실측으로 확인했다.
+
+  | 빌드 | 번들 크기 | `devtools` | `mock` | `panel` |
+  |---|---|---|---|---|
+  | 정상(`vite build`) | 198KB | 0 | 0 | 0 |
+  | 플러그인 무조건 등록 + `NODE_ENV=development` | **852KB** | 14 | **7** | **23** |
+  | `command==='serve'` 제한 + `NODE_ENV=development` | 385KB | 3 | 0 | 0 |
+
+  두 번째 행이 사고다. mock SDK가 통째로 들어간다. 세 번째 행의 `devtools` 3건은 React의 `react-devtools` 안내 문자열이라 무관하다. lucid-chess도 같은 이유로 `command` 기준 제한을 쓴다.
 - 의존성이 1686개 줄었다. 2.x가 끌고 오던 React Native 계열이 빠졌다.
 
 ### 출시 전 반드시 볼 것
@@ -96,3 +108,21 @@
 
   이 앱의 래퍼(`apps/ait/src`)는 외부 도메인을 직접 호출하지 않는다. Godot 번들이 GA4 Measurement Protocol(`www.google-analytics.com/mp/collect`)로 전송하는데, 이 엔드포인트는 우리가 Origin 목록을 관리하는 대상이 아니다. **3.x 첫 배포 후 GA4 이벤트가 실제로 들어오는지 확인이 필요하다.**
 - 실기기 샌드박스 접속 방식(`intoss://lucid-reversi` + `adb reverse`)이 3.x에서도 같은지는 **확인하지 못했다.** Metro가 사라졌으므로 달라졌을 가능성이 있다.
+
+### lucid-chess 3.x 전환 선례 대조 (seorilabs/lucid-chess#283)
+
+같은 조직의 lucid-chess가 먼저 3.x로 갔다. 거기서 터진 문제를 항목별로 대조했다.
+
+| lucid-chess가 겪은 문제 | 루시드 리버시 |
+|---|---|
+| 자동 변환이 `dev`/`build`에 직접 넣어둔 `sync:godot`을 지웠다 | 해당 없음. `predev`/`prebuild` 훅을 써서 npm이 자동 실행한다 |
+| 자동 변환이 보안 검사(`check:ait:security`)를 빌드에서 지웠다 | 해당 없음. eval 처리·회귀 가드가 `sync-godot-web.mjs` 안에 있고 `prebuild`로 항상 돈다 |
+| 보안 검사가 업로드보다 먼저여야 한다 | 순서 유지: `sync:godot` → `vite build` → `ait build` |
+| devtools `^3.4.0`이 미배포라 `npm install`이 `ETARGET`으로 실패 | 해당 없음. 3.5.0은 실제 배포돼 있다 |
+| devtools를 `command === 'serve'`로 제한해야 한다 | **처음엔 놓쳤고 뒤에 반영했다**(위 표) |
+| `granite.config.ts` 잔여 참조로 릴리스 검사가 깨진다 | `scripts/check_release_readiness.sh`와 문서를 새 경로로 옮겼다 |
+| `webViewProps` → `webView` | 해당 없음(`webViewProps` 미사용) |
+
+**교훈**: `ait migrate v3`는 `dev`/`build` 스크립트를 통째로 덮어쓴다. 그 스크립트에 프로젝트 고유 단계를 체인으로 넣어 뒀다면 소리 없이 사라진다. `pre*` 훅으로 분리해 두면 살아남는다.
+
+배포 아티팩트도 직접 열어 확인했다. `sources/godot/index.js`에 유지 대상 `godot_js_eval` 키를 뺀 eval 토큰이 **0건**이고, no-op 치환과 `_godot_js_run` 리네임이 적용돼 있다.
