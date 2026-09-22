@@ -68,7 +68,18 @@ class AndroidExportPlugin extends EditorExportPlugin:
 		if _supports_platform(get_export_platform()):
 			_export_config = AdmobAndroidExportConfig.new()
 			if not _export_config.export_config_file_exists() or _export_config.load_export_config_from_file() != OK:
+				# [lucid-reversi 수정] scene node fallback 은 런타임에 동적 생성되는 Admob 노드를
+				# 찾지 못한다(godot/scripts/mobile_ads.gd). 즉 android_export.cfg 가 없으면
+				# application id 가 빈 채로 남는다.
 				_export_config.load_export_config_from_node()
+			# [lucid-reversi 수정] 여기서 막지 않으면 aar 과 play-services-ads 는 그대로 링크되고
+			# APPLICATION_ID meta-data 만 비어, 앱 시작 시 크래시하는 AAB 가 만들어진다.
+			# 최종 방어선은 scripts/validate_android_admob.sh(post-export validation)다.
+			var __id: String = _export_config.real_application_id if _export_config.is_real else _export_config.debug_application_id
+			if __id.is_empty():
+				push_error("[AdmobPlugin] android_export.cfg 에서 application id 를 읽지 못했다. " +
+						"AdMob SDK 만 링크된 AAB 는 시작 시 크래시한다. " +
+						"godot/addons/AdmobPlugin/android_export.cfg 를 확인할 것.")
 
 
 	func _get_android_dependencies(platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
@@ -100,7 +111,15 @@ class AndroidExportPlugin extends EditorExportPlugin:
 		var __contents: String
 
 		if _export_config:
-			__contents = APP_ID_META_TAG % (_export_config.real_application_id if _export_config.is_real else _export_config.debug_application_id)
+			var __id: String = _export_config.real_application_id if _export_config.is_real else _export_config.debug_application_id
+			if __id.is_empty():
+				# [lucid-reversi 수정] 빈 android:value 를 내보내면 manifest 는 그럴듯한데
+				# 런타임에 크래시한다. 차라리 meta-data 를 만들지 않아 post-export validation 이
+				# 확실히 걸리게 한다.
+				push_error("[AdmobPlugin] application id 가 비어 APPLICATION_ID meta-data 를 만들지 않는다.")
+				__contents = ""
+			else:
+				__contents = APP_ID_META_TAG % __id
 		else:
 			Admob.log_warn("Export config not found for %s!" % _plugin_name)
 			__contents = ""

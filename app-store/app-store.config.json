@@ -48,7 +48,7 @@
     "plistInjection": "IosExportPlugin(AdmobPlugin.gd)이 export 시 GADApplicationIdentifier + SKAdNetworkItems를 Info.plist에 자동 주입(ios_export.cfg 기반). is_real=true라 릴리스 아카이브엔 실 iOS App ID.",
     "testIds": "개발/비릴리스 빌드는 AdMob 공식 테스트 App ID/Unit ID 사용(OS.is_debug_build 분기). 릴리스만 실 유닛(정책 준수).",
     "cocoaPods": "불필요 — v6.0 iOS는 self-contained xcframework이고 mediation 미사용이라 Podfile 미생성. org App Store 워크플로우의 xcodebuild archive -project 경로 그대로 사용.",
-    "androidNote": "AdMob은 iOS 전용. AdmobPlugin.gd에서 AndroidExportPlugin 미등록(Android AAB에 AdMob 강제 포함 방지). Android 광고는 미탑재.",
+    "androidNote": "2026-09-22부터 Android도 AdMob 전면광고를 탑재한다. AdmobPlugin.gd가 AndroidExportPlugin을 등록하고 android_export.cfg가 APPLICATION_ID meta-data를 주입한다. Android 식별자는 play-store/google-play.config.json의 ads 를 정본으로 본다.",
     "publisherNote": "2026-09-22에 publisher를 pub-2444587584524186에서 주력 계정 pub-9932778305312246으로 옮겼다. 이전 ID로 올라간 빌드는 App Store v2.2.2다."
   },
   "adsPrivacyReview": "AdMob(비맞춤형) 도입으로 App Store App Privacy는 재검토 필요. GA4(익명 client_id) + AdMob(비맞춤형·IDFA 미사용)을 반영해 dataCollection/consoleGates.appPrivacy를 다음 빌드 제출 전 확정할 것. ATT는 불필요(추적 없음) 유지.",
@@ -103,10 +103,10 @@
   "consoleGates": {
     "appShell": "com.etlegame.reversi 앱 레코드가 ASC에 있어야 업로드 성공. 없으면 콘솔에서 새 앱 생성 필요.",
     "appPrivacy": "빌드별로 답이 다르다. (1) GA4 analytics 미포함 빌드: No Data Collected. (2) GA4 Analytics 포함 빌드부터: Data Collected — 상세는 최상위 dataCollection 필드.",
-    "ageRating": "광고 none, 폭력/도박/UGC 없음 → 4+ 예상",
-    "contentRights": "v1은 third-party 광고 콘텐츠 없음(first-party 게임 자산만) → no third-party content",
+    "ageRating": "AdMob 전면광고 포함, 폭력/도박/UGC 없음 → 4+ 예상(광고 존재 자체는 연령등급을 크게 바꾸지 않는다)",
+    "contentRights": "AdMob 광고(third-party 콘텐츠) 포함 → contains third-party content 로 답한다. 게임 자산은 first-party.",
     "exportCompliance": "비면제 암호화 없음으로 답변(ITSAppUsesNonExemptEncryption=false)",
-    "attDecision": "추적 없음 — No. GA4 분석은 IDFA·광고 식별자 없이 익명 client_id만 쓰므로 Tracking 아님 → ATT 불필요. (AdMob 도입 시에도 non-personalized·IDFA 미사용 유지 계획)",
+    "attDecision": "추적 없음 — No. GA4는 IDFA·광고 식별자 없이 익명 client_id만 쓰고, AdMob은 비맞춤형(PersonalizationState.DISABLED)·IDFA 미사용이라 Tracking 아님 → ATT 불필요(ios_export.cfg att_enabled=false).",
     "buildSelection": "업로드 후 콘솔에서 빌드 선택 필요",
     "submitForReview": "최종 콘솔 제출 필요"
   }
