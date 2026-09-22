@@ -246,11 +246,17 @@ production 트랙은 `활성`이고 출시 버전은 `검토 중`, 대상 172개
 |---|---|---|---|
 | App icon | `play-store/assets/icon-512.png` | 512x512 PNG | 게임의 실제 돌 SVG(`classic_black/white`)와 칠기·황동 톤으로 합성. 원본은 `icon-512.source.html` |
 | Feature graphic | `play-store/assets/feature-graphic-{ko-KR,en-US,ja-JP}.png` | 1024x500 PNG | `moonlit-lacquer-backdrop` + 실제 보드 캡처 + `DoHyeon`/`MPLUSRounded1c` 타이틀 |
-| Phone screenshots | `play-store/screenshots/phone/*.png` (5장) | 1080x1920 PNG | **실기기 캡처**(Android 16). `wm size 1080x1920`으로 Play 최대 종횡비 2:1을 맞춘 뒤 캡처하고 원복 |
+| Phone screenshots | `play-store/screenshots/phone/{ko-KR,en-US,ja-JP}/*.png` (언어당 5장) | 1080x1920 PNG | **실기기 캡처**(Android 16). `wm size 1080x1920`으로 Play 최대 종횡비 2:1을 맞춘 뒤 캡처하고 원복 |
 | Tablet screenshots | `play-store/screenshots/tablet/*.png` (3장) | 1200x1920 PNG | **데스크톱 Godot 캡처**. `--resolution 1200x1920`(Retina 2배라 논리 창 600x960)로 띄우고 창 영역만 캡처. 7인치·10인치 슬롯 공용 |
 
 - 태블릿 캡처는 게임 저장 데이터(`prefs_v1.json`, `save_v1.json`)로 테마·보드 크기·진행 국면을 만들어 찍었다.
   작업 전 백업하고 끝나면 원복한다.
+- **폰 스크린샷은 3개 언어를 각각 찍었다**(2026-09-22). 앱 안에서 설정 > 언어로 ko/en/ja를 바꿔가며
+  같은 다섯 화면(대국, 설정, 퍼즐 선택, 벚꽃 테마, 10x10)을 실기기에서 캡처했다. Play에는 언어별
+  `phoneScreenshots`로 올라가 각 언어 사용자가 자기 언어 화면을 본다.
+- **태블릿 스크린샷은 아직 기본 언어(en-US) 한 세트뿐이고 한국어 UI다.** Play가 기본 언어 이미지를
+  상속하므로 영어·일본어 사용자에게 한국어 태블릿 화면이 보인다. 폰보다 노출이 적어 후순위로 뒀다.
+  언어별로 만들려면 위 데스크톱 Godot 캡처 방법을 locale별로 반복하면 된다.
 - **런처 아이콘은 서리 랩스 로고로 채웠다**(2026-09-22). `godot/branding/android/`의
   `launcher_192.png`, `adaptive_foreground_432.png`, `adaptive_background_432.png`를
   export preset의 `launcher_icons/*`에 연결했다. 부트 스플래시(`splash_screen/icon`)와 같은
