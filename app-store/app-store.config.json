@@ -83,9 +83,9 @@
       "primary": "Games",
       "secondary": "Board"
     },
-    "copyright": "확정 필요",
-    "supportUrl": "확정 필요",
-    "marketingUrl": "확정 필요(선택)",
+    "copyright": "2026 Seori Labs",
+    "supportUrl": "https://www.seorilabs.com/support/",
+    "marketingUrl": "",
     "screenshots": {
       "iphone_6_9": "app-store/screenshots/iphone-6.9/01-board.png (1320x2868)",
       "ipad_13": "app-store/screenshots/ipad-13/01-board.png (2064x2752)",
@@ -98,7 +98,10 @@
       "promotionalText": "46/170",
       "keywords": "38/100",
       "description": "ASC 4000 이하"
-    }
+    },
+    "marketingUrlNote": "선택 항목. 이 앱은 seorilabs.com에 제품 랜딩이 없어 비운다. registry 등록 시 채운다.",
+    "privacyPolicyUrl": "https://www.seorilabs.com/apps/lucid-reversi/privacy/",
+    "reviewNotes": "계정, 로그인, 회원가입이 없어 심사용 데모 계정이 필요 없습니다. 인터넷 연결 없이 모든 기능을 사용할 수 있습니다. 인앱 구매가 없습니다. AdMob 전면 광고가 한 판 종료 시 1회 표시되며 비맞춤형으로 요청합니다. IDFA를 사용하지 않고 App Tracking Transparency 권한도 요청하지 않습니다. 분석은 Google 애널리틱스 4 Measurement Protocol로 익명 식별자와 게임 이벤트만 전송합니다."
   },
   "consoleGates": {
     "appShell": "com.etlegame.reversi 앱 레코드가 ASC에 있어야 업로드 성공. 없으면 콘솔에서 새 앱 생성 필요.",
