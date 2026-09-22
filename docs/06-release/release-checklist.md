@@ -47,7 +47,8 @@
 - [ ] AAB built on x64 Linux release path
 - [ ] Signing confirmed
 - [ ] Internal testing upload ready
-- [ ] Data safety confirmed
+- [x] Data safety confirmed — 2026-09-22 재선언. 수집 `앱 상호작용`(분석)·`기기 또는 기타 ID`(분석·광고), 공유 `기기 또는 기타 ID`(광고). 전송 중 암호화 예
+- [x] production 승격 — v2.2.8 / versionCode 50, 등재정보 교체와 동시. **검토 중이며 공개 출시 아님**
 
 ## App Store
 

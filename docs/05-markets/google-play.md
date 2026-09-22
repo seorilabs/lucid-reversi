@@ -180,6 +180,48 @@ production: 2.1.2 (47)   ← 승계 대상 옛 게임, 아직 그대로
 
 `draft`라 테스터에게 아직 배포되지 않았다. 게시와 production 승격은 별도 결정이다.
 
+## production 승격 (2026-09-22, 검토 중)
+
+`v2.2.8`(versionCode 50)을 internal에서 production으로 승격하고 등재정보를 함께 교체했다.
+**아직 검토 중이며 공개 출시가 아니다.**
+
+### 순서를 이렇게 잡은 이유
+
+Play 스토어 페이지는 트랙과 무관하게 반영되므로, 빌드만 승격하면 새 앱이 옛 `Reversi Online`
+설명과 함께 노출되는 구간이 생긴다. 그래서 **등재정보를 먼저 커밋하고 바로 승격**했다.
+
+1. Android Publisher API 한 edit에 텍스트 3개 언어와 이미지 12개를 담아 commit
+2. 이어서 org `promote-google-play.yml`로 internal → production 승격
+
+등재정보 교체는 org 워크플로우가 다루지 않아(업로더는 AAB와 출시노트만 본다) API로 직접 했다.
+
+### 반영된 것 (API readback)
+
+```
+production  name=v2.2.8  status=completed  vc=['50']  notes=[en-US, ja-JP, ko-KR]
+internal    name=lucid-reversi 2.2.8 (50)  status=completed  vc=['50']
+
+등재정보  en-US: Lucid Reversi / ko-KR: 루시드 리버시 / ja-JP: ルーシッドリバーシ
+이미지    icon 1, featureGraphic 1, phone 5, 7인치 3, 10인치 3
+```
+
+### 검토 상태
+
+게시 개요에 **11건이 검토 중**이다. v2.2.8 전체 출시 시작, ja-JP 등재정보 신규 추가,
+en-US 이름·짧은 설명·전체 설명·아이콘·폰/7인치/10인치 스크린샷·피처그래픽 변경,
+ko-KR 이름 변경이다. `검토를 위해 전송` 버튼은 없었다 — API commit이 이미 검토 흐름에
+넣었기 때문이다. 앞서 콘솔에서 바꾼 선언 6건도 함께 들어갔다.
+
+production 트랙은 `활성`이고 출시 버전은 `검토 중`, 대상 172개 국가/지역이다.
+**공개 화면에 반영됐다는 증거는 아직 없다.** 기존 공개 버전은 여전히 2.1.2로 표시된다.
+
+### 남은 한계
+
+스크린샷은 기본 언어(en-US)에 **한 세트만** 올렸고 한국어 UI다. Play는 기본 언어 이미지를
+다른 언어가 상속하므로 등록은 정상이지만, 영어·일본어 사용자에게 한국어 화면이 보인다.
+피처그래픽만 언어별로 만들어 뒀다. 언어별 스크린샷은 데스크톱 캡처(위 Assets 절의 방법)로
+만들 수 있다.
+
 ## Policy / Data Safety
 
 - Ads: **AdMob 전면(Interstitial) 광고 탑재**(2026-09-22). 한 판 종료 시 1회 노출.
