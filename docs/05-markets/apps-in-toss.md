@@ -57,7 +57,7 @@
 - Godot Web export(`build/pages`)는 `npm run sync:godot`로 `apps/ait/public/godot`에 복사되고, `GodotCanvas.tsx`가 `Engine`을 직접 로드해 canvas에 렌더한다(iframe 미사용).
 - `npm run build`(= `ait build`)로 `apps/ait/lucid-reversi.ait` 생성 검증 완료(약 14MB). 콘솔 업로드용은 `release-artifacts/apps-in-toss/lucid-reversi.ait`.
 - 광고는 `src/ads.ts`의 AppsInToss 전면(Interstitial) 광고로 연동. 한 판 종료 시 Godot(`main.gd:_request_interstitial_ad`)가 `JavaScriptBridge.get_interface("__aitBridge")`로 wrapper가 노출한 전역 객체를 받아 `showInterstitialAd()`를 호출해 1회 노출. AppsInToss 보안 정책상 `JavaScriptBridge.eval`은 금지되어 eval 없는 `get_interface` 브리지를 쓰며, sync 시 엔진 로더(`index.js`)의 `_godot_js_eval` 본문 eval 호출도 제거한다(`scripts/sync-godot-web.mjs`). 광고 SDK는 토스앱 환경에서만 동작(`isSupported()`), 샌드박스/로컬 브라우저에서는 비활성.
-- 실기기 샌드박스 검증: `apps/ait`에서 `npm run dev`(= `granite dev`)로 Metro 8081 + vite 5173 기동. Android USB는 `adb reverse tcp:8081 tcp:8081 && adb reverse tcp:5173 tcp:5173` 후 `intoss://lucid-reversi` 접속. `ait dev` 명령은 없음.
+- 실기기 검증: **3.x부터는 콘솔 QR(배포 후 `intoss-private://` 링크)로 한다.** `granite dev`/`ait dev`가 모두 없어져 Metro 8081 경로는 더 이상 쓰지 않는다. 로컬 개발은 `npm run dev`(= `vite --host`)와 devtools mock SDK로 한다.
 - Registration image assets are stored under `apps-in-toss/release-assets/`: `600x600` logo, `1932x828` thumbnail, and three `636x1048` vertical screenshots. They pass the AppsInToss registration image validation script with no alpha channel.
 
 ## web-framework 3.x 업그레이드 (2026-09-22)
@@ -107,7 +107,58 @@
   - `https://lucid-reversi.private-web.tossmini.com` (콘솔 QR 테스트)
 
   이 앱의 래퍼(`apps/ait/src`)는 외부 도메인을 직접 호출하지 않는다. Godot 번들이 GA4 Measurement Protocol(`www.google-analytics.com/mp/collect`)로 전송하는데, 이 엔드포인트는 우리가 Origin 목록을 관리하는 대상이 아니다. **3.x 첫 배포 후 GA4 이벤트가 실제로 들어오는지 확인이 필요하다.**
-- 실기기 샌드박스 접속 방식(`intoss://lucid-reversi` + `adb reverse`)이 3.x에서도 같은지는 **확인하지 못했다.** Metro가 사라졌으므로 달라졌을 가능성이 있다.
+- ~~실기기 샌드박스 접속 방식이 3.x에서도 같은지 확인하지 못했다.~~ → **해소.** 3.x는 배포 후 콘솔 QR로 검증한다.
+
+### 실기기 검증 (2026-09-22, v2.2.10)
+
+**콘솔 QR 실기기에서 게임이 정상 실행되는 것을 확인했다.** 사용자 확인.
+
+여기까지 오는 데 두 번의 실패가 있었고 원인이 서로 달랐다. 3.x로 올리는 다른 Godot 프로젝트도 같은 순서로 밟게 된다.
+
+| 배포 | 결과 | 원인 |
+|---|---|---|
+| v2.2.9 (1차) | 업로드 실패 | `ait deploy` 타임아웃 106초. 재시도로 17초에 성공 |
+| v2.2.9 (2차) | 업로드 성공, **게임 안 열림** | 아래 두 가지가 겹침 |
+| v2.2.10 | **정상** | 두 원인 모두 해소 |
+
+#### 게임이 안 열린 원인 두 가지
+
+**(a) emscripten Safari 게이트가 Android 웹뷰를 막았다.** emscripten은 UA에 `Safari/`가 있고 `Version/x`가 잡히면 Safari로 보고 v15.2.0 미만이면 실행을 중단한다. Android WebView UA는 `... Version/4.0 Chrome/152.0.0.0 Mobile Safari/537.36`이라 Safari 4.0으로 오인된다.
+
+```
+This emscripten-generated code requires Safari v15.2.0 (detected v040000)
+```
+
+`sync-godot-web.mjs`의 `relaxEmscriptenSafariGate()`가 UA에 `Chrome/`이 있으면 Safari 분기를 타지 않게 로더를 고친다. **이 게이트는 Godot 4.6.3(CI)에는 있고 4.7.2(로컬)에는 없다.** 없으면 통과시키되 `requires Safari` 문구만 남았으면 미니파이가 바뀐 것이므로 실패시킨다.
+
+**(b) `ait migrate v3`가 게임 웹뷰 모드 키를 떨어뜨렸다.** 없으면 큰 wasm이 instantiate 되지 않아 스플래시에서 멈춘다. 3.5.0 설정 타입에는 없지만 CLI가 `bundle.json`에 그대로 직렬화해 플랫폼까지 전달한다. `apps-in-toss.config.ts`에서 변수로 분리해 넣는다(객체 리터럴을 직접 넘기면 초과 속성 검사에 걸린다).
+
+#### 재현·검증 방법
+
+배포 번들을 Android WebView UA로 열면 실기기 없이 재현된다.
+
+```
+Mozilla/5.0 (Linux; Android 15; SM-S913N) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/152.0.0.0 Mobile Safari/537.36
+```
+
+| | 패치 전 | 패치 후 |
+|---|---|---|
+| canvas | 300x150 (초기값) | 390x844 |
+| Godot 배너 | 없음 | 출력됨 |
+| 에러 | `requires Safari v15.2.0 (detected v040000)` | 없음 |
+
+배포본 `ait-lucid-reversi-v2.2.10-52`에서 `bundle.json`의 `webView.type=game`, Safari 게이트 완화, 옛 게이트 잔존 없음을 확인했다.
+
+#### 함께 고친 것 — eval sanitizer가 미니파이 패턴에 기대고 있었다
+
+Godot 4.7.2는 wasm import 매핑을 `$e:_godot_js_eval`로 줄인다. 기존 sanitizer는 `godot_js_eval:_godot_js_eval` 패턴만 찾아 정의만 리네임하고 참조를 남겼고, 브라우저에서 `_godot_js_eval is not defined`로 죽었다. 회귀 가드는 `godot_js_eval`을 예외로 지운 뒤 검사해서 잔여 참조가 `_`로 줄어 그대로 통과했다. 전체 치환으로 바꾸고 가드 예외를 없앴다. CI는 4.6.3을 써서 배포본에는 영향이 없었지만 로컬 4.7.2 빌드는 깨져 있었다.
+
+### 남은 게이트
+
+- [ ] **콘솔 출시(release)** — 배포는 private deployment까지다. 출시하면 **2.x로 롤백할 수 없다**
+- [ ] 결과 공유(클립보드 복사) 실기기 동작 확인
+- [ ] 전면광고 노출 확인 (live `adGroupId` 주입 경로는 `vite build` 그대로라 유지)
+- [ ] GA4 이벤트 유입 확인 — 3.x CORS 변경 영향을 배포 후 실측해야 한다
 
 ### lucid-chess 3.x 전환 선례 대조 (seorilabs/lucid-chess#283)
 
