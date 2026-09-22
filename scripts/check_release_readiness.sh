@@ -59,7 +59,7 @@ case "${target}" in
     )
     required_release_configs=(
       "apps-in-toss/apps-in-toss.config.json"
-      "apps/ait/granite.config.ts"
+      "apps/ait/apps-in-toss.config.ts"
     )
     ;;
   *)
@@ -76,7 +76,7 @@ case "${target}" in
       "play-store/google-play.config.json"
       "app-store/app-store.config.json"
       "apps-in-toss/apps-in-toss.config.json"
-      "apps/ait/granite.config.ts"
+      "apps/ait/apps-in-toss.config.ts"
     )
     ;;
 esac
