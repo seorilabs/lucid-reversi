@@ -16,8 +16,18 @@
   "aabPath": "release-artifacts/android/app-release.aab",
   "displayName": "루시드 리버시",
   "ads": {
-    "enabled": false,
-    "note": "Android는 릴리스 빌드 인프라만 구성(광고 미탑재). org 워크플로우는 vars.ADMOB_APP_ID가 비어 있으면 AdMob 단계를 자동 스킵한다. Android AdMob 도입 시 addons/AdmobPlugin의 AndroidExportPlugin 재활성화 + Android AdMob App ID/Unit ID 발급 필요."
+    "enabled": true,
+    "network": "AdMob",
+    "androidAppId": "ca-app-pub-9932778305312246~6509011613",
+    "interstitialUnitId": "ca-app-pub-9932778305312246/7985744813",
+    "format": "interstitial",
+    "trigger": "한 판 종료 시 1회 노출(_interstitial_shown_this_game 가드)",
+    "personalization": "non-personalized (PersonalizationState.DISABLED)",
+    "adIdPermission": "AdMob SDK(play-services-ads 24.9.0)가 manifest merge로 com.google.android.gms.permission.AD_ID와 ACCESS_ADSERVICES_* 를 자동 추가한다. export preset에 따로 선언하지 않는다.",
+    "adapter": "godot/scripts/mobile_ads.gd (bootstrap 계층, check_architecture.sh 경계 준수). main.gd _request_interstitial_ad()에서 iOS와 함께 호출.",
+    "manifestInjection": "AndroidExportPlugin(AdmobPlugin.gd)이 godot/addons/AdmobPlugin/android_export.cfg를 읽어 com.google.android.gms.ads.APPLICATION_ID meta-data를 주입한다. 이 meta-data 없이 SDK만 링크되면 앱 시작 시 크래시한다.",
+    "nativeBinary": "godot/addons/AdmobPlugin/bin/*.aar는 .gitignore 대상. scripts/build_admob_plugin.sh가 릴리스에서 받아 배치하며, org Play 워크플로우가 export 직전에 자동 호출한다.",
+    "requiredVars": "vars.ADMOB_APP_ID와 vars.ADMOB_INTERSTITIAL_AD_UNIT_ID. org 워크플로우는 이 값들이 AdMob 공식 테스트 ID가 아닌지 검증만 하고, 실제 주입은 android_export.cfg와 mobile_ads.gd가 한다."
   },
   "defaultLanguageNote": "Play 실측값. 2015년 등록 당시 기준이며 게임 내 기본 로케일(ko)과는 별개다. 변경하려면 Play Console에서 기본 언어를 바꿔야 한다.",
   "listingDir": "play-store/listing"

@@ -34,12 +34,12 @@
 
 ## Ads
 
-- **AdMob 전면(Interstitial) 광고 탑재** (iOS). 한 판 종료 시 1회 노출(`_interstitial_shown_this_game` 가드).
-- 플러그인: `godot-sdk-integrations/godot-admob` v6.0 (iOS 전용 사용, Godot 4.6 지원). GDScript 애드온(`godot/addons/AdmobPlugin`)과 `godot/ios/plugins/AdmobPlugin.gdip`는 커밋, xcframework(약 45MB)는 `.gitignore` → iOS export 전 `scripts/install_ios_admob_plugin.sh`로 다운로드.
-- 광고 ID: App `ca-app-pub-2444587584524186~1005155551`, Interstitial `ca-app-pub-2444587584524186/8692073883`. 비맞춤형(`PersonalizationState.DISABLED`)·IDFA/추적 미사용.
+- **AdMob 전면(Interstitial) 광고 탑재** (iOS·Android 공용). 한 판 종료 시 1회 노출(`_interstitial_shown_this_game` 가드).
+- 플러그인: `godot-sdk-integrations/godot-admob` v6.0 (iOS·Android 공용, Godot 4.6 지원). GDScript 애드온(`godot/addons/AdmobPlugin`)과 `godot/ios/plugins/AdmobPlugin.gdip`는 커밋, xcframework(약 45MB)는 `.gitignore` → iOS export 전 `scripts/install_ios_admob_plugin.sh`로 다운로드.
+- 광고 ID: App `ca-app-pub-9932778305312246~3300846492`, Interstitial `ca-app-pub-9932778305312246/5917919124`. **2026-09-22에 publisher를 `pub-2444587584524186`에서 주력 계정 `pub-9932778305312246`으로 옮겼다**(이전 ID로 올라간 빌드는 v2.2.2). 비맞춤형(`PersonalizationState.DISABLED`)·IDFA/추적 미사용.
 - Info.plist 주입: `IosExportPlugin`이 export 시 `GADApplicationIdentifier` + `SKAdNetworkItems`를 자동 주입(`godot/addons/AdmobPlugin/ios_export.cfg` 기반, `is_real=true`라 릴리스엔 실 App ID). CocoaPods 불필요(self-contained xcframework, mediation 미사용 → Podfile 미생성) → org `xcodebuild archive -project` 경로 그대로.
-- 어댑터: `godot/scripts/ios_ads.gd`(bootstrap 계층, `check_architecture.sh` 경계 준수). `main.gd:_request_interstitial_ad()`의 iOS 분기에서 호출. 개발/비릴리스 빌드는 AdMob 공식 테스트 ID(`OS.is_debug_build` 분기), 릴리스만 실 유닛.
-- AdMob은 iOS 전용. `AdmobPlugin.gd`에서 `AndroidExportPlugin` 미등록(Android AAB에 AdMob 강제 포함 방지).
+- 어댑터: `godot/scripts/mobile_ads.gd`(bootstrap 계층, `check_architecture.sh` 경계 준수). `main.gd:_request_interstitial_ad()`에서 iOS·Android를 함께 처리. 개발/비릴리스 빌드는 AdMob 공식 테스트 ID(`OS.is_debug_build` 분기), 릴리스만 실 유닛.
+- AdMob은 이제 iOS·Android 공용이다. `AdmobPlugin.gd`가 `IosExportPlugin`과 `AndroidExportPlugin`을 모두 등록한다. Android 쪽은 `android_export.cfg`와 `scripts/build_admob_plugin.sh`(aar 다운로드)가 함께 간다.
 
 ## Privacy / Review
 

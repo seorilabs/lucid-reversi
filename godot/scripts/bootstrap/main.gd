@@ -4,7 +4,7 @@ const ReversiEngine = preload("res://scripts/reversi_engine.gd")
 const ReversiAnalytics = preload("res://scripts/analytics.gd")
 const PuzzleCatalog = preload("res://scripts/puzzle_catalog.gd")
 const GA4_SENDER_SCRIPT = preload("res://scripts/ga4_mp_sender.gd")
-const IOS_ADS_SCRIPT = preload("res://scripts/ios_ads.gd")
+const MOBILE_ADS_SCRIPT = preload("res://scripts/mobile_ads.gd")
 const PLACE_SFX = preload("res://assets/audio/place.wav")
 const FLIP_SFX = preload("res://assets/audio/flip.wav")
 const BIG_FLIP_SFX = preload("res://assets/audio/big_flip.wav")
@@ -516,7 +516,7 @@ var _interstitial_shown_this_game := false
 # 결과 카드는 대국 종료 순간에만 1회 연출하고 재렌더·복원에서는 정적으로 표시한다.
 var _result_animation_played_this_game := false
 var analytics: ReversiAnalytics
-var _ios_ads: Node
+var _mobile_ads: Node
 var _haptic_probe: Callable
 var _interstitial_probe: Callable
 var _save_path := SAVE_PATH
@@ -652,10 +652,10 @@ func _ready() -> void:
 	ga4_sender.add_to_group("persistent_services")
 	add_child(ga4_sender)
 	analytics.set_sender(ga4_sender)
-	# App Store(iOS) AdMob 전면광고 어댑터. iOS 네이티브에서만 초기화되고 그 외에는 no-op.
-	_ios_ads = IOS_ADS_SCRIPT.new()
-	_ios_ads.add_to_group("persistent_services")
-	add_child(_ios_ads)
+	# 모바일 AdMob 전면광고 어댑터. iOS·Android 네이티브에서만 초기화되고 그 외에는 no-op.
+	_mobile_ads = MOBILE_ADS_SCRIPT.new()
+	_mobile_ads.add_to_group("persistent_services")
+	add_child(_mobile_ads)
 	preferences = _load_or_create_preferences()
 	_load_or_start()
 	_setup_bgm_player()
@@ -3981,8 +3981,8 @@ func _request_interstitial_ad() -> void:
 	# 게임 종료 시 마켓별 전면(Interstitial) 광고를 요청한다. 게임당 1회(_interstitial_shown_this_game).
 	# - AIT(web export): wrapper가 노출한 전역 객체(window.__aitBridge) 메서드를 직접 호출.
 	#   AppsInToss 보안 정책상 JavaScriptBridge.eval(외부 코드 문자열 실행)은 금지되므로 eval을 쓰지 않는다.
-	# - App Store(iOS): AdMob 어댑터(ios_ads.gd)로 전면광고 표시. 비맞춤형·IDFA 미사용.
-	# - Google Play(Android): 현재 광고 미탑재(릴리스 빌드 인프라만) → no-op.
+	# - App Store(iOS)와 Google Play(Android): AdMob 어댑터(mobile_ads.gd)로 전면광고 표시.
+	#   양 플랫폼 모두 비맞춤형이며 iOS는 IDFA를 쓰지 않는다.
 	if _interstitial_probe.is_valid():
 		_interstitial_probe.call()
 	if OS.has_feature("web"):
@@ -3990,8 +3990,8 @@ func _request_interstitial_ad() -> void:
 		if bridge != null:
 			bridge.showInterstitialAd()
 		return
-	if OS.has_feature("ios") and _ios_ads != null:
-		_ios_ads.show_interstitial()
+	if (OS.has_feature("ios") or OS.has_feature("android")) and _mobile_ads != null:
+		_mobile_ads.show_interstitial()
 
 
 func _status_text() -> String:

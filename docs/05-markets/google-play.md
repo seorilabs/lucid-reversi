@@ -62,15 +62,19 @@ Play production은 47이다. 다음 태그가 49를 받는다. 원장 도입 이
 
 | 항목 | Console 현재 값 | 실제 |
 |---|---|---|
-| 광고 ID | `앱에서 광고 ID를 사용한다고 지정하셨습니다`(2022-09-16) | **불일치.** `AD_ID` 권한 미선언, Android 광고 미탑재 |
+| 광고 ID | `앱에서 광고 ID를 사용한다고 지정하셨습니다`(2022-09-16) | **2026-09-22 AdMob 탑재로 사실과 맞아졌다.** SDK가 `AD_ID` 권한을 manifest merge로 넣으므로 정정 불필요 |
 | 콘텐츠 등급 | IARC 완료지만 설문이 **2015-06-02** 제출본 | 리브랜딩 후 재설문 필요. 대한민국은 `Google Play 3세 이상`이고 GRAC 별도 등급은 표시되지 않음 |
 | 개인정보처리방침 | `http://35.221.214.124/privacypolicy.html`(2019-06-13) | 평문 HTTP + 원시 IP. 교체 필요 |
 | 스토어 등재정보 | `Reversi Online`, 온라인 대전·차례 알림·멀티플레이 설명 | `play-store/listing/`의 새 문안으로 교체 예정 |
 
+**광고 탑재로 바뀐 것**: 2026-09-22에 Android AdMob을 탑재해 위 표의 정리 방향이 달라졌다.
+광고 포함 선언은 아니오에서 **예**로 바꿔야 하고, 콘텐츠 등급 재설문은 **광고 포함**으로 답해야 하며,
+데이터 보안에는 AdMob 수집 항목을 반영해야 한다. 광고 ID 선언만은 정정이 필요 없어졌다.
+
 ### 확인된 상태
 
 - 앱 액세스 권한: `특수한 액세스 권한 없이 모든 기능 이용 가능` — 현재 구현과 일치
-- 광고 포함 선언: **아니오** — 현재 Android 빌드와 일치
+- 광고 포함 선언: **아니오** — 광고 탑재 전 기준이라 새 빌드 업로드와 함께 **예로 바꿔야 한다**
 - 데이터 보안: `앱에서 데이터를 수집 또는 공유하지 않습니다`(2025-10-09).
   GA4 Measurement Protocol로 익명 `client_id`를 외부 전송하므로 **재검토가 필요한 지점**이다.
 - 건강 앱·금융 기능: 해당 없음으로 완료(2025-10-09)
@@ -93,11 +97,19 @@ Godot 4.6.3과 4.7.2의 Android build template 모두 `config.gradle`의 기본
 
 ## Policy / Data Safety
 
-- Ads: **미탑재**(릴리스 빌드 인프라만 구성). org 워크플로우는 `vars.ADMOB_APP_ID`가 비면 AdMob 단계를 자동 스킵. AdMob은 현재 iOS 전용.
+- Ads: **AdMob 전면(Interstitial) 광고 탑재**(2026-09-22). 한 판 종료 시 1회 노출.
+  - Android App ID `ca-app-pub-9932778305312246~6509011613`, Interstitial `ca-app-pub-9932778305312246/7985744813`
+  - 비맞춤형(`PersonalizationState.DISABLED`)
+  - `AndroidExportPlugin`이 `android_export.cfg`를 읽어 `com.google.android.gms.ads.APPLICATION_ID` meta-data를 주입한다. 이 meta-data 없이 SDK만 링크되면 앱 시작 시 크래시한다.
+  - AdMob SDK(`play-services-ads:24.9.0`)가 manifest merge로 `com.google.android.gms.permission.AD_ID`와 `ACCESS_ADSERVICES_*`를 자동 추가한다. **Play Console의 "광고 ID 사용" 선언이 이제 사실과 맞는다.**
+  - 네이티브 aar은 `.gitignore` 대상. `scripts/build_admob_plugin.sh`가 받아 배치하며 org Play 워크플로우가 export 직전에 자동 호출한다.
+  - 필요한 repo vars: `ADMOB_APP_ID`, `ADMOB_INTERSTITIAL_AD_UNIT_ID`(org 워크플로우가 테스트 ID가 아닌지 검증만 한다)
 - In-app purchases: 없음
 - Analytics: GA4 Measurement Protocol(REST, `godot/scripts/ga4_mp_sender.gd`). Firebase SDK 미사용 → google-services.json/Firebase Android app 불요.
 - Crash reporting: 없음(Firebase Crashlytics 미사용)
 - Account deletion requirement: 계정 기능 없음. Firebase Auth를 추가하지 않는 한 삭제 URL 대상 아님.
+- 개인정보처리방침: `https://www.seorilabs.com/apps/lucid-reversi/privacy/` (seorilabs-official PR #32로 추가).
+  Play Console에 등록된 옛 URL `http://35.221.214.124/privacypolicy.html`(2019, 평문 HTTP + 원시 IP)을 이걸로 교체한다.
 
 ## Assets
 
@@ -138,7 +150,7 @@ Godot 4.6.3과 4.7.2의 Android build template 모두 `config.gradle`의 기본
 - 실 배포 전 필요한 GitHub secrets/vars:
   - secrets: `GOOGLE_PLAY_UPLOAD_KEYSTORE_BASE64`, `GOOGLE_PLAY_UPLOAD_KEYSTORE_PASSWORD`, `GOOGLE_PLAY_UPLOAD_KEY_PASSWORD`
   - vars: `GOOGLE_PLAY_UPLOAD_KEY_ALIAS`, `GOOGLE_WORKLOAD_IDENTITY_PROVIDER`, `GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL`
-  - Android 광고 미탑재이므로 `ADMOB_APP_ID`는 **미설정**(설정 시 AdMob 강제 포함).
+  - AdMob vars: `ADMOB_APP_ID`, `ADMOB_INTERSTITIAL_AD_UNIT_ID` **설정 완료**(2026-09-22). org 워크플로우는 테스트 ID가 아닌지 검증만 한다.
 - **AAB 빌드 검증 완료(2026-09-21)**: `Deploy to Google Play`(upload=false, main) run
   [35612098803](https://github.com/seorilabs/lucid-reversi/actions/runs/35612098803) 성공.
   `build/android/lucid-reversi.aab`, versionName 2.2.6 / versionCode 48, 업로드 키 서명까지 통과했다.

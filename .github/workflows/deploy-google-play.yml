@@ -80,5 +80,9 @@ jobs:
       upload: ${{ inputs.upload == true || inputs.upload == 'true' }}
       project_dir: godot
       scripts_dir: scripts
+      # export 된 AAB manifest 의 AdMob APPLICATION_ID 와 AD_ID 권한을 업로드 전에 확인한다.
+      # AdmobPlugin 은 android_export.cfg 로드에 실패해도 SDK 를 링크하므로, 그대로 두면
+      # 앱 시작 시 크래시하는 AAB 가 조용히 올라간다.
+      post_export_validation_script: scripts/validate_android_admob.sh
       # 주입 대상 preset과 export 대상 preset이 같아야 한다. 다르면 중앙 워크플로우가 fail-closed한다.
       android_export_preset: Android
