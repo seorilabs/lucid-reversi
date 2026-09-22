@@ -62,10 +62,21 @@ Play production은 47이다. 다음 태그가 49를 받는다. 원장 도입 이
 
 ## Assets
 
-- App icon: 확정 필요
-- Feature graphic: 확정 필요
-- Phone screenshots: 확정 필요
-- Tablet screenshots: 확정 필요
+승계 이전 자산은 전부 옛 `Reversi Online` 것이라 교체 대상이다. 아래는 제작을 마친 교체본이다.
+
+| 슬롯 | 파일 | 규격 | 제작 방법 |
+|---|---|---|---|
+| App icon | `play-store/assets/icon-512.png` | 512x512 PNG | 게임의 실제 돌 SVG(`classic_black/white`)와 칠기·황동 톤으로 합성. 원본은 `icon-512.source.html` |
+| Feature graphic | `play-store/assets/feature-graphic-{ko-KR,en-US,ja-JP}.png` | 1024x500 PNG | `moonlit-lacquer-backdrop` + 실제 보드 캡처 + `DoHyeon`/`MPLUSRounded1c` 타이틀 |
+| Phone screenshots | `play-store/screenshots/phone/*.png` (5장) | 1080x1920 PNG | **실기기 캡처**(Android 16). `wm size 1080x1920`으로 Play 최대 종횡비 2:1을 맞춘 뒤 캡처하고 원복 |
+| Tablet screenshots | `play-store/screenshots/tablet/*.png` (3장) | 1200x1920 PNG | **데스크톱 Godot 캡처**. `--resolution 1200x1920`(Retina 2배라 논리 창 600x960)로 띄우고 창 영역만 캡처. 7인치·10인치 슬롯 공용 |
+
+- 태블릿 캡처는 게임 저장 데이터(`prefs_v1.json`, `save_v1.json`)로 테마·보드 크기·진행 국면을 만들어 찍었다.
+  작업 전 백업하고 끝나면 원복한다.
+- **런처 아이콘은 아직 Godot 기본 아이콘이다.** 스토어 아이콘과 런처 아이콘이 다르므로 릴리스 전에
+  `godot/export_presets.cfg`의 Android 아이콘 슬롯을 채워야 한다.
+- iOS 아이콘(`app-store/assets/AppIcon-1024.png`)은 청록 다이아몬드로 이 아이콘과 다르다. 마켓 간
+  아이콘 통일 여부는 별도 결정 사항이다.
 
 ## Current Implementation
 

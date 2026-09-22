@@ -1,0 +1,73 @@
+<!doctype html><meta charset="utf-8">
+<style>
+ html,body{margin:0;padding:0;background:transparent}
+ .icon{width:512px;height:512px;position:relative;overflow:hidden}
+ .lacquer{position:absolute;inset:0;
+   background:
+     radial-gradient(120% 95% at 28% 14%, #3c3a34 0%, #1d1c1a 42%, #0d0d0e 74%, #08090a 100%);}
+ .moon{position:absolute;inset:0;
+   background:radial-gradient(38% 30% at 24% 16%, rgba(226,214,180,.30), rgba(226,214,180,0) 70%);}
+ .brass{position:absolute;inset:14px;border-radius:84px;
+   border:7px solid transparent;
+   background:linear-gradient(145deg,#d8b877,#8d6f36 38%,#5d4a25 62%,#c9a765) border-box;
+   -webkit-mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0);
+   -webkit-mask-composite:xor;mask-composite:exclude;}
+ .stone{position:absolute}
+ .stone svg{width:100%;height:100%;display:block;
+   filter:drop-shadow(0 10px 18px rgba(0,0,0,.62))}
+</style>
+<div class="icon"><div class="lacquer"></div><div class="moon"></div>
+  <div class="stone" style="width:236px;height:236px;left:56px;top:60px"><svg preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="classic_black-body" cx="34%" cy="24%" r="78%">
+      <stop offset="0%" stop-color="#4f5860"/>
+      <stop offset="30%" stop-color="#161b20"/>
+      <stop offset="72%" stop-color="#050607"/>
+      <stop offset="100%" stop-color="#252a2e"/>
+    </radialGradient>
+    <linearGradient id="classic_black-sheen" x1="90" y1="62" x2="416" y2="420">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.34"/>
+      <stop offset="34%" stop-color="#9cb5c8" stop-opacity="0.08"/>
+      <stop offset="72%" stop-color="#000000" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="classic_black-rim" x1="104" y1="80" x2="408" y2="432">
+      <stop offset="0%" stop-color="#d8eefb" stop-opacity="0.95"/>
+      <stop offset="42%" stop-color="#4d6574" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#020304" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="262" r="226" fill="#000000" opacity="0.28"/>
+  <circle cx="256" cy="252" r="222" fill="url(#classic_black-body)"/>
+  <circle cx="256" cy="252" r="222" fill="none" stroke="url(#classic_black-rim)" stroke-width="13"/>
+  <path d="M91 155C143 64 296 36 393 96C329 84 240 104 176 153C137 183 112 215 91 155Z" fill="url(#classic_black-sheen)"/>
+  <ellipse cx="331" cy="358" rx="102" ry="34" fill="#000000" opacity="0.22" transform="rotate(-18 331 358)"/>
+</svg>
+</div>
+  <div class="stone" style="width:236px;height:236px;left:222px;top:218px"><svg preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="classic_white-body" cx="34%" cy="24%" r="78%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="45%" stop-color="#f3f0e7"/>
+      <stop offset="78%" stop-color="#d9d1c3"/>
+      <stop offset="100%" stop-color="#fffdf6"/>
+    </radialGradient>
+    <linearGradient id="classic_white-sheen" x1="91" y1="67" x2="406" y2="417">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="42%" stop-color="#ffffff" stop-opacity="0.24"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="classic_white-rim" x1="104" y1="80" x2="408" y2="432">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="46%" stop-color="#c8bea9"/>
+      <stop offset="100%" stop-color="#8d806b"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="262" r="226" fill="#111315" opacity="0.18"/>
+  <circle cx="256" cy="252" r="222" fill="url(#classic_white-body)"/>
+  <circle cx="256" cy="252" r="222" fill="none" stroke="url(#classic_white-rim)" stroke-width="13"/>
+  <path d="M92 157C139 72 284 39 385 92C312 91 223 116 165 164C130 193 107 217 92 157Z" fill="url(#classic_white-sheen)"/>
+  <ellipse cx="328" cy="360" rx="110" ry="36" fill="#b7ad9c" opacity="0.18" transform="rotate(-18 328 360)"/>
+</svg>
+</div>
+  <div class="brass"></div>
+</div>
