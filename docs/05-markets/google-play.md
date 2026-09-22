@@ -95,6 +95,46 @@ Godot 4.6.3과 4.7.2의 Android build template 모두 `config.gradle`의 기본
 쓴다. 따라서 새로 빌드한 AAB는 두 요건을 모두 충족한다. 기존 versionCode 47(API 29) 때문에
 표시되는 오류이며, 새 빌드를 올리면 해소된다.
 
+## 업로드 blocker — WIF impersonation 권한 (2026-09-22, 미해소)
+
+v2.2.7(versionCode 49) internal 업로드가 세 번 실패했다. 빌드·서명·AdMob 검증은 모두 통과했고
+업로드 단계에서만 막힌다.
+
+| 시도 | 실패 지점 | 조치 |
+|---|---|---|
+| 1 | `Backoffice package_name binding이 없다` | caller에 `package_name` 추가(#145)로 해소 |
+| 2, 3 | `GOOGLE_PLAY_EDIT_CREATE_FAILED` | **미해소** — 아래 원인 |
+
+org 업로더는 provider 에러 텍스트를 숨기고 코드만 남긴다(`never prints provider error text`).
+같은 WIF 경로로 `edits().insert()`를 직접 호출하는 임시 진단 워크플로우를 돌려 실제 오류를 얻었다.
+
+```
+token refresh FAILED: RefreshError ('Unable to acquire impersonated credentials', ...
+  "message": "Permission 'iam.serviceAccounts.getAccessToken' denied on resource ...",
+  "status": "PERMISSION_DENIED", "reason": "IAM_PERMISSION_DENIED"
+```
+
+GitHub OIDC로 받은 principalSet이 `seorilabs-play-publisher` SA를 impersonate할 수 없다.
+**WIF 바인딩은 저장소마다 따로 부여해야 하는데 이 저장소 몫이 없다.** 같은 SA의 키 파일로는
+로컬에서 edit 생성이 정상이므로 SA 자체의 Play 권한과 scope는 문제가 아니다.
+
+`babycare`가 2026-08-07에 같은 blocker를 겪고 저장소별 바인딩으로 해소한 선례가 있다
+(`babycare/docs/06-release/store-upload-setup.md`).
+
+해소 명령(프로젝트 IAM 권한을 가진 계정으로 실행해야 한다. `seorilabs-provisioner`는
+`iam.serviceAccounts.getIamPolicy`가 없어 거부된다):
+
+```bash
+gcloud iam service-accounts add-iam-policy-binding \
+  seorilabs-play-publisher@seorilabs-gws.iam.gserviceaccount.com \
+  --project=seorilabs-gws \
+  --role=roles/iam.workloadIdentityUser \
+  --member="principalSet://iam.googleapis.com/projects/138773558853/locations/global/workloadIdentityPools/github-actions/attribute.repository/seorilabs/lucid-reversi"
+```
+
+함께 확인된 것: org var `GOOGLE_PLAY_UPLOAD_KEY_ALIAS`의 selected 저장소 목록에 이 저장소가
+없어 CI에서 값이 비어 있었다. 카탈로그의 `lucid-reversi-upload`를 repo var로 넣어 해소했다.
+
 ## Policy / Data Safety
 
 - Ads: **AdMob 전면(Interstitial) 광고 탑재**(2026-09-22). 한 판 종료 시 1회 노출.
