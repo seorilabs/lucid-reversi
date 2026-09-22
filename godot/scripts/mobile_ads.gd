@@ -1,9 +1,9 @@
 extends Node
-## iOS AdMob 전면(Interstitial) 광고 어댑터.
+## 모바일 AdMob 전면(Interstitial) 광고 어댑터. iOS와 Android를 함께 다룬다.
 ##
 ## godot-admob(res://addons/AdmobPlugin)의 Admob 노드를 감싸, "게임 종료 시 전면광고 1회"
-## 유스케이스만 노출한다(show_interstitial). iOS 네이티브에서만 동작하며, 그 외 플랫폼·헤드리스·
-## 에디터에서는 AdMob 싱글톤이 없어 자동 no-op이다(Admob 노드가 Engine.has_singleton으로 가드).
+## 유스케이스만 노출한다(show_interstitial). iOS·Android 네이티브에서만 동작하며, 그 외 플랫폼·
+## 헤드리스·에디터에서는 AdMob 싱글톤이 없어 자동 no-op이다(Admob 노드가 Engine.has_singleton으로 가드).
 ##
 ## 아키텍처: bootstrap 계층(순수 코어 아님). 순수 코어(reversi_engine.gd / packages/product-core)는
 ## AdMob을 참조하지 않는다(check_architecture.sh).
@@ -11,17 +11,23 @@ extends Node
 ## 주의: 이 노드는 main.gd 에서 "persistent_services" 그룹으로 추가된다. _build_ui() 의
 ## get_children() 정리에서 제외되어야 초기화 직후 삭제되지 않는다(그렇지 않으면 광고가 안 뜬다).
 ##
-## 로그는 print()로 iOS 시스템 로그에 남는다(로드 실패/no-fill 진단용). 로드 실패 시 재시도한다.
+## 로그는 print()로 시스템 로그(iOS Console / Android logcat)에 남는다(로드 실패·no-fill 진단용).
+## 로드 실패 시 재시도한다.
 
 const AdmobNode = preload("res://addons/AdmobPlugin/Admob.gd")
 const AdmobConfigScript = preload("res://addons/AdmobPlugin/model/AdmobConfig.gd")
 
 # 실 iOS 식별자 (app-store/app-store.config.json 의 ads)
-const REAL_APP_ID := "ca-app-pub-2444587584524186~1005155551"
-const REAL_INTERSTITIAL_UNIT_ID := "ca-app-pub-2444587584524186/8692073883"
-# AdMob 공식 iOS 테스트 식별자 (개발/비릴리스 빌드 전용 — 실 유닛 테스트 클릭은 정책 위반)
-const TEST_APP_ID := "ca-app-pub-3940256099942544~1458002511"
-const TEST_INTERSTITIAL_UNIT_ID := "ca-app-pub-3940256099942544/4411468910"
+const IOS_REAL_APP_ID := "ca-app-pub-9932778305312246~3300846492"
+const IOS_REAL_INTERSTITIAL_UNIT_ID := "ca-app-pub-9932778305312246/5917919124"
+# 실 Android 식별자 (play-store/google-play.config.json 의 ads)
+const ANDROID_REAL_APP_ID := "ca-app-pub-9932778305312246~6509011613"
+const ANDROID_REAL_INTERSTITIAL_UNIT_ID := "ca-app-pub-9932778305312246/7985744813"
+# AdMob 공식 테스트 식별자 (개발/비릴리스 빌드 전용 — 실 유닛 테스트 클릭은 정책 위반)
+const IOS_TEST_APP_ID := "ca-app-pub-3940256099942544~1458002511"
+const IOS_TEST_INTERSTITIAL_UNIT_ID := "ca-app-pub-3940256099942544/4411468910"
+const ANDROID_TEST_APP_ID := "ca-app-pub-3940256099942544~3347511713"
+const ANDROID_TEST_INTERSTITIAL_UNIT_ID := "ca-app-pub-3940256099942544/1033173712"
 
 ## AdMob 테스트 기기 ID.
 ## 실기기 로그의 "GADMobileAds...testDeviceIdentifiers = @[ @\"<ID>\" ]" 값을 넣으면,
@@ -36,26 +42,37 @@ var _loaded: bool = false
 
 
 func _log(message: String) -> void:
-	print("[ios_ads] ", message)
+	print("[mobile_ads] ", message)
 
 
 func _ready() -> void:
-	# iOS 네이티브에서만 초기화. 그 외(웹/안드로이드/데스크톱/헤드리스)에서는 no-op.
-	if not OS.has_feature("ios"):
+	# iOS·Android 네이티브에서만 초기화. 그 외(웹/데스크톱/헤드리스)에서는 no-op.
+	var is_ios: bool = OS.has_feature("ios")
+	var is_android: bool = OS.has_feature("android")
+	if not is_ios and not is_android:
 		return
 
 	var use_real: bool = not OS.is_debug_build()
-	var unit: String = REAL_INTERSTITIAL_UNIT_ID if use_real else TEST_INTERSTITIAL_UNIT_ID
-	_log("init start: is_real=%s, interstitial_unit=%s" % [use_real, unit])
+	var unit: String
+	if is_ios:
+		unit = IOS_REAL_INTERSTITIAL_UNIT_ID if use_real else IOS_TEST_INTERSTITIAL_UNIT_ID
+	else:
+		unit = ANDROID_REAL_INTERSTITIAL_UNIT_ID if use_real else ANDROID_TEST_INTERSTITIAL_UNIT_ID
+	_log("init start: platform=%s, is_real=%s, interstitial_unit=%s" % ["ios" if is_ios else "android", use_real, unit])
 
 	_admob = AdmobNode.new()
 	_admob.name = "Admob"
 	_admob.is_real = use_real
-	_admob.ios_real_application_id = REAL_APP_ID
-	_admob.ios_debug_application_id = TEST_APP_ID
-	_admob.ios_real_interstitial_id = REAL_INTERSTITIAL_UNIT_ID
-	_admob.ios_debug_interstitial_id = TEST_INTERSTITIAL_UNIT_ID
+	_admob.ios_real_application_id = IOS_REAL_APP_ID
+	_admob.ios_debug_application_id = IOS_TEST_APP_ID
+	_admob.ios_real_interstitial_id = IOS_REAL_INTERSTITIAL_UNIT_ID
+	_admob.ios_debug_interstitial_id = IOS_TEST_INTERSTITIAL_UNIT_ID
+	_admob.android_real_application_id = ANDROID_REAL_APP_ID
+	_admob.android_debug_application_id = ANDROID_TEST_APP_ID
+	_admob.android_real_interstitial_id = ANDROID_REAL_INTERSTITIAL_UNIT_ID
+	_admob.android_debug_interstitial_id = ANDROID_TEST_INTERSTITIAL_UNIT_ID
 	# 비맞춤형(NPA) 광고만 — IDFA·추적 미사용(App Store App Privacy: Tracking No 유지).
+	# Android도 같은 정책이라 관심사 기반 프로필을 만들지 않는다.
 	_admob.personalization_state = AdmobConfigScript.PersonalizationState.DISABLED
 	if not TEST_DEVICE_IDS.is_empty():
 		_admob.test_device_hashed_ids = TEST_DEVICE_IDS

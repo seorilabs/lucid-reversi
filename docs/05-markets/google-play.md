@@ -93,11 +93,19 @@ Godot 4.6.3과 4.7.2의 Android build template 모두 `config.gradle`의 기본
 
 ## Policy / Data Safety
 
-- Ads: **미탑재**(릴리스 빌드 인프라만 구성). org 워크플로우는 `vars.ADMOB_APP_ID`가 비면 AdMob 단계를 자동 스킵. AdMob은 현재 iOS 전용.
+- Ads: **AdMob 전면(Interstitial) 광고 탑재**(2026-09-22). 한 판 종료 시 1회 노출.
+  - Android App ID `ca-app-pub-9932778305312246~6509011613`, Interstitial `ca-app-pub-9932778305312246/7985744813`
+  - 비맞춤형(`PersonalizationState.DISABLED`)
+  - `AndroidExportPlugin`이 `android_export.cfg`를 읽어 `com.google.android.gms.ads.APPLICATION_ID` meta-data를 주입한다. 이 meta-data 없이 SDK만 링크되면 앱 시작 시 크래시한다.
+  - AdMob SDK(`play-services-ads:24.9.0`)가 manifest merge로 `com.google.android.gms.permission.AD_ID`와 `ACCESS_ADSERVICES_*`를 자동 추가한다. **Play Console의 "광고 ID 사용" 선언이 이제 사실과 맞는다.**
+  - 네이티브 aar은 `.gitignore` 대상. `scripts/build_admob_plugin.sh`가 받아 배치하며 org Play 워크플로우가 export 직전에 자동 호출한다.
+  - 필요한 repo vars: `ADMOB_APP_ID`, `ADMOB_INTERSTITIAL_AD_UNIT_ID`(org 워크플로우가 테스트 ID가 아닌지 검증만 한다)
 - In-app purchases: 없음
 - Analytics: GA4 Measurement Protocol(REST, `godot/scripts/ga4_mp_sender.gd`). Firebase SDK 미사용 → google-services.json/Firebase Android app 불요.
 - Crash reporting: 없음(Firebase Crashlytics 미사용)
 - Account deletion requirement: 계정 기능 없음. Firebase Auth를 추가하지 않는 한 삭제 URL 대상 아님.
+- 개인정보처리방침: `https://www.seorilabs.com/apps/lucid-reversi/privacy/` (seorilabs-official PR #32로 추가).
+  Play Console에 등록된 옛 URL `http://35.221.214.124/privacypolicy.html`(2019, 평문 HTTP + 원시 IP)을 이걸로 교체한다.
 
 ## Assets
 

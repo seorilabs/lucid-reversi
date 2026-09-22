@@ -36,19 +36,20 @@
   "ads": {
     "enabled": true,
     "network": "AdMob",
-    "plugin": "godot-sdk-integrations/godot-admob v6.0 (iOS 전용 사용). 구성: godot/addons/AdmobPlugin(GDScript, 커밋), godot/ios/plugins/AdmobPlugin.gdip(커밋), godot/ios/framework/*.xcframework(약 45MB, .gitignore→scripts/install_ios_admob_plugin.sh로 다운로드).",
-    "iosAppId": "ca-app-pub-2444587584524186~1005155551",
-    "interstitialUnitId": "ca-app-pub-2444587584524186/8692073883",
+    "plugin": "godot-sdk-integrations/godot-admob v6.0 (iOS·Android 공용). 구성: godot/addons/AdmobPlugin(GDScript, 커밋), godot/ios/plugins/AdmobPlugin.gdip(커밋), iOS xcframework(약 45MB)와 Android aar은 .gitignore → scripts/install_ios_admob_plugin.sh / scripts/build_admob_plugin.sh로 다운로드.",
+    "iosAppId": "ca-app-pub-9932778305312246~3300846492",
+    "interstitialUnitId": "ca-app-pub-9932778305312246/5917919124",
     "format": "interstitial",
     "trigger": "한 판 종료 시 1회 노출(_interstitial_shown_this_game 가드)",
     "personalization": "non-personalized (PersonalizationState.DISABLED)",
     "tracking": false,
     "att": "미사용 — 비맞춤형·IDFA 미사용이라 NSUserTrackingUsageDescription/ATT 프롬프트 없음(ios_export.cfg att_enabled=false).",
-    "adapter": "godot/scripts/ios_ads.gd (bootstrap 계층, check_architecture.sh 경계 준수). main.gd _request_interstitial_ad()의 iOS 분기에서 호출.",
+    "adapter": "godot/scripts/mobile_ads.gd (bootstrap 계층, check_architecture.sh 경계 준수). main.gd _request_interstitial_ad()에서 Android와 함께 호출.",
     "plistInjection": "IosExportPlugin(AdmobPlugin.gd)이 export 시 GADApplicationIdentifier + SKAdNetworkItems를 Info.plist에 자동 주입(ios_export.cfg 기반). is_real=true라 릴리스 아카이브엔 실 iOS App ID.",
     "testIds": "개발/비릴리스 빌드는 AdMob 공식 테스트 App ID/Unit ID 사용(OS.is_debug_build 분기). 릴리스만 실 유닛(정책 준수).",
     "cocoaPods": "불필요 — v6.0 iOS는 self-contained xcframework이고 mediation 미사용이라 Podfile 미생성. org App Store 워크플로우의 xcodebuild archive -project 경로 그대로 사용.",
-    "androidNote": "AdMob은 iOS 전용. AdmobPlugin.gd에서 AndroidExportPlugin 미등록(Android AAB에 AdMob 강제 포함 방지). Android 광고는 미탑재."
+    "androidNote": "AdMob은 iOS 전용. AdmobPlugin.gd에서 AndroidExportPlugin 미등록(Android AAB에 AdMob 강제 포함 방지). Android 광고는 미탑재.",
+    "publisherNote": "2026-09-22에 publisher를 pub-2444587584524186에서 주력 계정 pub-9932778305312246으로 옮겼다. 이전 ID로 올라간 빌드는 App Store v2.2.2다."
   },
   "adsPrivacyReview": "AdMob(비맞춤형) 도입으로 App Store App Privacy는 재검토 필요. GA4(익명 client_id) + AdMob(비맞춤형·IDFA 미사용)을 반영해 dataCollection/consoleGates.appPrivacy를 다음 빌드 제출 전 확정할 것. ATT는 불필요(추적 없음) 유지.",
   "dataCollection": {
@@ -57,7 +58,10 @@
     "profile": "익명 게임 이벤트(game_open/game_start/game_over/settings_changed)와 설치별 GA4 client_id(user:// 로컬 생성 난수)만 전송. 계정·이메일·연락처·기기 광고 식별자 등 PII 미수집.",
     "appPrivacyAnswers": {
       "dataCollected": true,
-      "types": ["Usage Data — Product Interaction", "Identifiers — 앱 생성 익명 client_id"],
+      "types": [
+        "Usage Data — Product Interaction",
+        "Identifiers — 앱 생성 익명 client_id"
+      ],
       "linkedToUser": false,
       "usedForTracking": false,
       "purpose": "Analytics (서비스 분석·개선: 잔존율·이탈 지점)"
@@ -75,7 +79,10 @@
     "promotionalText": "선명한 보드와 빠른 AI 대전으로 한 수씩 판세를 뒤집는 모바일 리버시 게임입니다.",
     "description": "루시드 리버시는 AI와 바로 한 판 붙는 모바일 리버시 게임입니다. 선명한 보드와 큼직한 흑백 돌, 착수와 뒤집힘 피드백으로 작은 화면에서도 다음 수가 잘 보입니다. 난이도와 보드/돌 테마를 바꾸며 짧은 시간 안에 판세를 뒤집는 재미를 즐겨보세요.",
     "keywords": "오델로,리버시,보드게임,AI 대전,전략게임,두뇌게임,흑백돌,캐주얼게임",
-    "category": { "primary": "Games", "secondary": "Board" },
+    "category": {
+      "primary": "Games",
+      "secondary": "Board"
+    },
     "copyright": "확정 필요",
     "supportUrl": "확정 필요",
     "marketingUrl": "확정 필요(선택)",

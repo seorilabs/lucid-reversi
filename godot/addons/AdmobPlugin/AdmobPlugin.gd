@@ -26,19 +26,22 @@ var ios_export_plugin: IosExportPlugin
 
 
 func _enter_tree() -> void:
-	# [lucid-reversi 수정] AdMob 은 iOS 전용으로만 사용한다.
-	# AndroidExportPlugin 을 등록하면 Android AAB 에 AdMob aar/play-services-ads 가 무조건
-	# 포함되고(_get_android_libraries/_get_android_dependencies 가 config 무관하게 강제),
-	# APPLICATION_ID meta-data 없이 SDK 만 링크되면 런타임 크래시 위험이 있다. Android 는
-	# 광고 미탑재(릴리스 빌드 인프라만)이므로 iOS export plugin 만 등록한다.
-	# (플러그인 버전 업 시 이 수정을 재적용할 것. 관련: godot/scripts/ios_ads.gd)
+	# [lucid-reversi 수정] iOS 와 Android 양쪽에 AdMob 전면광고를 탑재한다.
+	# AndroidExportPlugin 을 등록하면 Android AAB 에 AdMob aar/play-services-ads 가
+	# config 와 무관하게 포함된다. APPLICATION_ID meta-data 없이 SDK 만 링크되면 앱 시작 시
+	# 크래시하므로, android_export.cfg 의 [Release] app_id 와 반드시 함께 유지한다.
+	# (플러그인 버전 업 시 이 수정을 재적용할 것. 관련: godot/scripts/mobile_ads.gd)
 	ios_export_plugin = IosExportPlugin.new()
 	add_export_plugin(ios_export_plugin)
+	android_export_plugin = AndroidExportPlugin.new()
+	add_export_plugin(android_export_plugin)
 
 
 func _exit_tree() -> void:
 	remove_export_plugin(ios_export_plugin)
 	ios_export_plugin = null
+	remove_export_plugin(android_export_plugin)
+	android_export_plugin = null
 
 
 class AndroidExportPlugin extends EditorExportPlugin:
