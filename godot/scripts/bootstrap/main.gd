@@ -553,6 +553,7 @@ var player_stone_view: TextureRect
 var ai_stone_view: TextureRect
 var status_label: Label
 var move_count_label: Button
+var screen_margin: MarginContainer
 var settings_button: Button
 var settings_overlay: ColorRect
 var settings_panel: PanelContainer
@@ -660,7 +661,7 @@ func _ready() -> void:
 	_load_or_start()
 	_setup_bgm_player()
 	_build_ui()
-	var viewport_resize := Callable(self, "_update_adaptive_vertical_spacing")
+	var viewport_resize := Callable(self, "_on_viewport_size_changed")
 	if !get_viewport().size_changed.is_connected(viewport_resize):
 		get_viewport().size_changed.connect(viewport_resize)
 	_render()
@@ -743,11 +744,8 @@ func _build_ui() -> void:
 
 	var screen := MarginContainer.new()
 	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var safe: Dictionary = _safe_area_margins()
-	screen.add_theme_constant_override("margin_left", 12 + int(safe["left"]))
-	screen.add_theme_constant_override("margin_top", 10 + int(safe["top"]))
-	screen.add_theme_constant_override("margin_right", 12 + int(safe["right"]))
-	screen.add_theme_constant_override("margin_bottom", 8 + int(safe["bottom"]))
+	screen_margin = screen
+	_apply_safe_area_margins()
 	add_child(screen)
 
 	var root := VBoxContainer.new()
@@ -785,6 +783,12 @@ static func expanded_canvas_size(window_size: Vector2i) -> Vector2:
 static func adaptive_vertical_surplus(window_size: Vector2i) -> int:
 	var canvas_size := expanded_canvas_size(window_size)
 	return maxi(0, roundi(canvas_size.y - DESIGN_VIEWPORT_SIZE.y))
+
+
+## 뷰포트 크기가 바뀌면 세로 간격과 안전 영역 여백을 함께 다시 잡는다.
+func _on_viewport_size_changed() -> void:
+	_apply_safe_area_margins()
+	_update_adaptive_vertical_spacing()
 
 
 func _update_adaptive_vertical_spacing(window_size: Vector2i = Vector2i.ZERO) -> void:
@@ -1908,7 +1912,9 @@ func _build_how_to_play_overlay() -> void:
 	how_to_play_overlay = ColorRect.new()
 	how_to_play_overlay.name = "HowToPlayOverlay"
 	how_to_play_overlay.visible = false
-	how_to_play_overlay.color = Color(0.005, 0.008, 0.014, 0.58)
+	# 튜토리얼은 보드를 보면서 읽는 화면이다. 딤이 진하면 설명의 대상인 보드가 안 보인다.
+	# 패널 대비를 유지할 만큼만 어둡게 한다.
+	how_to_play_overlay.color = Color(0.005, 0.008, 0.014, 0.3)
 	how_to_play_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	how_to_play_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	how_to_play_overlay.gui_input.connect(_on_how_to_play_overlay_gui_input)
@@ -1929,7 +1935,8 @@ func _build_how_to_play_overlay() -> void:
 
 	how_to_play_panel = PanelContainer.new()
 	how_to_play_panel.name = "HowToPlayPanel"
-	how_to_play_panel.custom_minimum_size = Vector2(560, 430)
+	# 높이를 줄여 보드 아래쪽 칸을 덜 가린다. 본문은 어차피 스크롤된다.
+	how_to_play_panel.custom_minimum_size = Vector2(560, 366)
 	how_to_play_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	how_to_play_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	how_to_play_panel.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -3701,6 +3708,21 @@ func _safe_area_margins() -> Dictionary:
 		DisplayServer.window_get_size(),
 		get_viewport().get_visible_rect().size
 	)
+
+
+## 화면 안전 영역을 읽어 루트 여백에 반영한다.
+##
+## Android 는 앱이 뜬 직후 인셋이 확정되지 않을 수 있고, 폴더블 화면 전환이나 회전으로
+## 나중에 바뀐다. _build_ui 에서 한 번만 읽으면 그때의 값이 고착돼 좌우 여백이 어긋난다.
+## 그래서 viewport size_changed 에서도 다시 적용한다.
+func _apply_safe_area_margins() -> void:
+	if screen_margin == null:
+		return
+	var safe: Dictionary = _safe_area_margins()
+	screen_margin.add_theme_constant_override("margin_left", 12 + int(safe["left"]))
+	screen_margin.add_theme_constant_override("margin_top", 10 + int(safe["top"]))
+	screen_margin.add_theme_constant_override("margin_right", 12 + int(safe["right"]))
+	screen_margin.add_theme_constant_override("margin_bottom", 8 + int(safe["bottom"]))
 
 
 func _update_mode_buttons() -> void:
