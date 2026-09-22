@@ -1359,34 +1359,38 @@ func _build_play_focus_strip(root: VBoxContainer) -> void:
 	controls_row.add_theme_constant_override("separation", 8)
 	controls_margin.add_child(controls_row)
 
-	var left_spacer := Control.new()
-	left_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	controls_row.add_child(left_spacer)
-
 	black_button = _make_segment_button(_t("black"), func() -> void: _request_new_game(ReversiEngine.BLACK))
-	black_button.custom_minimum_size = Vector2(112, PLAY_BUTTON_HEIGHT)
+	_size_play_button(black_button, 112, 112.0)
 	controls_row.add_child(black_button)
 
 	white_button = _make_segment_button(_t("white"), func() -> void: _request_new_game(ReversiEngine.WHITE))
-	white_button.custom_minimum_size = Vector2(112, PLAY_BUTTON_HEIGHT)
+	_size_play_button(white_button, 112, 112.0)
 	controls_row.add_child(white_button)
 
 	undo_button = _make_action_button(_t("undo"), func() -> void: _on_undo_pressed())
-	undo_button.custom_minimum_size = Vector2(128, PLAY_BUTTON_HEIGHT)
+	_size_play_button(undo_button, 96, 128.0)
 	controls_row.add_child(undo_button)
 
 	hint_button = _make_action_button(_t("hint"), func() -> void: _on_hint_pressed())
 	hint_button.name = "HintButton"
-	hint_button.custom_minimum_size = Vector2(112, PLAY_BUTTON_HEIGHT)
+	_size_play_button(hint_button, 96, 112.0)
 	controls_row.add_child(hint_button)
 
 	new_game_button = _make_action_button(_t("new_game"), func() -> void: _request_new_game(player_stone), true)
-	new_game_button.custom_minimum_size = Vector2(172, PLAY_BUTTON_HEIGHT)
+	_size_play_button(new_game_button, 172, 172.0)
 	controls_row.add_child(new_game_button)
 
-	var right_spacer := Control.new()
-	right_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	controls_row.add_child(right_spacer)
+
+## 플레이 컨트롤 버튼의 크기 정책.
+##
+## 고정 최소 폭을 쓰면 버튼 합이 기준 뷰포트(720)를 넘어 레이아웃 전체가 오른쪽으로
+## 밀리고 우측이 화면 밖으로 나간다. 최소 폭은 글자가 들어갈 만큼만 두고, 남는 폭은
+## stretch_ratio 로 기존 비율대로 나눠 갖게 한다.
+func _size_play_button(button: Button, min_width: int, ratio: float) -> void:
+	button.custom_minimum_size = Vector2(min_width, PLAY_BUTTON_HEIGHT)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.size_flags_stretch_ratio = ratio
+
 
 func _make_meter_label(font_color: Color) -> Label:
 	var label := Label.new()
