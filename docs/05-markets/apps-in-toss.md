@@ -153,12 +153,17 @@ Mozilla/5.0 (Linux; Android 15; SM-S913N) AppleWebKit/537.36 (KHTML, like Gecko)
 
 Godot 4.7.2는 wasm import 매핑을 `$e:_godot_js_eval`로 줄인다. 기존 sanitizer는 `godot_js_eval:_godot_js_eval` 패턴만 찾아 정의만 리네임하고 참조를 남겼고, 브라우저에서 `_godot_js_eval is not defined`로 죽었다. 회귀 가드는 `godot_js_eval`을 예외로 지운 뒤 검사해서 잔여 참조가 `_`로 줄어 그대로 통과했다. 전체 치환으로 바꾸고 가드 예외를 없앴다. CI는 4.6.3을 써서 배포본에는 영향이 없었지만 로컬 4.7.2 빌드는 깨져 있었다.
 
-### 남은 게이트
+### 출시 (2026-09-22)
 
-- [ ] **콘솔 출시(release)** — 배포는 private deployment까지다. 출시하면 **2.x로 롤백할 수 없다**
+- [x] **콘솔 출시(release) 완료** — v2.2.10(SDK 3.5.0). 사용자가 콘솔에서 직접 수행했다.
+  - 이 시점부터 **2.x로 롤백할 수 없다.** 이후 문제가 생기면 3.x 위에서 고쳐 재배포한다.
+  - 콘솔 출시 상태는 AIT CLI/API로 조회할 방법이 없어 콘솔에서만 확인된다.
+
+### 남은 확인
+
 - [ ] 결과 공유(클립보드 복사) 실기기 동작 확인
 - [ ] 전면광고 노출 확인 (live `adGroupId` 주입 경로는 `vite build` 그대로라 유지)
-- [ ] GA4 이벤트 유입 확인 — 3.x CORS 변경 영향을 배포 후 실측해야 한다
+- [ ] GA4 이벤트 유입 확인 — 3.x CORS 변경과 도메인 변경(`lucid-reversi.web.tossmini.com`) 영향을 실측해야 한다. 게임이 Measurement Protocol로 직접 전송하므로 출시 후 실사용 이벤트로 확인한다.
 
 ### lucid-chess 3.x 전환 선례 대조 (seorilabs/lucid-chess#283)
 
