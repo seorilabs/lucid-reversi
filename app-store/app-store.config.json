@@ -11,16 +11,18 @@
   "exportPath": "release-artifacts/ios/export",
   "exportOptionsPlist": "app-store/exportOptions.plist",
   "uploadedBuild": {
-    "status": "Upload succeeded — com.etlegame.reversi v2.2.2 build 5 (AdMob 전면광고 + _build_ui 서비스노드 삭제 버그 수정), ASC 처리 중(2026-07-08). build 1~4는 실기기 광고 미표시 진단 과정.",
-    "shortVersion": "2.2.2",
-    "buildNumber": "5",
+    "status": "Upload succeeded — com.etlegame.reversi v2.2.8 build 2002008. ASC 처리 완료(processingState=VALID).",
+    "shortVersion": "2.2.8",
+    "buildNumber": "2002008",
+    "buildId": "f88dc758-fca4-4608-b5aa-cbaa1d552e47",
+    "uploadedAt": "2026-09-22T00:23:19-07:00",
+    "ciRun": "GitHub Actions run 35698910461 (deploy-app-store.yml, MARKETING_VERSION=2.2.8)",
     "deviceFamily": "iPhone+iPad (TARGETED_DEVICE_FAMILY=1,2)",
     "minIosVersion": "14.0",
     "signing": "개발 자동 서명(Apple Development, automatic)으로 archive → exportArchive(app-store-connect, signingStyle=automatic, -allowProvisioningUpdates + ASC API 키)에서 Apple Distribution(Seori Labs HCDUXX4Z3X) 배포 재서명 + 업로드.",
     "dsymWarning": "GoogleMobileAds/UserMessagingPlatform prebuilt xcframework에 dSYM 미포함 → Upload Symbols 경고(업로드 자체는 성공). AdMob SDK 관련 크래시 심볼화가 불완전할 수 있음.",
-    "previousBuild": "v2.2.1 build 1(광고 미포함, 2026-06-26 업로드, 심사 중이던 빌드). 2.2.2는 AdMob 포함 별도 마케팅 버전.",
-    "verificationNote": "TestFlight 실기기에서 전면광고 표시 확인 완료(테스트 광고로 검증). 미표시 원인은 main.gd _build_ui()가 광고 어댑터·GA4 전송기를 queue_free로 삭제하던 버그였고 build 5에서 수정(persistent_services 그룹).",
-    "remaining": "App Privacy를 GA4+AdMob(비맞춤형·IDFA 미사용) 반영해 갱신 → 콘솔에서 빌드 선택(build 5) → Submit for Review. (실기기 광고 표시 확인 완료, 심사 제출은 미수행)"
+    "previousBuild": "v2.2.6 build 2002006(업로드만, 미제출) / v2.2.3 build 8(READY_FOR_SALE) / v2.2.2 build 5~7.",
+    "verificationNote": "TestFlight 실기기에서 전면광고 표시 확인 완료(테스트 광고로 검증). 미표시 원인은 main.gd _build_ui()가 광고 어댑터·GA4 전송기를 queue_free로 삭제하던 버그였고 build 5에서 수정(persistent_services 그룹)."
   },
   "minimumOsPolicy": {
     "current": "15.0",
@@ -51,20 +53,70 @@
     "androidNote": "2026-09-22부터 Android도 AdMob 전면광고를 탑재한다. AdmobPlugin.gd가 AndroidExportPlugin을 등록하고 android_export.cfg가 APPLICATION_ID meta-data를 주입한다. Android 식별자는 play-store/google-play.config.json의 ads 를 정본으로 본다.",
     "publisherNote": "2026-09-22에 publisher를 pub-2444587584524186에서 주력 계정 pub-9932778305312246으로 옮겼다. 이전 ID로 올라간 빌드는 App Store v2.2.2다."
   },
-  "adsPrivacyReview": "AdMob(비맞춤형) 도입으로 App Store App Privacy는 재검토 필요. GA4(익명 client_id) + AdMob(비맞춤형·IDFA 미사용)을 반영해 dataCollection/consoleGates.appPrivacy를 다음 빌드 제출 전 확정할 것. ATT는 불필요(추적 없음) 유지.",
   "dataCollection": {
     "enabledFrom": "GA4 Analytics 포함 빌드(현재 심사 중 v2.2.1 다음 빌드부터). v2.2.1 자체는 미수집.",
     "sink": "Google Analytics 4 — Measurement Protocol(REST, HTTPRequest 직접 전송, Firebase SDK 미사용)",
     "profile": "익명 게임 이벤트(game_open/game_start/game_over/settings_changed)와 설치별 GA4 client_id(user:// 로컬 생성 난수)만 전송. 계정·이메일·연락처·기기 광고 식별자 등 PII 미수집.",
     "appPrivacyAnswers": {
       "dataCollected": true,
-      "types": [
-        "Usage Data — Product Interaction",
-        "Identifiers — 앱 생성 익명 client_id"
-      ],
-      "linkedToUser": false,
       "usedForTracking": false,
-      "purpose": "Analytics (서비스 분석·개선: 잔존율·이탈 지점)"
+      "trackingRationale": "비맞춤형 광고만 요청(PersonalizationState.DISABLED), IDFA 미사용, ATT 프롬프트 없음(빌드에 NSUserTrackingUsageDescription 없음). ATT 없이 Tracking=Yes로 신고하면 반려된다.",
+      "source": "godot/ios/framework/GoogleMobileAds.xcframework/.../PrivacyInfo.xcprivacy 의 NSPrivacyCollectedDataTypes 를 그대로 따랐다. 임의 판단이 아니다.",
+      "linkedToUser": [
+        {
+          "type": "Location / Coarse Location",
+          "purposes": [
+            "Third-Party Advertising",
+            "Analytics"
+          ]
+        },
+        {
+          "type": "Identifiers / Device ID",
+          "purposes": [
+            "Third-Party Advertising",
+            "Analytics"
+          ]
+        },
+        {
+          "type": "Usage Data / Advertising Data",
+          "purposes": [
+            "Third-Party Advertising",
+            "Analytics"
+          ]
+        },
+        {
+          "type": "Usage Data / Product Interaction",
+          "purposes": [
+            "Third-Party Advertising",
+            "Analytics"
+          ]
+        }
+      ],
+      "notLinkedToUser": [
+        {
+          "type": "Diagnostics / Crash Data",
+          "purposes": [
+            "Analytics"
+          ]
+        },
+        {
+          "type": "Diagnostics / Performance Data",
+          "purposes": [
+            "Third-Party Advertising",
+            "Analytics"
+          ]
+        },
+        {
+          "type": "Diagnostics / Other Diagnostic Data",
+          "purposes": [
+            "Third-Party Advertising",
+            "Analytics"
+          ]
+        }
+      ],
+      "excludedPurpose": "Developer's Advertising or Marketing 은 체크하지 않는다. 자체 마케팅에 쓰지 않는다.",
+      "ga4Coverage": "GA4는 앱이 만든 익명 client_id와 게임 이벤트만 보낸다. 계정이 없어 신원 연결이 없고 위 Device ID / Product Interaction(Analytics 목적)에 포함된다. 별도 항목을 추가하지 않는다.",
+      "consoleOnly": "App Privacy는 App Store Connect API에 엔드포인트가 없다(appDataUsages 등 전부 404). 콘솔에서만 입력한다."
     },
     "privacyManifest": "GA4를 Firebase SDK가 아닌 HTTPRequest로 직접 호출하므로 서드파티 SDK privacy manifest 대상이 아님. App Store Connect App Privacy 질문(위 answers)이 실질 공시. iOS export의 privacy/collected_data(현재 device_id collected:false)는 IDFA 미사용이라 유지.",
     "otherDisclosures": "동일 취지로 개인정보처리방침·Google Play 데이터안전·AppsInToss 공시도 '익명 분석 수집'으로 갱신 필요(후속)."
@@ -85,7 +137,7 @@
     },
     "copyright": "2026 Seori Labs",
     "supportUrl": "https://www.seorilabs.com/support/",
-    "marketingUrl": "",
+    "marketingUrl": "https://www.seorilabs.com",
     "screenshots": {
       "iphone_6_9": "app-store/screenshots/iphone-6.9/01-board.png (1320x2868)",
       "ipad_13": "app-store/screenshots/ipad-13/01-board.png (2064x2752)",
@@ -101,7 +153,8 @@
     },
     "marketingUrlNote": "선택 항목. 이 앱은 seorilabs.com에 제품 랜딩이 없어 비운다. registry 등록 시 채운다.",
     "privacyPolicyUrl": "https://www.seorilabs.com/apps/lucid-reversi/privacy/",
-    "reviewNotes": "계정, 로그인, 회원가입이 없어 심사용 데모 계정이 필요 없습니다. 인터넷 연결 없이 모든 기능을 사용할 수 있습니다. 인앱 구매가 없습니다. AdMob 전면 광고가 한 판 종료 시 1회 표시되며 비맞춤형으로 요청합니다. IDFA를 사용하지 않고 App Tracking Transparency 권한도 요청하지 않습니다. 분석은 Google 애널리틱스 4 Measurement Protocol로 익명 식별자와 게임 이벤트만 전송합니다."
+    "reviewNotes": "No account, login, or sign-up is required, so no demo account is needed.\nThe game works fully offline; no server backend is used for gameplay.\nThere are no in-app purchases.\nAds: a single AdMob interstitial is shown at the end of a match. Ad requests are non-personalized (PersonalizationState.DISABLED).\nThe app does not use IDFA and does not request App Tracking Transparency permission.\nAnalytics: Google Analytics 4 Measurement Protocol sends an app-generated anonymous identifier and gameplay events only.",
+    "reviewNotesLanguage": "영어로 쓴다. 심사팀이 읽는 산출물이라 한국어로 두면 심사가 지연될 수 있다."
   },
   "consoleGates": {
     "appShell": "com.etlegame.reversi 앱 레코드가 ASC에 있어야 업로드 성공. 없으면 콘솔에서 새 앱 생성 필요.",
@@ -112,5 +165,11 @@
     "attDecision": "추적 없음 — No. GA4는 IDFA·광고 식별자 없이 익명 client_id만 쓰고, AdMob은 비맞춤형(PersonalizationState.DISABLED)·IDFA 미사용이라 Tracking 아님 → ATT 불필요(ios_export.cfg att_enabled=false).",
     "buildSelection": "업로드 후 콘솔에서 빌드 선택 필요",
     "submitForReview": "최종 콘솔 제출 필요"
+  },
+  "appStoreStatus": {
+    "appleId": "994468960",
+    "liveVersion": "2.2.3 (READY_FOR_SALE). 2.2.0~2.2.3이 모두 심사를 통과해 공개 판매 중이다.",
+    "locales": "en-US, ko 두 개만 활성. ja 로케일은 없다(Play와 다름).",
+    "v226Note": "v2.2.6 build 2002006은 2026-09-18 업로드만 되고 appStoreVersion 레코드를 만들지 않아 심사 제출되지 않았다. 업로드 성공은 제출이 아니다."
   }
 }

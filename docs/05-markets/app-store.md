@@ -44,12 +44,26 @@
 
 ## Privacy / Review
 
-- Privacy nutrition labels: **재검토 필요** — GA4(익명 client_id) + AdMob(비맞춤형·IDFA 미사용)을 반영해 다음 빌드 제출 전 확정. 현재 심사 중 v2.2.1(analytics/광고 미포함)은 No Data Collected 유지.
-- Tracking: No — 비맞춤형·IDFA 미사용이라 ATT 불필요(`NSUserTrackingUsageDescription` 미포함).
-- Export compliance: `ITSAppUsesNonExemptEncryption = false` (표준 SDK 전송 암호화만)
-- Content rights: AdMob 광고(third-party 콘텐츠) 포함 — 콘솔 콘텐츠 권리 답변에 반영. 게임 자산은 first-party.
-- Age rating: 광고 있음(AdMob 전면). 폭력/도박/UGC 없음 → 4+ 예상(광고 존재 자체는 연령등급에 큰 영향 없음).
-- Review notes: 계정·로그인 없음(데모 계정 불요), 오프라인 동작, 인앱 구매 없음, AdMob 전면광고 1회/판·비맞춤형, IDFA·ATT 미사용, GA4 Measurement Protocol 익명 전송 — 전문은 `app-store/app-store.config.json`의 `listing.reviewNotes`
+- **App Privacy: 확정(2026-09-22).** 근거는 앱에 실제 포함된 `GoogleMobileAds.framework/PrivacyInfo.xcprivacy`의 `NSPrivacyCollectedDataTypes`다. 임의 판단이 아니다.
+
+  | 구획 | 데이터 타입 | 목적 |
+  |---|---|---|
+  | Linked to You | Location / Coarse Location | Third-Party Advertising, Analytics |
+  | Linked to You | Identifiers / Device ID | Third-Party Advertising, Analytics |
+  | Linked to You | Usage Data / Advertising Data | Third-Party Advertising, Analytics |
+  | Linked to You | Usage Data / Product Interaction | Third-Party Advertising, Analytics |
+  | Not Linked | Diagnostics / Crash Data | Analytics |
+  | Not Linked | Diagnostics / Performance Data | Third-Party Advertising, Analytics |
+  | Not Linked | Diagnostics / Other Diagnostic Data | Third-Party Advertising, Analytics |
+
+  - `Developer's Advertising or Marketing` 목적은 체크하지 않는다. 자체 마케팅에 쓰지 않는다.
+  - GA4는 익명 `client_id`와 게임 이벤트만 보낸다. 계정이 없어 신원 연결이 없고 위 Device ID / Product Interaction(Analytics)에 포함된다. 별도 항목을 더하지 않는다.
+  - **App Privacy는 ASC API에 엔드포인트가 없다**(`appDataUsages`, `appPrivacyDetails` 등 전부 404). 콘솔에서만 입력한다.
+- **Tracking: No.** 비맞춤형 광고만 요청(`PersonalizationState.DISABLED`), IDFA 미사용, ATT 프롬프트 없음(`ios_export.cfg att_enabled=false` → 빌드에 `NSUserTrackingUsageDescription` 없음). ATT 없이 Tracking=Yes로 신고하면 오히려 반려된다.
+- Export compliance: `ITSAppUsesNonExemptEncryption = false`. 업로드된 빌드의 `usesNonExemptEncryption=false`로 ASC에서 확인했다.
+- Content rights: **`USES_THIRD_PARTY_CONTENT`로 변경 완료(2026-09-22, API)**. AdMob 크리에이티브가 third-party 콘텐츠이고 게재 권리는 AdMob 약관으로 갖는다. 게임 자산이 first-party라는 이유로 "없음"을 고르면 안 된다.
+- Age rating: `advertising: true`가 이미 선언돼 있다. 폭력/도박/UGC 없음 → `FOUR_PLUS` 유지.
+- Review notes: **영어로 쓴다**(심사팀이 읽는 산출물). 전문은 `app-store/app-store.config.json`의 `listing.reviewNotes`.
 
 ## Assets
 
@@ -57,24 +71,32 @@
 - iPhone 6.9" screenshot: `app-store/screenshots/iphone-6.9/01-board.png` (1320×2868) ✅ 실 시뮬레이터 캡처
 - iPad 13" screenshot: `app-store/screenshots/ipad-13/01-board.png` (2064×2752) ✅ 실 시뮬레이터 캡처
 - 캡처 방법: x86_64(Rosetta) 시뮬레이터 빌드(Godot 엔진 simulator lib가 arm64 슬라이스 없음) → iPhone 16 Pro Max / iPad Pro 13"(M4) 부팅·실행·`simctl io screenshot`.
+- ASC 슬롯 이름은 `APP_IPHONE_67` / `APP_IPAD_PRO_3GEN_129`다. 6.9"·13" 캡처가 이 슬롯에 들어간다(Apple이 통합).
 - 비고: 720×1280 기준 배치는 유지하며, 더 긴 화면에서는 늘어난 논리 높이를 플레이 컨트롤 위 여백으로 흡수해 하단 데드 스페이스 증가를 막는다. 화면당 1장씩이라 다양화하려면 탭 입력 화면 수동 보완.
 
-## Build / Upload 상태 (2026-07-07)
+## 출시 상태 (2026-09-22 ASC API 확인)
 
-- ✅ **업로드 성공** — `com.etlegame.reversi` v**2.2.2** build 1 (**AdMob 전면광고 포함**), universal(iPhone+iPad), min iOS 14.0. ASC 처리 중.
-- 이전: v2.2.1 build 1(광고 미포함, 2026-06-26 업로드). 2.2.2는 AdMob 포함 별도 마케팅 버전.
-- 경로: Godot 4.6.3 iOS export(preset `iOS`) → `xcodebuild archive` → `xcodebuild -exportArchive`(method=app-store-connect, destination=upload).
-- 서명: **개발 자동 서명(Apple Development, automatic)** 아카이브 → exportArchive(`-allowProvisioningUpdates` + ASC API 키)에서 **Apple Distribution(Seori Labs) 배포 재서명 + 업로드**. manual+Distribution은 로컬에 `com.etlegame.reversi` App Store 프로파일이 없어 실패 → automatic development로 archive 후 export 재서명이 정답.
-- scheme은 **`lucidreversi`**(Godot이 xcodeproj 파일명 기반으로 생성). `deploy-app-store.yml`의 `ios_scheme`도 이 값으로 맞춤.
-- 경고: GoogleMobileAds/UserMessagingPlatform prebuilt framework에 dSYM 미포함 → Upload Symbols 경고(업로드 자체는 성공). AdMob 크래시 심볼화가 불완전할 수 있음.
-- ⚠️ 이 AdMob 빌드는 export 파이프라인만 검증(실기기 미검증). **TestFlight 실기기 검증 필요.**
-- 자세한 빌드 노트/함정: `docs/09-knowledge/ios-app-store-godot.md`.
+- **이 앱은 이미 App Store에 공개 판매 중이다.** `2.2.0`~`2.2.3`이 모두 `READY_FOR_SALE`이고, 현재 스토어에 보이는 건 **2.2.3**이다.
+- 활성 로케일은 **`en-US`와 `ko` 둘뿐**이다. Play와 달리 `ja`가 없다.
+- ⚠️ **v2.2.6(build 2002006)은 2026-09-18 업로드만 되고 `appStoreVersion` 레코드를 만들지 않아 심사에 제출되지 않았다.** 업로드 성공은 제출이 아니다. 이 함정 때문에 2.2.6이 스토어에 나가지 않았다.
+- 빌드 번호 규칙: 마케팅 버전을 `major*1000000 + minor*1000 + patch`로 인코딩한다(2.2.8 → `2002008`).
+
+## v2.2.8 심사 준비 (2026-09-22)
+
+- ✅ 업로드: GitHub Actions run `35698910461` → build `2002008`, `processingState=VALID`
+- ✅ `appStoreVersion` 2.2.8 생성(`releaseType=AFTER_APPROVAL`), 빌드 연결
+- ✅ 출시노트(`whatsNew`) `ko`/`en-US` 기록
+- ✅ 콘텐츠 권리 `USES_THIRD_PARTY_CONTENT`
+- ✅ 심사 노트(영어) + 연락처
+- ✅ 스크린샷: 이전 버전에서 두 슬롯 모두 승계(`COMPLETE`)
+- ⏳ App Privacy 콘솔 입력(위 표) — API 불가, 콘솔 전용
+- ⏳ Submit for Review
 
 ## 남은 콘솔/수동 게이트
 
-- [ ] **TestFlight 실기기 검증** (AdMob 전면광고 표시·크래시 없음 — 실기기 첫 검증)
-- [ ] 콘솔에서 업로드된 빌드(v2.2.2 build 1) 선택
-- [x] iPhone 6.9" + iPad 13" 스크린샷 1장씩 실 캡처 (추가 화면은 선택)
-- [ ] App Privacy 재작성: GA4(익명 client_id)+AdMob(비맞춤형·IDFA 미사용) 반영 / 연령등급(광고 있음 → 4+) / 콘텐츠 권리(AdMob third-party 포함) / 수출규정(false)
-- [ ] 메타데이터(이 문서 카피) 콘솔 반영, Support URL 확정
-- [ ] Submit for Review (실기기 검증·App Privacy 갱신 후)
+- [x] 업로드된 빌드를 버전에 연결(build 2002008)
+- [x] iPhone 6.9" + iPad 13" 스크린샷
+- [x] 콘텐츠 권리 / 연령등급 광고 선언 / 수출규정
+- [ ] **App Privacy 콘솔 입력** — 위 표대로. 광고·분석 도입 전 신고가 남아 있으면 사실과 다르다
+- [ ] **Submit for Review**
+- [ ] TestFlight 실기기에서 AdMob 전면광고 재확인(v2.2.2에서 표시 확인 완료, 이후 빌드 미검증)
