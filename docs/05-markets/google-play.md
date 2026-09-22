@@ -67,9 +67,26 @@ Play production은 47이다. 다음 태그가 49를 받는다. 원장 도입 이
 | 개인정보처리방침 | `http://35.221.214.124/privacypolicy.html`(2019-06-13) | 평문 HTTP + 원시 IP. 교체 필요 |
 | 스토어 등재정보 | `Reversi Online`, 온라인 대전·차례 알림·멀티플레이 설명 | `play-store/listing/`의 새 문안으로 교체 예정 |
 
-**광고 탑재로 바뀐 것**: 2026-09-22에 Android AdMob을 탑재해 위 표의 정리 방향이 달라졌다.
-광고 포함 선언은 아니오에서 **예**로 바꿔야 하고, 콘텐츠 등급 재설문은 **광고 포함**으로 답해야 하며,
-데이터 보안에는 AdMob 수집 항목을 반영해야 한다. 광고 ID 선언만은 정정이 필요 없어졌다.
+**정리 완료(2026-09-22)**: 아래 선언을 Play Console에서 실제로 바꾸고 화면에서 재확인했다.
+앱 콘텐츠의 `주의 필요`는 **0개**다.
+
+| 항목 | 결과 |
+|---|---|
+| 개인정보처리방침 | `https://www.seorilabs.com/apps/lucid-reversi/privacy/` |
+| 광고 포함 | 아니오 → **예** |
+| 정부 앱 | 아니오로 완료 |
+| 콘텐츠 등급 | 2026-09-22 재설문. 한국 GRAC **전체이용가**를 처음 받았다. ESRB 전체이용가, PEGI 3, USK 전체이용가 |
+| 데이터 보안 | 수집 `앱 상호작용`(분석) + `기기 또는 기타 ID`(분석·광고), 공유 `기기 또는 기타 ID`(광고). 전송 중 암호화 예 |
+| 타겟층 | **13~15세, 16~17세, 만 18세 이상** |
+
+**타겟층을 13세 이상으로 좁힌 이유**: 6~12세를 포함하자 Play가 "앱·API·SDK·광고가 아동 관련
+모든 법·규정(COPPA/GDPR)을 준수함을 보증"하는 필수 체크박스를 요구했다. 현재 빌드는 AdMob이
+AAID를 쓰고 child-directed 태그가 없어 그 확약이 사실이 아니다. 거짓 선언 대신 연령을 좁혔다.
+어린이 연령대를 되살리려면 `set_child_directed_treatment(TRUE)`,
+`set_tag_for_under_age_of_consent(TRUE)`, `set_max_ad_content_rating(G)`를 넣은 빌드가 먼저다.
+다만 그 설정은 전체 사용자에게 적용돼 광고 단가가 떨어지므로 별도 판단이 필요하다.
+
+게시 개요에는 검토 미제출 변경 6건이 쌓여 있다. 검토 전송은 하지 않았다.
 
 ### 확인된 상태
 
@@ -95,15 +112,17 @@ Godot 4.6.3과 4.7.2의 Android build template 모두 `config.gradle`의 기본
 쓴다. 따라서 새로 빌드한 AAB는 두 요건을 모두 충족한다. 기존 versionCode 47(API 29) 때문에
 표시되는 오류이며, 새 빌드를 올리면 해소된다.
 
-## 업로드 blocker — WIF impersonation 권한 (2026-09-22, 미해소)
+## 업로드 진단 기록 (2026-09-22, 해소)
 
 v2.2.7(versionCode 49) internal 업로드가 세 번 실패했다. 빌드·서명·AdMob 검증은 모두 통과했고
 업로드 단계에서만 막힌다.
 
-| 시도 | 실패 지점 | 조치 |
+| 시도 | 실패 지점 | 원인과 조치 |
 |---|---|---|
-| 1 | `Backoffice package_name binding이 없다` | caller에 `package_name` 추가(#145)로 해소 |
-| 2, 3 | `GOOGLE_PLAY_EDIT_CREATE_FAILED` | **미해소** — 아래 원인 |
+| 1 | `Backoffice package_name binding이 없다` | caller에 `package_name` 추가(#145) |
+| 2, 3 | `GOOGLE_PLAY_EDIT_CREATE_FAILED` | WIF impersonation 바인딩 누락 → 저장소별 principalSet 부여 |
+| 4 | `GOOGLE_PLAY_EDIT_COMMIT_FAILED` | **앱 콘텐츠 미완료(타겟층 1건)** → 선언 완료 후 통과 |
+| 5 | — | **성공.** internal draft에 versionCode 49 도달 |
 
 org 업로더는 provider 에러 텍스트를 숨기고 코드만 남긴다(`never prints provider error text`).
 같은 WIF 경로로 `edits().insert()`를 직접 호출하는 임시 진단 워크플로우를 돌려 실제 오류를 얻었다.
@@ -132,8 +151,34 @@ gcloud iam service-accounts add-iam-policy-binding \
   --member="principalSet://iam.googleapis.com/projects/138773558853/locations/global/workloadIdentityPools/github-actions/attribute.repository/seorilabs/lucid-reversi"
 ```
 
+2026-09-22에 위 명령으로 바인딩을 부여해 edit 생성이 통과했다.
+
+### EDIT_COMMIT_FAILED — 앱 콘텐츠 미완료가 원인이었다
+
+바인딩 후에는 `GOOGLE_PLAY_EDIT_COMMIT_FAILED`로 한 단계 더 막혔다. **Play는 앱 콘텐츠에
+`주의 필요` 항목이 남아 있으면 릴리스 commit을 거부한다.** 광고 선언을 `예`로 바꾸면서
+`타겟층 및 콘텐츠` 재제출이 요구된 상태였다. 그 1건을 완료해 `주의 필요`가 0개가 되자
+같은 태그로 재시도한 업로드가 바로 성공했다.
+
+업로드 키 불일치는 원인이 아니었다. Play Console 등록값과 로컬 인증서·카탈로그가 모두 같다.
+
+| | 값 |
+|---|---|
+| 업로드 키 SHA-256 | `59:96:6E:5A:8D:E8:B9:C6:7C:71:FA:A7:CE:DF:7E:E2:CF:49:2A:11:6F:D9:8B:97:1C:AD:80:2F:E7:C0:00:77` |
+| 앱 서명 키 SHA-256 | `B0:67:F7:F6:D4:26:D1:14:E9:63:A7:82:FD:40:75:C6:43:78:57:98:83:3F:DB:53:DD:E4:84:6B:33:09:FC:01` |
+
 함께 확인된 것: org var `GOOGLE_PLAY_UPLOAD_KEY_ALIAS`의 selected 저장소 목록에 이 저장소가
 없어 CI에서 값이 비어 있었다. 카탈로그의 `lucid-reversi-upload`를 repo var로 넣어 해소했다.
+
+### 업로드 결과 (API readback)
+
+```
+internal: name=lucid-reversi 2.2.7 (49) status=draft versionCodes=['49']
+bundles:  versionCode 49
+production: 2.1.2 (47)   ← 승계 대상 옛 게임, 아직 그대로
+```
+
+`draft`라 테스터에게 아직 배포되지 않았다. 게시와 production 승격은 별도 결정이다.
 
 ## Policy / Data Safety
 
