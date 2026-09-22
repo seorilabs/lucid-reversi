@@ -20,9 +20,10 @@
 | Keywords | 오델로,리버시,보드게임,AI 대전,전략게임,두뇌게임,흑백돌,캐주얼게임 | 38/100 |
 | Description | 루시드 리버시는 AI와 바로 한 판 붙는 모바일 리버시 게임입니다. 선명한 보드와 큼직한 흑백 돌, 착수와 뒤집힘 피드백으로 작은 화면에서도 다음 수가 잘 보입니다. 난이도와 보드/돌 테마를 바꾸며 짧은 시간 안에 판세를 뒤집는 재미를 즐겨보세요. | <4000 |
 
-- Support URL: 확정 필요 (App Review 필수)
-- Marketing URL: 확정 필요 (선택)
-- Copyright: 확정 필요
+- Support URL: `https://www.seorilabs.com/support/` (App Review 필수. 다른 Seorilabs 앱과 같은 경로)
+- Marketing URL: 비움(선택). 이 앱은 seorilabs.com에 제품 랜딩이 없다
+- Copyright: `2026 Seori Labs`
+- Privacy Policy URL: `https://www.seorilabs.com/apps/lucid-reversi/privacy/`
 
 ## Release
 
@@ -48,7 +49,7 @@
 - Export compliance: `ITSAppUsesNonExemptEncryption = false` (표준 SDK 전송 암호화만)
 - Content rights: AdMob 광고(third-party 콘텐츠) 포함 — 콘솔 콘텐츠 권리 답변에 반영. 게임 자산은 first-party.
 - Age rating: 광고 있음(AdMob 전면). 폭력/도박/UGC 없음 → 4+ 예상(광고 존재 자체는 연령등급에 큰 영향 없음).
-- Review notes: 확정 필요
+- Review notes: 계정·로그인 없음(데모 계정 불요), 오프라인 동작, 인앱 구매 없음, AdMob 전면광고 1회/판·비맞춤형, IDFA·ATT 미사용, GA4 Measurement Protocol 익명 전송 — 전문은 `app-store/app-store.config.json`의 `listing.reviewNotes`
 
 ## Assets
 
