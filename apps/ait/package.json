@@ -7,15 +7,15 @@
   "scripts": {
     "sync:godot": "node scripts/sync-godot-web.mjs",
     "predev": "npm run sync:godot",
-    "dev": "granite dev",
+    "dev": "vite --host",
     "prebuild": "npm run sync:godot",
-    "build": "ait build",
+    "build": "tsc --noEmit && vite build && ait build",
     "deploy": "ait deploy",
     "lint": "tsc --noEmit",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@apps-in-toss/web-framework": "2.10.7",
+    "@apps-in-toss/web-framework": "3.5.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -24,6 +24,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "@apps-in-toss/devtools": "^3.5.0"
   }
 }

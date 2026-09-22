@@ -4,7 +4,7 @@
 
 - appName: lucid-reversi
 - Display name: 루시드 리버시
-- Brand icon (granite `brand.icon`): `https://static.toss.im/appsintoss/38345/764909ef-3849-428b-ae2e-1f868ec00ebf.png`
+- Brand icon (콘솔 관리. 3.x config 스키마에서 제거됨): `https://static.toss.im/appsintoss/38345/764909ef-3849-428b-ae2e-1f868ec00ebf.png`
 - Registration logo asset (console upload): `apps-in-toss/release-assets/lucid-reversi-icon-600.png` (위 HTTPS 아이콘과 동일 이미지, 600x600, alpha 없음)
 - Default locale: Korean
 - Secondary in-app locales: English, Japanese
@@ -59,3 +59,40 @@
 - 광고는 `src/ads.ts`의 AppsInToss 전면(Interstitial) 광고로 연동. 한 판 종료 시 Godot(`main.gd:_request_interstitial_ad`)가 `JavaScriptBridge.get_interface("__aitBridge")`로 wrapper가 노출한 전역 객체를 받아 `showInterstitialAd()`를 호출해 1회 노출. AppsInToss 보안 정책상 `JavaScriptBridge.eval`은 금지되어 eval 없는 `get_interface` 브리지를 쓰며, sync 시 엔진 로더(`index.js`)의 `_godot_js_eval` 본문 eval 호출도 제거한다(`scripts/sync-godot-web.mjs`). 광고 SDK는 토스앱 환경에서만 동작(`isSupported()`), 샌드박스/로컬 브라우저에서는 비활성.
 - 실기기 샌드박스 검증: `apps/ait`에서 `npm run dev`(= `granite dev`)로 Metro 8081 + vite 5173 기동. Android USB는 `adb reverse tcp:8081 tcp:8081 && adb reverse tcp:5173 tcp:5173` 후 `intoss://lucid-reversi` 접속. `ait dev` 명령은 없음.
 - Registration image assets are stored under `apps-in-toss/release-assets/`: `600x600` logo, `1932x828` thumbnail, and three `636x1048` vertical screenshots. They pass the AppsInToss registration image validation script with no alpha channel.
+
+## web-framework 3.x 업그레이드 (2026-09-22)
+
+`@apps-in-toss/web-framework`를 **2.10.7 → 3.5.0**으로 올렸다. 공식 명령 `ait migrate v3`로 변환했다(수동 편집 아님).
+
+### 바뀐 것
+
+| 2.x | 3.x |
+|---|---|
+| `granite.config.ts` | `apps-in-toss.config.ts` |
+| `brand.displayName`, `brand.icon` | **제거** — 콘솔에서 관리 |
+| `outdir` | `webBundleDir` |
+| `web.host` / `web.port` / `web.commands` | **제거** — `package.json` 스크립트로 이동 |
+| `ait build`가 웹 빌드까지 수행 | **`ait build`는 `webBundleDir`를 그대로 패킹만 한다.** 앞에 `vite build`가 필요 |
+| `granite dev` (Metro 8081 + vite 5173) | `vite --host`. **`ait dev`/`granite dev` 둘 다 없다** |
+| — | `@apps-in-toss/devtools` 추가(브라우저 mock SDK) |
+| — | `navigationBar`, `webView` config 지원 |
+
+`package.json` 스크립트: `dev`는 `vite --host`, `build`는 `tsc --noEmit && vite build && ait build`.
+
+`ait deploy`의 `--api-key` / `--memo` / `--location`은 그대로라 org 재사용 워크플로(`godot-deploy-ait.yml`)의 `npm run deploy -- ...` 계약은 깨지지 않는다. 2.x에 있던 `--timeout`은 사라졌으나 워크플로가 쓰지 않는다.
+
+### 검증한 것
+
+- `npm run build` 성공 → `lucid-reversi.ait` 생성. `.ait` 안에 `sources/assets/index-*.js`와 `sources/godot/*`가 정상 포함됐다.
+- **devtools가 프로덕션 번들에 섞이지 않는다.** 플러그인은 `NODE_ENV !== "production"`일 때만 켜지고 web-framework를 mock으로 alias한다. `vite build` 산출물에서 `devtools`/`mock`/`panel` 문자열이 **0건**이고 실제 SDK 참조만 남은 것을 확인했다.
+- 의존성이 1686개 줄었다. 2.x가 끌고 오던 React Native 계열이 빠졌다.
+
+### 출시 전 반드시 볼 것
+
+- ⚠️ **3.x 번들을 출시하면 2.x로 롤백할 수 없다.** 마이그레이션 도구가 명시한 경고다. 콘솔 QR로 실기기 검증을 끝낸 뒤 출시한다.
+- ⚠️ **CORS 정책이 바뀐다.** 외부 API를 호출한다면 Origin 허용 목록에 아래를 등록해야 한다.
+  - `https://lucid-reversi.web.tossmini.com` (실서비스)
+  - `https://lucid-reversi.private-web.tossmini.com` (콘솔 QR 테스트)
+
+  이 앱의 래퍼(`apps/ait/src`)는 외부 도메인을 직접 호출하지 않는다. Godot 번들이 GA4 Measurement Protocol(`www.google-analytics.com/mp/collect`)로 전송하는데, 이 엔드포인트는 우리가 Origin 목록을 관리하는 대상이 아니다. **3.x 첫 배포 후 GA4 이벤트가 실제로 들어오는지 확인이 필요하다.**
+- 실기기 샌드박스 접속 방식(`intoss://lucid-reversi` + `adb reverse`)이 3.x에서도 같은지는 **확인하지 못했다.** Metro가 사라졌으므로 달라졌을 가능성이 있다.
