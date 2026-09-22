@@ -89,14 +89,15 @@
 - ✅ 콘텐츠 권리 `USES_THIRD_PARTY_CONTENT`
 - ✅ 심사 노트(영어) + 연락처
 - ✅ 스크린샷: 이전 버전에서 두 슬롯 모두 승계(`COMPLETE`)
-- ⏳ App Privacy 콘솔 입력(위 표) — API 불가, 콘솔 전용
-- ⏳ Submit for Review
+- ✅ App Privacy 콘솔 입력(위 표) — 콘솔 요약이 `이 앱에서 수집되는 7개의 데이터 유형: 충돌 데이터, 실적 데이터, 기타 진단 데이터, 제품 상호 작용, 대략적인 위치, 기기 ID, 광고 데이터`로 바뀐 것까지 확인했다. 바꾸기 전에는 비연결 4건만 있었다.
+- ✅ **Submit for Review 완료** — `reviewSubmission 22ef8345-bc90-4896-9b2b-db8404f3a912`, 제출 시각 `2026-09-22T07:51:06Z`, 버전 상태 `WAITING_FOR_REVIEW`
 
 ## 남은 콘솔/수동 게이트
 
 - [x] 업로드된 빌드를 버전에 연결(build 2002008)
 - [x] iPhone 6.9" + iPad 13" 스크린샷
 - [x] 콘텐츠 권리 / 연령등급 광고 선언 / 수출규정
-- [ ] **App Privacy 콘솔 입력** — 위 표대로. 광고·분석 도입 전 신고가 남아 있으면 사실과 다르다
-- [ ] **Submit for Review**
+- [x] **App Privacy 콘솔 입력** — 위 표대로 7건 게시 완료
+- [x] **Submit for Review** — 2026-09-22 제출, `WAITING_FOR_REVIEW`
+- [ ] 심사 결과 확인(승인 시 `releaseType=AFTER_APPROVAL`이라 자동 출시된다)
 - [ ] TestFlight 실기기에서 AdMob 전면광고 재확인(v2.2.2에서 표시 확인 완료, 이후 빌드 미검증)
