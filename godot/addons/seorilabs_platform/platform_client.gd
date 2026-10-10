@@ -23,7 +23,10 @@ const AtomicJsonStore := preload("core/atomic_json_store.gd")
 const UpdateGate := preload("core/update_gate.gd")
 
 ## SDK 버전. 이벤트 context와 배포본 VERSION 파일이 같은 값을 사용한다.
-const SDK_VERSION := "0.7.8"
+const SDK_VERSION := "0.9.0"
+
+## OpenAPI BoxOpenRequest.requestId 와 같다.
+static var _BOX_REQUEST_ID := RegEx.create_from_string("^[A-Za-z0-9_-]{8,64}$")
 
 ## 세션이 갱신되면 발생한다.
 signal session_changed(session: Dictionary)
@@ -231,16 +234,20 @@ func delete_firebase_account(
 	)
 
 ## 접수증은 호출 전에 앱이 저장한다. 응답 유실 시 같은 값으로 재시도한다.
+## Apple 을 연결한 계정은 서버가 409 account_reauth_required 를 돌려준다. 그때 Sign in with Apple 로 다시 받은
+## authorization code 를 apple_authorization_code 로 넣어 같은 접수증으로 다시 부른다(서버가 승인을 철회한다).
 func request_account_deletion(firebase_id_token: String, receipt_token: String,
-		app_check_token: String, callback: Callable) -> void:
-	if firebase_id_token.is_empty() or not _valid_deletion_receipt(receipt_token):
+		app_check_token: String, callback: Callable, apple_authorization_code: String = "") -> void:
+	if firebase_id_token.is_empty() or not _valid_deletion_receipt(receipt_token) \
+		or apple_authorization_code.length() > 1024:
 		callback.call(_client_error("request_invalid", "삭제 접수 정보를 확인해 주세요"))
 		return
+	var body := {"appId": _app_id, "firebaseIdToken": firebase_id_token, "receiptToken": receipt_token}
+	if not apple_authorization_code.is_empty():
+		body["providerAuthorization"] = {"provider": "apple", "authorizationCode": apple_authorization_code}
 	_transport.request({"method": "POST", "path": "/v1/auth/account-deletions",
 		"base_url": _api_base_url, "no_retry": true,
-		"app_check_token": app_check_token,
-		"body": {"appId": _app_id, "firebaseIdToken": firebase_id_token,
-			"receiptToken": receipt_token}}, callback)
+		"app_check_token": app_check_token, "body": body}, callback)
 
 
 ## Firebase 계정 삭제 이후에도 상태를 읽는다. 접수증을 URL에 넣지 않는다.
@@ -335,6 +342,12 @@ func current_session() -> Dictionary:
 	return _session.duplicate(true)
 
 
+## 로그인·로그아웃·계정 연결로 바뀌는 신원 세대. 비동기 adapter의 늦은 결과 폐기에 쓴다.
+## 같은 계정의 정상 session refresh는 이 값을 바꾸지 않는다.
+func authentication_generation() -> int:
+	return _auth_generation
+
+
 func is_signed_in() -> bool:
 	return not _session.is_empty()
 
@@ -345,6 +358,85 @@ func is_signed_in() -> bool:
 ## 아니라 타인 사칭이 가능하기 때문이다.
 func is_anonymous() -> bool:
 	return bool(_session.get("isAnonymous", false))
+
+
+## Firebase로 인증한 게스트와 외부 계정 연결은 다른 사실이다.
+func is_account_linked() -> bool:
+	return _session.get("isLinkedAccount") is bool and _session["isLinkedAccount"]
+
+
+func begin_account_link(provider: String, app_check_token: String, callback: Callable) -> void:
+	_account_link_request("/v1/auth/account-link-challenges", {"provider": provider}, app_check_token, callback)
+
+
+func complete_account_link(provider: String, id_token: String, nonce: String,
+	app_check_token: String, callback: Callable) -> void:
+	if id_token.is_empty() or id_token.to_utf8_buffer().size() > 8192 or nonce.is_empty() or nonce.length() > 128:
+		callback.call(_client_error("request_invalid", "로그인 정보가 올바르지 않아요"))
+		return
+	_account_link_request("/v1/auth/account-links", {"provider": provider, "idToken": id_token, "nonce": nonce},
+		app_check_token, func(response: Dictionary) -> void:
+			if not response.get("ok", false):
+				callback.call(response)
+				return
+			var result: Variant = response.get("result")
+			if not result is Dictionary or not result.get("session") is Dictionary \
+				or not result.get("firebaseCustomToken") is String or String(result.get("firebaseCustomToken")).is_empty() \
+				or result.get("provider") != provider or not result.get("restored") is bool:
+				callback.call(_client_error("auth_invalid", "계정 연결 응답을 확인하지 못했어요"))
+				return
+			var next_session: Dictionary = result["session"]
+			if not _valid_linked_session(next_session):
+				callback.call(_client_error("auth_invalid", "연결 계정을 확인하지 못했어요"))
+				return
+			_auth_generation += 1
+			var linked_generation := _auth_generation
+			# 복원 후 이전 게스트 credential로 자동 재로그인하면 다른 계정으로 돌아간다.
+			# Firebase adapter의 adopt_account_link 성공 뒤 새 ID token으로 sign_in한다.
+			_credential = {}
+			# 취소 콜백이 즉시 재요청해도 새 인증 세대로 게스트 refresh를
+			# 시작하지 못하게 한다. linked 세션 설치 시에만 변경 신호를 보낸다.
+			_session = {}
+			_cancel_refresh_flight(_auth_state_changed_error())
+			if linked_generation != _auth_generation:
+				callback.call(_auth_state_changed_error())
+				return
+			_store_session(next_session)
+			callback.call(response if linked_generation == _auth_generation else _auth_state_changed_error())
+	)
+
+
+static func _valid_linked_session(session: Dictionary) -> bool:
+	if not session.get("isLinkedAccount") is bool or not session["isLinkedAccount"] \
+		or not session.get("isAnonymous") is bool or session["isAnonymous"]:
+		return false
+	for key in ["appUserId", "platformToken", "refreshToken"]:
+		if not session.get(key) is String or session[key].strip_edges().is_empty():
+			return false
+	return true
+
+
+func _account_link_request(path: String, body: Dictionary, app_check_token: String, callback: Callable) -> void:
+	if not body.get("provider") in ["kakao", "apple", "google"]:
+		callback.call(_client_error("request_invalid", "지원하지 않는 로그인 방식이에요"))
+		return
+	if app_check_token.strip_edges().is_empty():
+		callback.call(_client_error("app_check_required", "앱 인증을 확인하지 못했어요"))
+		return
+	var request_generation := _auth_generation
+	with_token(func(token: String, error: Dictionary) -> void:
+		if request_generation != _auth_generation:
+			callback.call(_auth_state_changed_error())
+			return
+		if token.is_empty():
+			callback.call(_auth_error_response(error))
+			return
+		_transport.request({"method": "POST", "path": path, "base_url": _api_base_url,
+			"token": token, "body": body, "app_check_token": app_check_token, "no_retry": true},
+			func(response: Dictionary) -> void:
+				callback.call(response if request_generation == _auth_generation else _auth_state_changed_error())
+		)
+	)
 
 
 ## 유효한 토큰을 콜백으로 준다. 필요하면 갱신한다.
@@ -561,6 +653,7 @@ func _store_session(result: Dictionary) -> void:
 		"supportCode": String(result.get("supportCode", "")),
 		"appUserId": String(result.get("appUserId", "")),
 		"isAnonymous": bool(result.get("isAnonymous", false)),
+		"isLinkedAccount": result.get("isLinkedAccount") is bool and result["isLinkedAccount"],
 		# 공개 current_session의 expiresAt은 기기 sleep과 무관한 Unix epoch ms다.
 		"expiresAt": _now_unix_ms() + int(result.get("expiresIn", 3600)) * 1000,
 	}
@@ -1009,6 +1102,35 @@ func account_references(callback: Callable) -> void:
 	)
 
 
+## 확률 상자 상태와 공개 확률(ADR 0029).
+##
+## 구매 전에도 확률을 보여줘야 하므로 연결 전 게스트도 읽을 수 있다. 익명만 거부한다.
+## result: {linked, serverTime, state: BoxState, catalog: BoxCatalogView}
+func get_boxes(callback: Callable) -> void:
+	if is_anonymous():
+		callback.call(_client_error("anonymous_not_allowed", "로그인 후에 볼 수 있어요"))
+		return
+	_iap_request({"method": "GET", "path": "/v1/iap/boxes"}, callback)
+
+
+## 상자 하나를 서버가 연다(ADR 0029).
+##
+## request_id는 앱이 만들어 개봉 결과를 받을 때까지 보관한다. 응답이 모호하면
+## (timeout, 5xx) 같은 request_id로 다시 부르면 서버가 첫 결과를 돌려준다
+## (applied=false). 다른 IAP 요청처럼 일반 재시도는 하지 않는다.
+func open_box(request_id: String, callback: Callable) -> void:
+	if not _BOX_REQUEST_ID.search(request_id):
+		callback.call(_client_error("request_invalid", "상자 요청 id가 올바르지 않아요"))
+		return
+	if is_anonymous():
+		callback.call(_client_error("anonymous_not_allowed", "로그인 후에 열 수 있어요"))
+		return
+	_iap_request(
+		{"method": "POST", "path": "/v1/iap/boxes/open", "body": {"requestId": request_id}},
+		callback,
+	)
+
+
 ## 인증이 필요한 IAP 요청의 단일 경로다.
 ##
 ## 전송 계층의 일반 재시도는 모두 끈다. 인증 미들웨어가 원장에 닿기 전에
@@ -1164,6 +1286,64 @@ func _client_error(code: String, message: String) -> Dictionary:
 
 func _auth_state_changed_error() -> Dictionary:
 	return _client_error("auth_state_changed", "인증 상태가 바뀌었어요")
+
+
+## API 역할의 서버 우편함. 보상과 소유자는 요청 body로 보내지 않는다.
+func list_inbox(cursor: String, callback: Callable) -> void:
+	var path := "/v1/inbox"
+	if not cursor.is_empty():
+		path += "?cursor=" + cursor.uri_encode()
+	_inbox_request({"method": "GET", "path": path}, callback)
+
+
+func read_inbox(id: String, callback: Callable) -> void:
+	_inbox_request({"method": "POST", "path": "/v1/inbox/" + id.uri_encode() + "/read", "body": {}}, callback)
+
+
+func claim_inbox(id: String, callback: Callable) -> void:
+	_inbox_request({"method": "POST", "path": "/v1/inbox/" + id.uri_encode() + "/claim", "body": {}}, callback)
+
+
+func claim_inbox_batch(ids: Array, callback: Callable) -> void:
+	if ids.is_empty() or ids.size() > 50:
+		callback.call(_client_error("request_invalid", "우편은 1~50개씩 수령해 주세요"))
+		return
+	_inbox_request({"method": "POST", "path": "/v1/inbox/claim-batch", "body": {"ids": ids}}, callback)
+
+
+func _inbox_request(request_data: Dictionary, callback: Callable) -> void:
+	var generation := _auth_generation
+	with_token(func(token: String, error: Dictionary) -> void:
+		if token.is_empty():
+			callback.call(_auth_error_response(error))
+			return
+		_send_inbox_request(request_data, token, callback, generation, false)
+	)
+
+
+func _send_inbox_request(request_data: Dictionary, token: String, callback: Callable,
+	generation: int, replayed: bool) -> void:
+	if generation != _auth_generation:
+		callback.call(_auth_state_changed_error())
+		return
+	var request := request_data.duplicate(true)
+	request["base_url"] = _api_base_url
+	request["token"] = token
+	request["no_retry"] = true
+	_transport.request(request, func(response: Dictionary) -> void:
+		if generation != _auth_generation:
+			callback.call(_auth_state_changed_error())
+			return
+		if replayed or not _is_session_expired_response(response):
+			callback.call(response)
+			return
+		_refresh_after_session_expired(token, func(refreshed: String, error: Dictionary) -> void:
+			if refreshed.is_empty():
+				callback.call(_auth_error_response(error))
+				return
+			_send_inbox_request(request_data, refreshed, callback, generation, true)
+		)
+	)
 
 
 ## 서버/전송 계층의 완전한 envelope는 status와 local 판정을 보존한다.
