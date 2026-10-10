@@ -280,6 +280,9 @@ production 트랙은 `활성`이고 출시 버전은 `검토 중`, 대상 172개
   `features`는 `firebase_custom_token_bridge`만 true, 나머지(config·events·iap·ads)는 false다.
   기능을 켜는 배선은 후속 작업이며, 그때 `docs/07-qa/test-strategy.md`의 "platform SDK import는
   adapter 계층으로 제한한다" 규칙을 따른다.
+  - 2026-10-10 v0.9.0으로 교체했다. 같은 방식으로 Release asset을 검증해 addon을 통째로 바꿨고 기존
+    `.uid`는 유지했다. debug export 빌드가 Platform 요청에 `X-Seori-Build: debug`를 스스로 붙여 QA
+    기기 트래픽이 운영 가입 알림·지표에서 빠진다. 나머지는 함수·선택 인자 추가뿐이다.
 - 실 배포 전 필요한 GitHub secrets/vars:
   - secrets: `GOOGLE_PLAY_UPLOAD_KEYSTORE_BASE64`, `GOOGLE_PLAY_UPLOAD_KEYSTORE_PASSWORD`, `GOOGLE_PLAY_UPLOAD_KEY_PASSWORD`
   - vars: `GOOGLE_PLAY_UPLOAD_KEY_ALIAS`, `GOOGLE_WORKLOAD_IDENTITY_PROVIDER`, `GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL`
