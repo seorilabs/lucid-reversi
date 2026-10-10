@@ -82,3 +82,7 @@ logs/
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+
+# Platform SDK addon은 릴리스 묶음 그대로 둔다. Godot이 만드는 .uid를 커밋하면
+# Backoffice가 계산하는 addon tree checksum이 어긋나 SDK 0.9.0을 직접 만든 HTTP로 오인한다.
+/godot/addons/seorilabs_platform/**/*.uid
