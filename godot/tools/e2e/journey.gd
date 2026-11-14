@@ -38,7 +38,12 @@ func _run() -> void:
 	await _local_match()
 	await _puzzles()
 	await _restore_and_recover()
-	quit(driver.finish({"sourceSha": OS.get_environment("GITHUB_SHA"), "seed": 20261115}))
+	var status: int = driver.finish({"sourceSha": OS.get_environment("GITHUB_SHA"), "seed": 20261115})
+	driver.viewport.queue_free()
+	driver = null
+	await process_frame
+	await process_frame
+	call_deferred("quit", status)
 
 func _mount() -> void:
 	game = MainScene.instantiate()

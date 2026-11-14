@@ -18,7 +18,7 @@ out.mkdir(parents=True, exist_ok=True)
 now = lambda: dt.datetime.now(dt.timezone.utc).isoformat()
 metadata = {'plannedAt': now(), 'sourceSha': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(), 'status': 'running'}
 metadata['startedAt'] = now()
-command = [os.environ.get('GODOT_BIN', 'godot')]
+command = [os.environ.get('GODOT_BIN', 'godot'), '--audio-driver', 'Dummy']
 if not args.capture:
     command += ['--headless']
 command += ['--path', str(root/'godot'), '--script', 'res://tools/e2e/journey.gd', '--', '--out', str(out)]
