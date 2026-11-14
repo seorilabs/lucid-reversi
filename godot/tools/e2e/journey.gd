@@ -10,6 +10,14 @@ class AnalyticsSink:
 	func send(event_name: String, params: Dictionary) -> void:
 		events.append({"name": event_name, "params": params})
 
+class MusicSink:
+	extends RefCounted
+	var playing := false
+	func play() -> void:
+		playing = true
+	func stop() -> void:
+		playing = false
+
 var driver: RefCounted
 var game: Control
 var sandbox: String
@@ -50,6 +58,7 @@ func _mount() -> void:
 	game._save_path = sandbox.path_join("save.json")
 	game._prefs_path = sandbox.path_join("prefs.json")
 	game._game_seed_source = func() -> int: return 20261115
+	game.bgm_player = MusicSink.new()
 	game._interstitial_probe = func() -> void: ad_requests += 1
 	game._share_result_probe = func(value: String) -> void: shares.append(value)
 	game._shell_open_override = func(value: String) -> void: external_uris.append(value)
@@ -60,7 +69,11 @@ func _mount() -> void:
 	game.analytics.set_sender(sink)
 
 func _tap(control: Control, description: String) -> bool:
-	return driver.step(description, await driver.tap(control))
+	await driver.frames(4)
+	var ok: bool = await driver.tap(control)
+	if not ok:
+		await driver.shot("failed-%s" % description.validate_filename())
+	return driver.step(description, ok)
 
 func _tap_point(point: Vector2) -> void:
 	driver._push_button(point, true)
@@ -78,6 +91,7 @@ func _close_settings() -> void:
 	driver.step("outside tap closes settings", not game.settings_overlay.visible)
 
 func _choice(property: String, id: String) -> void:
+	await driver.frames(4)
 	var entries: Array = game.get(property)
 	for entry in entries:
 		if str(entry.id) == id:
@@ -156,6 +170,8 @@ func _settings() -> void:
 		var before: bool = game.get(property).button_pressed
 		await _tap(game.get(property), "toggle %s" % property)
 		driver.expect_equal("toggle changes %s" % property, game.get(property).button_pressed, not before)
+		if property == "music_toggle":
+			driver.expect_equal("music command reaches audio boundary", bool(game.bgm_player.playing), not before)
 		if property != "reduce_motion_toggle":
 			await _tap(game.get(property), "restore %s" % property)
 	await _choice("font_scale_buttons", "1.3")
