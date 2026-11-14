@@ -127,7 +127,7 @@ func _tutorial() -> void:
 	await _tap(game.how_to_play_next_button, "tutorial final step")
 	await _tap(game.how_to_play_next_button, "complete tutorial")
 	driver.step("tutorial completion persisted", not game.how_to_play_overlay.visible and FileAccess.file_exists(game._prefs_path))
-	for item in [["launcher_192.png", 192], ["adaptive_foreground_432.png", 432], ["adaptive_background_432.png", 432]]:
+	for item in [["launcher_192.png", 192], ["adaptive_foreground_432.png", 432], ["adaptive_background_432.png", 432], ["adaptive_monochrome_432.svg", 432]]:
 		var texture := load("res://branding/android/%s" % item[0]) as Texture2D
 		driver.step("Android icon size %s" % item[0], texture != null and texture.get_width() == item[1] and texture.get_height() == item[1])
 	await driver.shot("02-board")
