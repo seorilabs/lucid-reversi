@@ -23,7 +23,6 @@ jobs:
       runs_on: ${{ github.event.repository.private && 'seorilabs-x64' || 'ubuntu-latest' }}
       godot_version: "4.7.2"
       project_dir: godot
-      with_rendering: true
       e2e_report_path: build/e2e*
       check_command: |
         npm run test:core
@@ -31,4 +30,8 @@ jobs:
         npm run check:docs
         bash scripts/godot_quality_gate.sh --project godot --smoke-scene res://tests/test_runner.tscn
         npm run test:e2e
+        if ! command -v xvfb-run >/dev/null || ! command -v xauth >/dev/null; then
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth
+        fi
         xvfb-run -a npm run test:e2e:render
