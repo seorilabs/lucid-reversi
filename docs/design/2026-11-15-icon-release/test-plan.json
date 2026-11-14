@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "level": "L3",
+  "baseline": "v2.2.8",
+  "changedFeatures": [
+    "app-icon",
+    "first-run-tutorial",
+    "ai-match",
+    "local-match",
+    "anti-reversi",
+    "puzzles",
+    "results-replay",
+    "save-restore",
+    "settings-localization",
+    "visual-customization",
+    "accessibility",
+    "audio-haptics",
+    "analytics",
+    "native-admob",
+    "native-shell"
+  ],
+  "environments": [
+    "dev"
+  ],
+  "redesign": false,
+  "foundationRerun": true,
+  "floorOverrides": [],
+  "release": {
+    "markets": [
+      "google-play"
+    ],
+    "until": "public",
+    "rollout": 1
+  }
+}

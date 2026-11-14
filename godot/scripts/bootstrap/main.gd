@@ -519,6 +519,7 @@ var analytics: ReversiAnalytics
 var _mobile_ads: Node
 var _haptic_probe: Callable
 var _interstitial_probe: Callable
+var _game_seed_source: Callable
 var _save_path := SAVE_PATH
 var _prefs_path := PREFS_PATH
 var _motion_tween_count := 0
@@ -683,6 +684,9 @@ static func configure_screen_keep_on(
 
 
 func _exit_tree() -> void:
+	if bgm_player != null and is_instance_valid(bgm_player):
+		bgm_player.call("stop")
+	bgm_player = null
 	if _active_ai_search_thread != null and _active_ai_search_thread.is_started():
 		_active_ai_search_thread.wait_to_finish()
 	_active_ai_search_thread = null
@@ -702,6 +706,7 @@ func _load_or_start() -> void:
 			player_stone,
 			difficulty,
 			preferred_board_size,
+			_next_game_seed(),
 		)
 	else:
 		state = loaded
@@ -2330,6 +2335,7 @@ func _make_segment_button(text: String, action: Callable) -> Button:
 
 func _make_action_button(text: String, action: Callable, primary: bool = false) -> Button:
 	var button := Button.new()
+	button.mouse_filter = Control.MOUSE_FILTER_PASS
 	button.custom_minimum_size = Vector2(128, ACTION_BUTTON_HEIGHT)
 	button.text = text
 	button.focus_mode = Control.FOCUS_NONE
@@ -2446,6 +2452,7 @@ func _make_choice_section(title_text: String, option_ids: Array, option_labels: 
 
 func _make_choice_button(text: String, active: bool) -> Button:
 	var button := Button.new()
+	button.mouse_filter = Control.MOUSE_FILTER_PASS
 	button.custom_minimum_size = Vector2(0, SETTINGS_CHOICE_HEIGHT)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.text = text
@@ -2459,6 +2466,7 @@ func _make_choice_button(text: String, active: bool) -> Button:
 
 func _make_toggle_button(text: String, key: String) -> CheckButton:
 	var toggle := CheckButton.new()
+	toggle.mouse_filter = Control.MOUSE_FILTER_PASS
 	toggle.custom_minimum_size = Vector2(0, ACTION_BUTTON_HEIGHT)
 	toggle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	toggle.text = text
@@ -2536,7 +2544,7 @@ func _puzzle_overlay_tap_should_close(event: InputEvent) -> bool:
 
 func _start_puzzle(puzzle_id: String) -> bool:
 	var definition := PuzzleCatalog.get_by_id(puzzle_id)
-	var puzzle_state := PuzzleCatalog.create_state(definition)
+	var puzzle_state := PuzzleCatalog.create_state(definition, _next_game_seed())
 	if puzzle_state.is_empty():
 		return false
 	_clear_hint_highlight()
@@ -3014,7 +3022,7 @@ func _start_new_game(stone: int, persist: bool = true) -> void:
 	var rebuild_board := cell_buttons.size() != board_size
 	_clear_active_puzzle()
 	player_stone = stone
-	state = ReversiEngine.create_new_game(player_stone, difficulty, board_size)
+	state = ReversiEngine.create_new_game(player_stone, difficulty, board_size, _next_game_seed())
 	current_settings["board_size"] = board_size
 	state["settings"] = current_settings
 	state["stats"] = current_stats
@@ -3027,6 +3035,10 @@ func _start_new_game(stone: int, persist: bool = true) -> void:
 	if analytics != null and !_is_local_game():
 		analytics.on_game_start(difficulty, player_stone)
 	call_deferred("_maybe_play_ai_turn")
+
+
+func _next_game_seed() -> int:
+	return int(_game_seed_source.call()) if _game_seed_source.is_valid() else -1
 
 
 static func cell_size_for_board(board_size: int) -> int:
