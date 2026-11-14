@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 2,
+  "e2e": {
+    "workflow": ".github/workflows/godot-checks.yml",
+    "command": "npm run test:e2e"
+  },
+  "features": [
+    {
+      "id": "app-icon",
+      "core": false,
+      "paths": [
+        "godot/branding/android/**",
+        "play-store/assets/icon-512*"
+      ]
+    },
+    {
+      "id": "first-run-tutorial",
+      "core": false,
+      "paths": [
+        "godot/scripts/bootstrap/main.gd"
+      ]
+    },
+    {
+      "id": "ai-match",
+      "core": true,
+      "paths": [
+        "godot/scripts/bootstrap/main.gd",
+        "godot/scripts/reversi_engine.gd"
+      ]
+    },
+    {
+      "id": "local-match",
+      "core": true,
+      "paths": [
+        "godot/scripts/bootstrap/main.gd",
+        "godot/scripts/reversi_engine.gd"
+      ]
+    },
+    {
+      "id": "anti-reversi",
+      "core": false,
+      "paths": [
+        "godot/scripts/bootstrap/main.gd",
+        "godot/scripts/reversi_engine.gd"
+      ]
+    },
+    {
+      "id": "puzzles",
+      "core": false,
+      "paths": [
+        "godot/scripts/bootstrap/main.gd",
+        "godot/scripts/puzzle_catalog.gd"
+      ]
+    },
+    {
+      "id": "results-replay",
+      "core": false,
+      "paths": [
+        "godot/scripts/bootstrap/main.gd"
+      ]
+    },
+    {
+      "id": "save-restore",
+      "core": true,
+      "paths": [
+        "godot/scripts/bootstrap/main.gd",
+        "godot/scripts/reversi_engine.gd"
+      ],
+      "foundation": true
+    },
+    {
+      "id": "settings-localization",
+      "core": false,
+      "paths": [
+        "godot/scripts/bootstrap/main.gd"
+      ]
+    },
+    {
+      "id": "visual-customization",
+      "core": false,
+      "paths": [
+        "godot/scripts/bootstrap/main.gd"
+      ]
+    },
+    {
+      "id": "accessibility",
+      "core": false,
+      "paths": [
+        "godot/scripts/bootstrap/main.gd"
+      ]
+    },
+    {
+      "id": "audio-haptics",
+      "core": false,
+      "paths": [
+        "godot/scripts/bootstrap/main.gd"
+      ]
+    },
+    {
+      "id": "analytics",
+      "core": false,
+      "paths": [
+        "godot/scripts/analytics.gd",
+        "godot/scripts/ga4_mp_sender.gd"
+      ]
+    },
+    {
+      "id": "native-admob",
+      "core": false,
+      "paths": [
+        "godot/scripts/mobile_ads.gd",
+        "godot/addons/AdmobPlugin/**"
+      ],
+      "platformPaths": [
+        "godot/scripts/mobile_ads.gd",
+        "godot/addons/AdmobPlugin/**"
+      ],
+      "foundation": true
+    },
+    {
+      "id": "native-shell",
+      "core": false,
+      "paths": [
+        "godot/scripts/bootstrap/main.gd"
+      ],
+      "platformPaths": [
+        "godot/scripts/bootstrap/main.gd"
+      ],
+      "foundation": true
+    }
+  ]
+}

@@ -2330,6 +2330,7 @@ func _make_segment_button(text: String, action: Callable) -> Button:
 
 func _make_action_button(text: String, action: Callable, primary: bool = false) -> Button:
 	var button := Button.new()
+	button.mouse_filter = Control.MOUSE_FILTER_PASS
 	button.custom_minimum_size = Vector2(128, ACTION_BUTTON_HEIGHT)
 	button.text = text
 	button.focus_mode = Control.FOCUS_NONE
@@ -2446,6 +2447,7 @@ func _make_choice_section(title_text: String, option_ids: Array, option_labels: 
 
 func _make_choice_button(text: String, active: bool) -> Button:
 	var button := Button.new()
+	button.mouse_filter = Control.MOUSE_FILTER_PASS
 	button.custom_minimum_size = Vector2(0, SETTINGS_CHOICE_HEIGHT)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.text = text
@@ -2459,6 +2461,7 @@ func _make_choice_button(text: String, active: bool) -> Button:
 
 func _make_toggle_button(text: String, key: String) -> CheckButton:
 	var toggle := CheckButton.new()
+	toggle.mouse_filter = Control.MOUSE_FILTER_PASS
 	toggle.custom_minimum_size = Vector2(0, ACTION_BUTTON_HEIGHT)
 	toggle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	toggle.text = text
