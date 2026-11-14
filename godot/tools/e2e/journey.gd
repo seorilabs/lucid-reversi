@@ -203,7 +203,11 @@ func _ai_finish() -> void:
 	driver.expect_equal("one result counted", int(stats.wins) + int(stats.draws) + int(stats.losses), 1)
 	await driver.shot("03b-ai-result-stats")
 	await _tap(game.result_restart_button, "restart after AI game")
+	await _settle()
 	await _tap(game.black_button, "choose black")
+	if game.new_game_confirmation_overlay.visible:
+		await _tap(game.new_game_confirmation_confirm_button, "confirm color change after AI opening")
+	await _settle()
 	driver.expect_equal("black player selected", game.player_stone, EngineRules.BLACK)
 	driver.end()
 
