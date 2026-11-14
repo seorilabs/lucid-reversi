@@ -1,5 +1,17 @@
 # Work Log
 
+## 2026-11-15 — Android 앱 아이콘 수정
+
+- 사용자 요청으로 서리 공용 아이콘 사용 여부를 확인했다. Android export preset이 참조하는 `godot/branding/android/launcher_192.png`와 `adaptive_foreground_432.png`가 실제 서리 로고였다. Play 등록 아이콘은 이미 리버시 흑백 돌이라 설치 앱과 달랐다.
+- 새 아트를 도입하지 않고 `play-store/assets/icon-512.png`와 `icon-512.source.html`의 기존 Moonlit Lacquer 흑백 돌을 재사용했다. 일반 아이콘은 192×192 RGB, 적응형 전경은 432×432 RGBA, 배경은 432×432 RGB다.
+- 적응형 전경은 512px 원본에서 돌 레이어만 0.546875배로 축소하고 (76, 76)px에 놓았다. 배경은 원본의 lacquer·moon 레이어를 432×432로 렌더링했다. 전경의 불투명 픽셀 최대 반경은 121.723px로 Godot/Android의 중앙 안전 반경 132px 안에 들어간다. 중앙 288×288 영역에 원형·둥근 사각형 마스크를 적용한 미리보기를 직접 확인했다.
+- 변경은 Android PNG 3개뿐이다. export 설정·식별자·게임 로직·저장·SDK 연결·시작 스플래시는 바꾸지 않았다. iOS와 AppsInToss 아이콘은 공용 서리 로고가 아니므로 이번 수정에 포함하지 않는다.
+- 검증: Godot 4.7.2에서 `npm test` 통과(core, architecture, import, compile, smoke 484개, docs). `npm run check:release`도 placeholder 없음으로 통과했다. 바이너리 에셋 교체이므로 별도 구현 대응 테스트·로컬 모델 코드 리뷰는 추가하지 않았다.
+- 배포는 미완료다. 최신 중앙 계약 `5d7f6d3`의 `verify-development-evidence.mjs --target google-play --phase before-build`가 현재 main에서 `DEVELOPMENT_EVIDENCE_ARCHIVE_MISSING`으로 종료했다. `docs/qa/feature-inventory.json`, 승인 설계와 `test-plan.json`, E1~E8 E2E 및 후보 SHA에 결속한 개발 근거 Release가 없어 기존 smoke 결과만으로 빌드·업로드·공개를 승인할 수 없다. 검사 우회나 가짜 통과 기록을 만들지 않는다.
+- 증적 보관 위치: `smb://nas1dual/Data/Backup/agent-artifacts/lucid-reversi/2026-11-15/2270374904fce0530b8285e48fecb9948071d665/android-icon`(PNG 검수 원본, 실행 로그, 해시 검증 목록).
+- Play Console readback: 기존 `Seolee Apps` 계정의 현재 표시명은 `Seori Apps`, 개인 계정 ID는 `5547060480954653351`로 동일했다. 이 계정에서 `com.etlegame.reversi` / `Lucid Reversi`를 확인했고, 대시보드는 프로덕션 100% 및 미게시 변경 없음으로 표시했다. 이 기록은 수정 아이콘의 배포 완료를 뜻하지 않는다.
+- 추적: [#162](https://github.com/seorilabs/lucid-reversi/issues/162). 사용자의 마켓 배포 지시는 유효하나 중앙 검증 차단은 별도 해결해야 한다. 기기 조회·설치·실행은 하지 않았다.
+
 ## 2026-09-18
 
 - Approved direction B, Moonlit Lacquer, as the representative gameplay-screen visual baseline.
