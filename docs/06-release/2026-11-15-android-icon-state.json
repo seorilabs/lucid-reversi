@@ -1,0 +1,351 @@
+{
+  "schemaVersion": 1,
+  "app": {
+    "name": "Lucid Reversi",
+    "repo": "seorilabs/lucid-reversi",
+    "sourceRevision": "5b8268b10ea925bad0aa80bdd5a25ebed24d08e2"
+  },
+  "release": {
+    "version": "2.2.12",
+    "tag": "v2.2.12",
+    "objective": "public_live",
+    "countries": [
+      "AE",
+      "AG",
+      "AL",
+      "AM",
+      "AO",
+      "AR",
+      "AT",
+      "AU",
+      "AW",
+      "AZ",
+      "BA",
+      "BD",
+      "BE",
+      "BF",
+      "BG",
+      "BH",
+      "BJ",
+      "BM",
+      "BO",
+      "BR",
+      "BS",
+      "BW",
+      "BY",
+      "BZ",
+      "CA",
+      "CD",
+      "CG",
+      "CH",
+      "CI",
+      "CL",
+      "CM",
+      "CO",
+      "CR",
+      "CV",
+      "CY",
+      "CZ",
+      "DE",
+      "DJ",
+      "DK",
+      "DM",
+      "DO",
+      "DZ",
+      "EC",
+      "EE",
+      "EG",
+      "ER",
+      "ES",
+      "ET",
+      "FI",
+      "FJ",
+      "FM",
+      "FR",
+      "GA",
+      "GB",
+      "GD",
+      "GE",
+      "GH",
+      "GI",
+      "GM",
+      "GN",
+      "GR",
+      "GT",
+      "GW",
+      "HK",
+      "HN",
+      "HR",
+      "HT",
+      "HU",
+      "ID",
+      "IE",
+      "IL",
+      "IN",
+      "IQ",
+      "IS",
+      "IT",
+      "JM",
+      "JO",
+      "JP",
+      "KE",
+      "KG",
+      "KH",
+      "KM",
+      "KN",
+      "KR",
+      "KW",
+      "KY",
+      "KZ",
+      "LA",
+      "LB",
+      "LC",
+      "LI",
+      "LK",
+      "LR",
+      "LT",
+      "LU",
+      "LV",
+      "LY",
+      "MA",
+      "MC",
+      "MD",
+      "MK",
+      "ML",
+      "MN",
+      "MO",
+      "MT",
+      "MU",
+      "MV",
+      "MX",
+      "MY",
+      "MZ",
+      "NA",
+      "NE",
+      "NG",
+      "NI",
+      "NL",
+      "NO",
+      "NP",
+      "NZ",
+      "OM",
+      "PA",
+      "PE",
+      "PG",
+      "PH",
+      "PK",
+      "PL",
+      "PT",
+      "PY",
+      "QA",
+      "RO",
+      "RS",
+      "RU",
+      "RW",
+      "SA",
+      "SB",
+      "SC",
+      "SE",
+      "SG",
+      "SI",
+      "SK",
+      "SL",
+      "SM",
+      "SN",
+      "SO",
+      "SR",
+      "SV",
+      "TC",
+      "TD",
+      "TG",
+      "TH",
+      "TJ",
+      "TM",
+      "TN",
+      "TO",
+      "TR",
+      "TT",
+      "TW",
+      "TZ",
+      "UA",
+      "UG",
+      "US",
+      "UY",
+      "UZ",
+      "VA",
+      "VE",
+      "VG",
+      "VN",
+      "VU",
+      "WS",
+      "YE",
+      "ZA",
+      "ZM",
+      "ZW"
+    ],
+    "rolloutMode": "full (1.0), preserve existing production countries",
+    "restOfWorld": true
+  },
+  "deploymentApproval": {
+    "status": "approved",
+    "markets": [
+      "google_play"
+    ],
+    "objective": "public_live",
+    "approvedAt": "2026-11-15",
+    "approvalTimePrecision": "date only, Asia/Seoul; exact chat timestamp unavailable",
+    "evidence": [
+      "Current user instruction: 마켓 배포까지 진행해라",
+      "docs/design/2026-11-15-icon-release/design.md in 9571553c410d45a0a3a3b03809b3d27bf3eda9d9"
+    ]
+  },
+  "commonGates": {
+    "candidate": {
+      "status": "pass",
+      "evidence": [
+        "v2.2.12-tag-receipt.txt: 5b8268b10ea925bad0aa80bdd5a25ebed24d08e2, Android54"
+      ],
+      "checkedAt": "2026-11-14T17:10:56.095273+00:00",
+      "blocker": null
+    },
+    "quality": {
+      "status": "pass",
+      "evidence": [
+        "https://github.com/seorilabs/lucid-reversi/actions/runs/43617316407",
+        "v2.2.12/before-build.log and before-deploy.log: L3 passed"
+      ],
+      "checkedAt": "2026-11-14T17:10:56.095273+00:00",
+      "blocker": null
+    },
+    "production_dependencies": {
+      "status": "pass",
+      "evidence": [
+        "No accounts, IAP or Firebase dependency; current AAB AdMob app id matches registered app, release GA4 config exists and has required fields",
+        "Privacy and support URLs HTTP200 read during this run; URLs and declarations preserved"
+      ],
+      "checkedAt": "2026-11-14T17:10:56.095273+00:00",
+      "blocker": null
+    },
+    "observability": {
+      "status": "pending",
+      "evidence": [
+        "Release GA4 config presence validated without exposing values; actual new-candidate runtime and service telemetry unrun"
+      ],
+      "checkedAt": "2026-11-14T17:10:56.095273+00:00",
+      "blocker": null
+    }
+  },
+  "markets": {
+    "google_play": {
+      "objective": "public_live",
+      "state": "processing",
+      "identity": {
+        "applicationId": "com.etlegame.reversi",
+        "version": "2.2.12",
+        "build": "54"
+      },
+      "gates": {
+        "candidate": {
+          "status": "pass",
+          "evidence": [
+            "Tag/source/package/code54 fixed; existing free distribution and 172 explicit countries plus restOfWorld retained"
+          ],
+          "checkedAt": "2026-11-14T17:10:56.095273+00:00",
+          "blocker": null
+        },
+        "artifact": {
+          "status": "pass",
+          "evidence": [
+            "v2.2.12/artifact-inspection.json",
+            "v2.2.12/android-aab-independent-report.md",
+            "AAB sha256 e8177619f6f64b76efa5b9c8949aac275ec2d3a519fd83bc403b5221e7029bea; cert matches Console DER"
+          ],
+          "checkedAt": "2026-11-14T17:10:56.095273+00:00",
+          "blocker": null
+        },
+        "upload": {
+          "status": "pass",
+          "evidence": [
+            "v2.2.12/local-upload-receipt.json",
+            "Publisher internal completed54, bundle SHA matches AAB"
+          ],
+          "checkedAt": "2026-11-14T17:02:32.376265+00:00",
+          "blocker": null
+        },
+        "processing": {
+          "status": "pass",
+          "evidence": [
+            "generatedApks54 available with Play signing cert b067f7f6d426d114e963a782fd4075c643785798833fdb53dde4846b3309fc01",
+            "Console: internal testers provided54; pre-launch report not used as proof"
+          ],
+          "checkedAt": "2026-11-14T17:02:32.376265+00:00",
+          "blocker": null
+        },
+        "qa": {
+          "status": "blocked",
+          "evidence": [
+            "Exact-SHA CI and offline AAB inspection passed; android-minimal-plan-v2.2.12.md unrun",
+            "v2.2.12/before-release-pending.log: native-admob/native-shell platform-first floors remain"
+          ],
+          "checkedAt": "2026-11-14T17:10:56.095273+00:00",
+          "blocker": "Awaiting explicit approval for minimal Android launcher/startup/native callback run; no device query before approval"
+        },
+        "metadata": {
+          "status": "pass",
+          "evidence": [
+            "All three locale listing sources checked; ko fullDescription correction saved and reread as source match, pending review",
+            "v2.2.12/ko-listing-readback.json; release notes3locales read from actual internal release; current Play icon already matches512 source"
+          ],
+          "checkedAt": "2026-11-14T17:10:56.095273+00:00",
+          "blocker": null
+        },
+        "policy": {
+          "status": "pass",
+          "evidence": [
+            "Existing free, countries, target declarations, privacy/support and no-login behavior preserved; app-content attention0 checked",
+            "Inherited trader yes was sent for review by internal commit; latest Console shows trader declaration in review. Korean description change remains unsent; do not cancel existing review."
+          ],
+          "checkedAt": "2026-11-14T17:10:56.095273+00:00",
+          "blocker": null
+        },
+        "submission": {
+          "status": "pending",
+          "evidence": [],
+          "checkedAt": null,
+          "blocker": null
+        },
+        "approval": {
+          "status": "pending",
+          "evidence": [],
+          "checkedAt": null,
+          "blocker": null
+        },
+        "release": {
+          "status": "pending",
+          "evidence": [],
+          "checkedAt": null,
+          "blocker": null
+        },
+        "live_smoke": {
+          "status": "pending",
+          "evidence": [],
+          "checkedAt": null,
+          "blocker": null
+        }
+      },
+      "buildWorkflow": "https://github.com/seorilabs/lucid-reversi/actions/runs/43617754494",
+      "sourceBinding": "5b8268b10ea925bad0aa80bdd5a25ebed24d08e2",
+      "executionWorkflowRevision": "5b8268b10ea925bad0aa80bdd5a25ebed24d08e2",
+      "internalTestUrl": "https://play.google.com/apps/internaltest/4697313818927309750",
+      "deviceApproval": "pending; no Android device query or operation performed",
+      "reviewReadback": "Production54 not submitted; app-level trader declaration in review; ko-KR fullDescription ready for review but unsent (Console17:12:31Z)"
+    }
+  },
+  "evidenceArchive": {
+    "uri": "smb://nas1dual/Data/Backup/agent-artifacts/lucid-reversi/2026-11-15/5b8268b10ea925bad0aa80bdd5a25ebed24d08e2/icon-release",
+    "files": 456,
+    "bytes": 201794364,
+    "manifestSha256": "536a94ce0be69237675ed652a73cd6b17fd1acb3a038cbd600f0e31429688657",
+    "verified": true
+  }
+}
