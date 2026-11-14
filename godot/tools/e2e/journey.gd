@@ -49,6 +49,7 @@ func _mount() -> void:
 	game = MainScene.instantiate()
 	game._save_path = sandbox.path_join("save.json")
 	game._prefs_path = sandbox.path_join("prefs.json")
+	game._game_seed_source = func() -> int: return 20261115
 	game._interstitial_probe = func() -> void: ad_requests += 1
 	game._share_result_probe = func(value: String) -> void: shares.append(value)
 	game._shell_open_override = func(value: String) -> void: external_uris.append(value)
@@ -101,6 +102,7 @@ func _play_one_move() -> void:
 func _tutorial() -> void:
 	driver.begin("first-run-and-icons", ["first-run-tutorial", "app-icon"])
 	driver.step("actual start scene", game.scene_file_path == "res://scenes/main.tscn")
+	driver.expect_equal("isolated deterministic random seed", int(game.state.game_seed), 20261115)
 	driver.step("tutorial appears on first run", game.how_to_play_overlay.visible)
 	await driver.shot("01-first-run")
 	for index in range(3):
