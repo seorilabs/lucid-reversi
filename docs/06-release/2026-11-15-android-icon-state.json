@@ -240,7 +240,7 @@
   "markets": {
     "google_play": {
       "objective": "public_live",
-      "state": "submission",
+      "state": "metadata",
       "identity": {
         "applicationId": "com.etlegame.reversi",
         "version": "2.2.12",
@@ -296,31 +296,32 @@
         "metadata": {
           "status": "pass",
           "evidence": [
-            "All three locale sources and actual production release notes checked; ko fullDescription correction saved and API readback SHA256967f4ceabe938460dade33e3d77e194568b467810a151e9885e31773fc761cd8",
-            "Console submission81 includes ko-KR description correction with production54; current Play listing icon already matched approved product source"
+            "https://github.com/seorilabs/seorilabs-official/pull/125",
+            "https://github.com/seorilabs/seorilabs-official/actions/runs/43677219193",
+            "2026-11-15T04:34:34Z: Korean and English product privacy HTTP200, optional sender name/email/message and SDK4types text reread; exact existing54 notes/countries and AAB hash retained"
           ],
-          "checkedAt": "2026-11-15T02:17:23.059004+00:00",
+          "checkedAt": "2026-11-15T04:40:57.577345+00:00",
           "blocker": null
         },
         "policy": {
-          "status": "pass",
+          "status": "pending",
           "evidence": [
-            "Prior app-content trader declaration submission80 is released; submission81 contains only production and ko-KR listing changes",
-            "Existing free distribution, approved declarations and countries retained; managed publishing disabled"
+            "Code54 NOT_APPROVED and code50 PUBLISHED read from official applications.tracks.releases.list API at04:35:43Z and04:40:57Z",
+            "Reviewed8data-type CSV saved via applications.dataSafety HTTP204 at04:37:52Z; actual Console full form preview and Google approval remain unverified",
+            "play-store/policy/data-safety.json; payload SHA256a82013a07809162139ddc0036b4cdaaf13724a6a674a5028b7846df9853a7528"
           ],
-          "checkedAt": "2026-11-15T02:18:39.817808+00:00",
+          "checkedAt": "2026-11-15T04:40:57.577345+00:00",
           "blocker": null
         },
         "submission": {
-          "status": "pass",
+          "status": "blocked",
           "evidence": [
-            "https://github.com/seorilabs/lucid-reversi/actions/runs/43666943973",
-            "https://play.google.com/console/u/0/developers/5547060480954653351/app/4973741703890923260/publishing/submission-activity/81/details",
-            "Console submission81: API source, submitted 2026-11-15 11:16 KST; production v2.2.12 full rollout and ko-KR fullDescription changes in review",
-            "Publisher2026-11-15T02:17:23.059004+00:00: production completed54, release notes en-US/ja-JP/ko-KR, exact AAB hash unchanged, 172 explicit countries plus restOfWorld true, own read-only edit cleanup204"
+            "API validation400 explicitly requires Console UI manual review send after rejection",
+            "Exact same production54 staged and committed with changesNotSentForReview=true, ERROR_IF_IN_REVIEW, HTTP200, edit07627815509965188082 at04:40:28Z; no review cancellation",
+            "Current release state remains NOT_APPROVED; no correction review submitted and no new Console submission ID read"
           ],
-          "checkedAt": "2026-11-15T02:18:39.817808+00:00",
-          "blocker": null
+          "checkedAt": "2026-11-15T04:40:57.577345+00:00",
+          "blocker": "Google requires manual Console review send; Google blocks automated browser login, owner manual login pending"
         },
         "approval": {
           "status": "pending",
@@ -348,13 +349,13 @@
       "executionWorkflowRevision": "5b8268b10ea925bad0aa80bdd5a25ebed24d08e2",
       "internalTestUrl": "https://play.google.com/apps/internaltest/4697313818927309750",
       "deviceApproval": "Explicit user approval received before first access; only approved Android10 launcher/cold-start/automatic native callbacks executed; target app stopped and installed data preserved",
-      "reviewReadback": "Submission81 / production v2.2.12 full rollout plus ko-KR description / in review; pre-review checks completed by02:21:13UTC, no unsent changes; managed publishing disabled; KR/US public listing still2.2.8 at02:20:46UTC",
+      "reviewReadback": "Official release lifecycle API04:40:57Z: v2.2.12(54) NOT_APPROVED; v2.2.8(50) PUBLISHED. Revised Data safety write204 and unsubmitted stage commit200 confirmed separately. Console full-form readback and actual review send remain pending.",
       "promotionWorkflow": "https://github.com/seorilabs/lucid-reversi/actions/runs/43666943973",
       "submissionId": "81",
       "submissionUrl": "https://play.google.com/console/u/0/developers/5547060480954653351/app/4973741703890923260/publishing/submission-activity/81/details",
       "deviceEvidence": "https://github.com/seorilabs/lucid-reversi/releases/download/v2.2.12/android-qa-v2.2.12-54.json",
-      "reviewOwner": "Google Play",
-      "nextTransition": "Google approval automatically publishes full release because managed publishing is disabled; verify actual public54 after review",
+      "reviewOwner": "Developer Console manual review send required before Google can review correction",
+      "nextTransition": "Owner completes dedicated Edge login; reread and verify saved Data safety full form and publishing changes; click manual Console send for same54; read new submission and lifecycle state, then approval/public availability",
       "releaseNotification": {
         "id": "lucid-reversi-v2.2.12-build54-production-submission81",
         "eventId": "cmwh7gmb5lm8ax801lco2lsx3",
@@ -362,7 +363,34 @@
         "delivered": true,
         "deliveryStatus": "SENT"
       },
-      "lastCheckedAt": "2026-11-15T02:21:13.205774+00:00"
+      "lastCheckedAt": "2026-11-15T04:40:57.577345+00:00",
+      "policyCorrection": {
+        "candidateUnchanged": true,
+        "inventory": "play-store/policy/data-safety.json",
+        "csv": "play-store/policy/data-safety.csv",
+        "status": "applied-by-api-awaiting-console-review-send",
+        "ownerReportedIssue": "Google: version54 / Personal info / Email address",
+        "reportTimestampPrecision": "date only; exact chat timestamp unavailable",
+        "sitePr": "https://github.com/seorilabs/seorilabs-official/pull/125",
+        "siteStatus": "public deployed and both language bodies reread04:34:34Z",
+        "authenticationStatus": "provider_blocked; dedicated Edge handed to owner for manual login",
+        "resubmitted": false,
+        "checkedAt": "2026-11-15T04:40:57.577345+00:00",
+        "siteDeployment": "https://github.com/seorilabs/seorilabs-official/actions/runs/43677219193",
+        "apiWriteStatus": 204,
+        "apiWriteAt": "2026-11-15T04:37:52.891589+00:00",
+        "stagedEditId": "07627815509965188082",
+        "stagedCommitStatus": 200,
+        "stagedCommitAt": "2026-11-15T04:40:28.033805+00:00",
+        "newConsoleSubmissionId": null,
+        "releaseNotification": {
+          "id": "lucid-reversi-v2.2.12-build54-data-safety-manual-review",
+          "eventId": "cmwhcp974wgxbx801ifp8unrh",
+          "accepted": true,
+          "delivered": false,
+          "status": "PENDING at script wait deadline; not claimed delivered"
+        }
+      }
     }
   },
   "evidenceArchive": {
@@ -379,6 +407,14 @@
     "manifestSha256": "efa5cf281c64695b5495ff852eebc0bc8da72525d77e049baf0e2e86647ccf81",
     "verified": true,
     "inheritedFiles": 4,
+    "retention": "No expiry deletion authorized"
+  },
+  "dataSafetyCorrectionArchive": {
+    "uri": "smb://nas1dual/Data/Backup/agent-artifacts/lucid-reversi/2026-11-15/5b8268b10ea925bad0aa80bdd5a25ebed24d08e2/data-safety54-20261115T044717Z",
+    "files": 44,
+    "bytes": 2496648,
+    "manifestSha256": "746f27fc0fac071b0b751a6a32f5941c3aabe9e29828c77bd6871f49a838948f",
+    "verified": true,
     "retention": "No expiry deletion authorized"
   }
 }

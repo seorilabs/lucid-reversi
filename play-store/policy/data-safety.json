@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "packageName": "com.etlegame.reversi",
+  "candidate": {
+    "tag": "v2.2.12",
+    "versionCode": 54,
+    "sourceSha": "5b8268b10ea925bad0aa80bdd5a25ebed24d08e2"
+  },
+  "status": "applied-by-api-awaiting-console-review-send",
+  "reviewedAt": "2026-11-15",
+  "issue": "Google-reported policy declaration mismatch: Personal info / Email address for code54; exact network request attribution not proven",
+  "collectsOrShares": true,
+  "encryptedInTransit": true,
+  "encryptionBasis": "Existing Console declaration preserved for actual in-app HTTPS GA4 and AdMob TLS transport. Optional support email is sent through a separate mail app and follows that provider security, as explained in privacy policy; do not claim app sends or reads the user mailbox.",
+  "userCanRequestDeletion": true,
+  "deletionBasis": "Existing privacy contact cs@seorilabs.com; no app accounts. Do not claim arbitrary anonymous analytics can be associated with a support email.",
+  "privacyPolicyUrls": [
+    "https://www.seorilabs.com/apps/lucid-reversi/privacy/",
+    "https://www.seorilabs.com/en/apps/lucid-reversi/privacy/"
+  ],
+  "dataTypes": [
+    {
+      "id": "PSL_NAME",
+      "label": "이름",
+      "collected": true,
+      "shared": false,
+      "ephemeral": false,
+      "optional": true,
+      "collectionPurposes": [
+        "PSL_APP_FUNCTIONALITY"
+      ],
+      "sharingPurposes": [],
+      "basis": "사용자가 지원 메일에 포함해 보낸 발신자 표시 이름",
+      "source": "godot/scripts/bootstrap/main.gd:2395-2397; existing support contact path and product privacy policy"
+    },
+    {
+      "id": "PSL_EMAIL",
+      "label": "이메일 주소",
+      "collected": true,
+      "shared": false,
+      "ephemeral": false,
+      "optional": true,
+      "collectionPurposes": [
+        "PSL_APP_FUNCTIONALITY"
+      ],
+      "sharingPurposes": [],
+      "basis": "설정의 mailto 지원 경로로 사용자가 문의하면 받는 회신용 주소",
+      "source": "godot/scripts/bootstrap/main.gd:2395-2397; existing support contact path and product privacy policy"
+    },
+    {
+      "id": "PSL_EMAILS",
+      "label": "이메일",
+      "collected": true,
+      "shared": false,
+      "ephemeral": false,
+      "optional": true,
+      "collectionPurposes": [
+        "PSL_APP_FUNCTIONALITY"
+      ],
+      "sharingPurposes": [],
+      "basis": "사용자가 보낸 지원 문의 제목과 본문",
+      "source": "godot/scripts/bootstrap/main.gd:2395-2397; existing support contact path and product privacy policy"
+    },
+    {
+      "id": "PSL_APPROX_LOCATION",
+      "label": "대략적인 위치",
+      "collected": true,
+      "shared": true,
+      "ephemeral": false,
+      "optional": false,
+      "collectionPurposes": [
+        "PSL_ANALYTICS",
+        "PSL_ADVERTISING",
+        "PSL_FRAUD_PREVENTION_SECURITY"
+      ],
+      "sharingPurposes": [
+        "PSL_ANALYTICS",
+        "PSL_ADVERTISING",
+        "PSL_FRAUD_PREVENTION_SECURITY"
+      ],
+      "basis": "Actual Android AdMob dependency24.9.0 and production initialization/load verified; current Android SDK disclosure lists automatic collection/sharing for these purposes. Non-personalized ads still process these types.",
+      "source": "godot/addons/AdmobPlugin/AdmobPlugin.gd:11; godot/scripts/mobile_ads.gd; https://developers.google.com/admob/android/privacy/play-data-disclosure"
+    },
+    {
+      "id": "PSL_USER_INTERACTION",
+      "label": "앱 상호작용",
+      "collected": true,
+      "shared": true,
+      "ephemeral": false,
+      "optional": false,
+      "collectionPurposes": [
+        "PSL_ANALYTICS",
+        "PSL_ADVERTISING",
+        "PSL_FRAUD_PREVENTION_SECURITY"
+      ],
+      "sharingPurposes": [
+        "PSL_ANALYTICS",
+        "PSL_ADVERTISING",
+        "PSL_FRAUD_PREVENTION_SECURITY"
+      ],
+      "basis": "Actual Android AdMob dependency24.9.0 and production initialization/load verified; current Android SDK disclosure lists automatic collection/sharing for these purposes. Non-personalized ads still process these types.",
+      "source": "godot/addons/AdmobPlugin/AdmobPlugin.gd:11; godot/scripts/mobile_ads.gd; https://developers.google.com/admob/android/privacy/play-data-disclosure"
+    },
+    {
+      "id": "PSL_PERFORMANCE_DIAGNOSTICS",
+      "label": "진단",
+      "collected": true,
+      "shared": true,
+      "ephemeral": false,
+      "optional": false,
+      "collectionPurposes": [
+        "PSL_ANALYTICS",
+        "PSL_ADVERTISING",
+        "PSL_FRAUD_PREVENTION_SECURITY"
+      ],
+      "sharingPurposes": [
+        "PSL_ANALYTICS",
+        "PSL_ADVERTISING",
+        "PSL_FRAUD_PREVENTION_SECURITY"
+      ],
+      "basis": "Actual Android AdMob dependency24.9.0 and production initialization/load verified; current Android SDK disclosure lists automatic collection/sharing for these purposes. Non-personalized ads still process these types.",
+      "source": "godot/addons/AdmobPlugin/AdmobPlugin.gd:11; godot/scripts/mobile_ads.gd; https://developers.google.com/admob/android/privacy/play-data-disclosure"
+    },
+    {
+      "id": "PSL_DEVICE_ID",
+      "label": "기기 또는 기타 ID",
+      "collected": true,
+      "shared": true,
+      "ephemeral": false,
+      "optional": false,
+      "collectionPurposes": [
+        "PSL_ANALYTICS",
+        "PSL_ADVERTISING",
+        "PSL_FRAUD_PREVENTION_SECURITY"
+      ],
+      "sharingPurposes": [
+        "PSL_ANALYTICS",
+        "PSL_ADVERTISING",
+        "PSL_FRAUD_PREVENTION_SECURITY"
+      ],
+      "basis": "Actual Android AdMob dependency24.9.0 and production initialization/load verified; current Android SDK disclosure lists automatic collection/sharing for these purposes. Non-personalized ads still process these types.",
+      "source": "godot/addons/AdmobPlugin/AdmobPlugin.gd:11; godot/scripts/mobile_ads.gd; https://developers.google.com/admob/android/privacy/play-data-disclosure"
+    },
+    {
+      "id": "PSL_OTHER_APP_ACTIVITY",
+      "label": "기타 작업",
+      "collected": true,
+      "shared": false,
+      "ephemeral": false,
+      "optional": false,
+      "collectionPurposes": [
+        "PSL_ANALYTICS"
+      ],
+      "sharingPurposes": [],
+      "basis": "GA4 Measurement Protocol sends match start/end, difficulty, result, stone counts and total_moves with random client/session IDs; no personal-contact fields",
+      "source": "godot/scripts/analytics.gd; godot/scripts/ga4_mp_sender.gd"
+    }
+  ],
+  "sharingExceptions": "Support information is used only to answer owner-requested support. No advertising use or analytics linkage; user-initiated transfer and service-provider processing are not independent third-party sharing. GA4-only gameplay analytics use service-provider processing.",
+  "sources": {
+    "googlePlay": "https://support.google.com/googleplay/android-developer/answer/10787469",
+    "googleMobileAds": "https://developers.google.com/admob/android/privacy/play-data-disclosure",
+    "csvTemplate": "https://storage.googleapis.com/support-kms-prod/b5v9It2EgwrgyY1gPFVB3jPUypc5lL3oNg2G"
+  },
+  "consoleReadback": null,
+  "submission": {
+    "submitted": false,
+    "reason": "Google400: Changes cannot be sent for review automatically; changesNotSentForReview=true required, then Console UI send",
+    "stagedEditId": "07627815509965188082",
+    "commitStatus": 200,
+    "committedAt": "2026-11-15T04:40:28.033805+00:00",
+    "releaseLifecycleState": "RELEASE_LIFECYCLE_STATE_NOT_APPROVED",
+    "checkedAt": "2026-11-15T04:40:57.577345+00:00",
+    "consoleSubmissionId": null
+  },
+  "supportedAccountCreationMethods": [
+    "PSL_ACM_NONE"
+  ],
+  "hasOutsideAppAccounts": false,
+  "dataDeletionUrl": "https://www.seorilabs.com/apps/lucid-reversi/privacy/",
+  "csvFormat": {
+    "rows": 782,
+    "basis": "Current first-party stored Google Play CSV schema from salt-compass; all answers cleared and derived only from this app inventory",
+    "formatSourceSha256": "644a6f4010fdd62ecffafda73e4a596c1c13fd2e6267fc2fbcedc6c589c5ef54",
+    "providerValidationCorrection": "Official Help sample763 rows failed400: account creation method missing and outdated collection-purpose field prefix. Attempt1 preserved; no successful write claimed."
+  },
+  "appliedAt": "2026-11-15T04:37:52.891589+00:00",
+  "apiWrite": {
+    "httpStatus": 204,
+    "csvRawFileSha256": "abc25400f48361fee133bd89671dacd2b29227185aff95eff2a04b9ae83a0f89",
+    "csvRequestSha256": "a82013a07809162139ddc0036b4cdaaf13724a6a674a5028b7846df9853a7528",
+    "body": "empty",
+    "scope": "Data safety declaration write accepted; Console form readback and policy approval not claimed"
+  },
+  "privacyPublicReadback": {
+    "sitePr": "https://github.com/seorilabs/seorilabs-official/pull/125",
+    "deployment": "https://github.com/seorilabs/seorilabs-official/actions/runs/43677219193",
+    "deployedMainSha": "9884c7db39d711b1ae1bac3b477bc0a5d6e2e1b8",
+    "checkedAt": "2026-11-15T04:34:34.836347+00:00",
+    "ko": "7c1d593b7ee0553b5b11514e2141d0680b57d4c4945ed67bd5ea490653b54ffc",
+    "en": "52a74cec5061942598542ce5759b664067a0dd2fd9f4ffdacaac4bfcc43c6cd1",
+    "status": "both HTTP200 and corrected support/SDK/date text confirmed"
+  }
+}
