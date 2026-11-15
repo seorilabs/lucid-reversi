@@ -196,7 +196,8 @@
     "approvalTimePrecision": "date only, Asia/Seoul; exact chat timestamp unavailable",
     "evidence": [
       "Current user instruction: 마켓 배포까지 진행해라",
-      "docs/design/2026-11-15-icon-release/design.md in 9571553c410d45a0a3a3b03809b3d27bf3eda9d9"
+      "docs/design/2026-11-15-icon-release/design.md in 9571553c410d45a0a3a3b03809b3d27bf3eda9d9",
+      "Current user follow-up: 공개 배포해야지"
     ]
   },
   "commonGates": {
@@ -227,18 +228,19 @@
       "blocker": null
     },
     "observability": {
-      "status": "pending",
+      "status": "pass",
       "evidence": [
-        "Release GA4 config presence validated without exposing values; actual new-candidate runtime and service telemetry unrun"
+        "https://github.com/seorilabs/lucid-reversi/releases/download/v2.2.12/android-qa-v2.2.12-54.json",
+        "Actual target-PID native SDK logs prove production-unit AdMob initialization and load. GA4 release configuration presence validated; GA4 ingestion and public-channel runtime are not claimed. No IAP/account backend dependency."
       ],
-      "checkedAt": "2026-11-14T17:10:56.095273+00:00",
+      "checkedAt": "2026-11-15T02:07:31.195008+00:00",
       "blocker": null
     }
   },
   "markets": {
     "google_play": {
       "objective": "public_live",
-      "state": "processing",
+      "state": "submission",
       "identity": {
         "applicationId": "com.etlegame.reversi",
         "version": "2.2.12",
@@ -282,36 +284,42 @@
           "blocker": null
         },
         "qa": {
-          "status": "blocked",
+          "status": "pass",
           "evidence": [
-            "Exact-SHA CI and offline AAB inspection passed; android-minimal-plan-v2.2.12.md unrun",
-            "v2.2.12/before-release-pending.log: native-admob/native-shell platform-first floors remain"
+            "https://github.com/seorilabs/lucid-reversi/releases/download/v2.2.12/android-qa-v2.2.12-54.json",
+            "Independent approved Samsung SM-N960N Android10 run completed in 367.202 seconds; installed54 bytes match verified Play APK, actual two-disc launcher icon and one cold start passed, AdMob initialization_completed and interstitial loaded observed; no ad display/click or full gameplay claimed",
+            "Current central5d7f6d before-release L3 passed; GHA43666943973 repeated before-release successfully before promotion"
           ],
-          "checkedAt": "2026-11-14T17:10:56.095273+00:00",
-          "blocker": "Awaiting explicit approval for minimal Android launcher/startup/native callback run; no device query before approval"
+          "checkedAt": "2026-11-15T02:15:39.275691+00:00",
+          "blocker": null
         },
         "metadata": {
           "status": "pass",
           "evidence": [
-            "All three locale listing sources checked; ko fullDescription correction saved and reread as source match, pending review",
-            "v2.2.12/ko-listing-readback.json; release notes3locales read from actual internal release; current Play icon already matches512 source"
+            "All three locale sources and actual production release notes checked; ko fullDescription correction saved and API readback SHA256967f4ceabe938460dade33e3d77e194568b467810a151e9885e31773fc761cd8",
+            "Console submission81 includes ko-KR description correction with production54; current Play listing icon already matched approved product source"
           ],
-          "checkedAt": "2026-11-14T17:10:56.095273+00:00",
+          "checkedAt": "2026-11-15T02:17:23.059004+00:00",
           "blocker": null
         },
         "policy": {
           "status": "pass",
           "evidence": [
-            "Existing free, countries, target declarations, privacy/support and no-login behavior preserved; app-content attention0 checked",
-            "Inherited trader yes was sent for review by internal commit; latest Console shows trader declaration in review. Korean description change remains unsent; do not cancel existing review."
+            "Prior app-content trader declaration submission80 is released; submission81 contains only production and ko-KR listing changes",
+            "Existing free distribution, approved declarations and countries retained; managed publishing disabled"
           ],
-          "checkedAt": "2026-11-14T17:10:56.095273+00:00",
+          "checkedAt": "2026-11-15T02:18:39.817808+00:00",
           "blocker": null
         },
         "submission": {
-          "status": "pending",
-          "evidence": [],
-          "checkedAt": null,
+          "status": "pass",
+          "evidence": [
+            "https://github.com/seorilabs/lucid-reversi/actions/runs/43666943973",
+            "https://play.google.com/console/u/0/developers/5547060480954653351/app/4973741703890923260/publishing/submission-activity/81/details",
+            "Console submission81: API source, submitted 2026-11-15 11:16 KST; production v2.2.12 full rollout and ko-KR fullDescription changes in review",
+            "Publisher2026-11-15T02:17:23.059004+00:00: production completed54, release notes en-US/ja-JP/ko-KR, exact AAB hash unchanged, 172 explicit countries plus restOfWorld true, own read-only edit cleanup204"
+          ],
+          "checkedAt": "2026-11-15T02:18:39.817808+00:00",
           "blocker": null
         },
         "approval": {
@@ -328,8 +336,10 @@
         },
         "live_smoke": {
           "status": "pending",
-          "evidence": [],
-          "checkedAt": null,
+          "evidence": [
+            "Public Play HTTP200 in KR and US at 2026-11-15T02:20:46Z: embedded current version2.2.8 and old release notes; new2.2.12 public availability not confirmed"
+          ],
+          "checkedAt": "2026-11-15T02:20:46.969270+00:00",
           "blocker": null
         }
       },
@@ -337,8 +347,22 @@
       "sourceBinding": "5b8268b10ea925bad0aa80bdd5a25ebed24d08e2",
       "executionWorkflowRevision": "5b8268b10ea925bad0aa80bdd5a25ebed24d08e2",
       "internalTestUrl": "https://play.google.com/apps/internaltest/4697313818927309750",
-      "deviceApproval": "pending; no Android device query or operation performed",
-      "reviewReadback": "Production54 not submitted; app-level trader declaration in review; ko-KR fullDescription ready for review but unsent (Console17:12:31Z)"
+      "deviceApproval": "Explicit user approval received before first access; only approved Android10 launcher/cold-start/automatic native callbacks executed; target app stopped and installed data preserved",
+      "reviewReadback": "Submission81 / production v2.2.12 full rollout plus ko-KR description / in review; pre-review checks completed by02:21:13UTC, no unsent changes; managed publishing disabled; KR/US public listing still2.2.8 at02:20:46UTC",
+      "promotionWorkflow": "https://github.com/seorilabs/lucid-reversi/actions/runs/43666943973",
+      "submissionId": "81",
+      "submissionUrl": "https://play.google.com/console/u/0/developers/5547060480954653351/app/4973741703890923260/publishing/submission-activity/81/details",
+      "deviceEvidence": "https://github.com/seorilabs/lucid-reversi/releases/download/v2.2.12/android-qa-v2.2.12-54.json",
+      "reviewOwner": "Google Play",
+      "nextTransition": "Google approval automatically publishes full release because managed publishing is disabled; verify actual public54 after review",
+      "releaseNotification": {
+        "id": "lucid-reversi-v2.2.12-build54-production-submission81",
+        "eventId": "cmwh7gmb5lm8ax801lco2lsx3",
+        "accepted": true,
+        "delivered": true,
+        "deliveryStatus": "SENT"
+      },
+      "lastCheckedAt": "2026-11-15T02:21:13.205774+00:00"
     }
   },
   "evidenceArchive": {
@@ -347,5 +371,14 @@
     "bytes": 201794364,
     "manifestSha256": "536a94ce0be69237675ed652a73cd6b17fd1acb3a038cbd600f0e31429688657",
     "verified": true
+  },
+  "androidAndSubmissionArchive": {
+    "uri": "smb://nas1dual/Data/Backup/agent-artifacts/lucid-reversi/2026-11-15/5b8268b10ea925bad0aa80bdd5a25ebed24d08e2/android54-submission81-20261115T022220Z",
+    "files": 65,
+    "bytes": 4008299,
+    "manifestSha256": "efa5cf281c64695b5495ff852eebc0bc8da72525d77e049baf0e2e86647ccf81",
+    "verified": true,
+    "inheritedFiles": 4,
+    "retention": "No expiry deletion authorized"
   }
 }
