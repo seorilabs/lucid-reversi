@@ -32,7 +32,7 @@
   "defaultLanguageNote": "Play 실측값. 2015년 등록 당시 기준이며 게임 내 기본 로케일(ko)과는 별개다. 변경하려면 Play Console에서 기본 언어를 바꿔야 한다.",
   "listingDir": "play-store/listing",
   "contentDeclarations": {
-    "dataSafety": "applied-by-api: 2026-11-15; Console review send required after rejection",
+    "dataSafety": "completed-in-play-console: 2026-11-15; correction submitted82, approval pending",
     "dataSafetyCsv": "play-store/policy/data-safety.csv"
   }
 }

@@ -240,7 +240,7 @@
   "markets": {
     "google_play": {
       "objective": "public_live",
-      "state": "metadata",
+      "state": "submission",
       "identity": {
         "applicationId": "com.etlegame.reversi",
         "version": "2.2.12",
@@ -304,43 +304,47 @@
           "blocker": null
         },
         "policy": {
-          "status": "pending",
+          "status": "pass",
           "evidence": [
-            "Code54 NOT_APPROVED and code50 PUBLISHED read from official applications.tracks.releases.list API at04:35:43Z and04:40:57Z",
-            "Reviewed8data-type CSV saved via applications.dataSafety HTTP204 at04:37:52Z; actual Console full form preview and Google approval remain unverified",
-            "play-store/policy/data-safety.json; payload SHA256a82013a07809162139ddc0036b4cdaaf13724a6a674a5028b7846df9853a7528"
+            "https://github.com/seorilabs/lucid-reversi/releases/download/v2.2.12/data-safety-resubmission82.json",
+            "Actual Console export782responses semantically match reviewed CSV, mismatch0; all8types complete and preview read; saved form unchanged",
+            "Google policy review approval is separate and pending; prior submission81 rejected, new82 in review"
           ],
-          "checkedAt": "2026-11-15T04:40:57.577345+00:00",
+          "checkedAt": "2026-11-15T06:06:56.426802+00:00",
           "blocker": null
         },
         "submission": {
-          "status": "blocked",
+          "status": "pass",
           "evidence": [
-            "API validation400 explicitly requires Console UI manual review send after rejection",
-            "Exact same production54 staged and committed with changesNotSentForReview=true, ERROR_IF_IN_REVIEW, HTTP200, edit07627815509965188082 at04:40:28Z; no review cancellation",
-            "Current release state remains NOT_APPROVED; no correction review submitted and no new Console submission ID read"
+            "https://play.google.com/console/u/0/developers/5547060480954653351/app/4973741703890923260/publishing/submission-activity/82/details",
+            "Submission82 source Play Console / submitted2026-11-15 15:02KST / productionv2.2.12 full rollout + ko-KR fullDescription + Data safety; status in review",
+            "Current central5d7f6d before-release L3 passed for source5b8268b before manual send; pre-review checks completed by06:06:56UTC"
           ],
-          "checkedAt": "2026-11-15T04:40:57.577345+00:00",
-          "blocker": "Google requires manual Console review send; Google blocks automated browser login, owner manual login pending"
+          "checkedAt": "2026-11-15T06:06:56.426802+00:00",
+          "blocker": null
         },
         "approval": {
           "status": "pending",
-          "evidence": [],
-          "checkedAt": null,
+          "evidence": [
+            "Console submission82 in review; not approval"
+          ],
+          "checkedAt": "2026-11-15T06:06:56.426802+00:00",
           "blocker": null
         },
         "release": {
           "status": "pending",
-          "evidence": [],
-          "checkedAt": null,
+          "evidence": [
+            "Managed publishing disabled; approval should automatically publish existing full rollout; public54 not confirmed"
+          ],
+          "checkedAt": "2026-11-15T06:06:56.426802+00:00",
           "blocker": null
         },
         "live_smoke": {
           "status": "pending",
           "evidence": [
-            "Public Play HTTP200 in KR and US at 2026-11-15T02:20:46Z: embedded current version2.2.8 and old release notes; new2.2.12 public availability not confirmed"
+            "Public Play KR and US HTTP200 at06:05:34UTC; embedded current version2.2.8, not2.2.12"
           ],
-          "checkedAt": "2026-11-15T02:20:46.969270+00:00",
+          "checkedAt": "2026-11-15T06:05:34.311263+00:00",
           "blocker": null
         }
       },
@@ -349,48 +353,82 @@
       "executionWorkflowRevision": "5b8268b10ea925bad0aa80bdd5a25ebed24d08e2",
       "internalTestUrl": "https://play.google.com/apps/internaltest/4697313818927309750",
       "deviceApproval": "Explicit user approval received before first access; only approved Android10 launcher/cold-start/automatic native callbacks executed; target app stopped and installed data preserved",
-      "reviewReadback": "Official release lifecycle API04:40:57Z: v2.2.12(54) NOT_APPROVED; v2.2.8(50) PUBLISHED. Revised Data safety write204 and unsubmitted stage commit200 confirmed separately. Console full-form readback and actual review send remain pending.",
+      "reviewReadback": "Console submission82, Play Console source,15:02KST, in review, three approved changes. Pre-review checks completed06:06:56UTC. Prior81 rejected. API lifecycle after submission unavailable due Listing releases quota exceeded; KR/US public page still2.2.8 at06:05:34UTC.",
       "promotionWorkflow": "https://github.com/seorilabs/lucid-reversi/actions/runs/43666943973",
-      "submissionId": "81",
-      "submissionUrl": "https://play.google.com/console/u/0/developers/5547060480954653351/app/4973741703890923260/publishing/submission-activity/81/details",
+      "submissionId": "82",
+      "submissionUrl": "https://play.google.com/console/u/0/developers/5547060480954653351/app/4973741703890923260/publishing/submission-activity/82/details",
       "deviceEvidence": "https://github.com/seorilabs/lucid-reversi/releases/download/v2.2.12/android-qa-v2.2.12-54.json",
-      "reviewOwner": "Developer Console manual review send required before Google can review correction",
-      "nextTransition": "Owner completes dedicated Edge login; reread and verify saved Data safety full form and publishing changes; click manual Console send for same54; read new submission and lifecycle state, then approval/public availability",
+      "reviewOwner": "Google Play",
+      "nextTransition": "Google reviews submission82; managed publishing disabled means approval automatically publishes. Verify actual public54 after review; no further release permission or device query required.",
       "releaseNotification": {
-        "id": "lucid-reversi-v2.2.12-build54-production-submission81",
-        "eventId": "cmwh7gmb5lm8ax801lco2lsx3",
+        "id": "lucid-reversi-v2.2.12-build54-resubmission82",
+        "eventId": "cmwhfm2743d1vx801i2qesuqd",
         "accepted": true,
-        "delivered": true,
-        "deliveryStatus": "SENT"
+        "delivered": false,
+        "status": "PENDING at script wait deadline; no actual Slack delivery claim"
       },
-      "lastCheckedAt": "2026-11-15T04:40:57.577345+00:00",
+      "lastCheckedAt": "2026-11-15T06:06:56.426802+00:00",
       "policyCorrection": {
         "candidateUnchanged": true,
         "inventory": "play-store/policy/data-safety.json",
         "csv": "play-store/policy/data-safety.csv",
-        "status": "applied-by-api-awaiting-console-review-send",
+        "status": "submitted-for-review",
         "ownerReportedIssue": "Google: version54 / Personal info / Email address",
         "reportTimestampPrecision": "date only; exact chat timestamp unavailable",
         "sitePr": "https://github.com/seorilabs/seorilabs-official/pull/125",
         "siteStatus": "public deployed and both language bodies reread04:34:34Z",
-        "authenticationStatus": "provider_blocked; dedicated Edge handed to owner for manual login",
-        "resubmitted": false,
-        "checkedAt": "2026-11-15T04:40:57.577345+00:00",
+        "authenticationStatus": "Owner replied login complete; actual wellknowngeek Google identity and Seori Apps personal5547060480954653351 read back05:57:04UTC",
+        "resubmitted": true,
+        "checkedAt": "2026-11-15T06:06:56.426802+00:00",
         "siteDeployment": "https://github.com/seorilabs/seorilabs-official/actions/runs/43677219193",
         "apiWriteStatus": 204,
         "apiWriteAt": "2026-11-15T04:37:52.891589+00:00",
         "stagedEditId": "07627815509965188082",
         "stagedCommitStatus": 200,
         "stagedCommitAt": "2026-11-15T04:40:28.033805+00:00",
-        "newConsoleSubmissionId": null,
+        "newConsoleSubmissionId": "82",
         "releaseNotification": {
+          "id": "lucid-reversi-v2.2.12-build54-resubmission82",
+          "eventId": "cmwhfm2743d1vx801i2qesuqd",
+          "accepted": true,
+          "delivered": false,
+          "status": "PENDING at script wait deadline; no actual Slack delivery claim"
+        },
+        "consoleReadback": "https://github.com/seorilabs/lucid-reversi/releases/download/v2.2.12/data-safety-resubmission82.json",
+        "browserSessionReleased": true
+      },
+      "submissionHistory": [
+        {
+          "id": "81",
+          "source": "API",
+          "submittedAt": "2026-11-15 11:16KST",
+          "result": "거부됨",
+          "evidence": "Console submission activity read06:03:12UTC; Data safety email-address issue"
+        },
+        {
+          "id": "82",
+          "source": "Play Console",
+          "submittedAt": "2026-11-15 15:02KST",
+          "result": "검토 중",
+          "url": "https://play.google.com/console/u/0/developers/5547060480954653351/app/4973741703890923260/publishing/submission-activity/82/details"
+        }
+      ],
+      "releaseNotificationHistory": [
+        {
+          "id": "lucid-reversi-v2.2.12-build54-production-submission81",
+          "eventId": "cmwh7gmb5lm8ax801lco2lsx3",
+          "accepted": true,
+          "delivered": true,
+          "deliveryStatus": "SENT"
+        },
+        {
           "id": "lucid-reversi-v2.2.12-build54-data-safety-manual-review",
           "eventId": "cmwhcp974wgxbx801ifp8unrh",
           "accepted": true,
           "delivered": false,
           "status": "PENDING at script wait deadline; not claimed delivered"
         }
-      }
+      ]
     }
   },
   "evidenceArchive": {
@@ -414,6 +452,14 @@
     "files": 44,
     "bytes": 2496648,
     "manifestSha256": "746f27fc0fac071b0b751a6a32f5941c3aabe9e29828c77bd6871f49a838948f",
+    "verified": true,
+    "retention": "No expiry deletion authorized"
+  },
+  "resubmission82Archive": {
+    "uri": "smb://nas1dual/Data/Backup/agent-artifacts/lucid-reversi/2026-11-15/5b8268b10ea925bad0aa80bdd5a25ebed24d08e2/resubmission82-20261115T061136Z",
+    "files": 44,
+    "bytes": 312849,
+    "manifestSha256": "8673b2b791c155e67eb35878cbc02aa31c1dd5931798fb64d082f7ad19d515f2",
     "verified": true,
     "retention": "No expiry deletion authorized"
   }
