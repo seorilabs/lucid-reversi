@@ -1,6 +1,6 @@
 # Android54 데이터 보안 선언 정정
 
-**데이터 보안 선언 API 저장과 한국어·영어 웹 방침 공개를 마쳤지만, 재심사 전송은 아직 하지 못했다.** Google은 거절된 변경을 Console UI에서 직접 전송하도록 요구했고, 작업용 Edge의 자동 로그인은 ‘안전하지 않은 브라우저’로 차단됐다. 사용자에게 수동 로그인을 인계하고 응답을 기다린다.
+**데이터 보안 선언의 실제 Console 검수를 마치고 같은54를 재심사 제출했다. 새 제출82는 2026-11-15 15:02KST 접수, 현재 검토 중이다.** 관리형 게시는 꺼져 있어 승인 후 자동 공개된다. 15:05KST 한국·미국 공개 페이지는 아직2.2.8이며 승인·공개 완료로 판정하지 않는다.
 
 고정 후보는 `v2.2.12(54)`, source `5b8268b10ea925bad0aa80bdd5a25ebed24d08e2`다. 제품 코드·SDK·서명·릴리스 노트·기존 무료 배포·국가 코드172개와 `restOfWorld=true`를 유지했다. 게임 코드나 SDK를 바꾸지 않는 정책 정정이므로 같은54를 쓴다. 기기를 다시 조회하거나 조작하지 않았으며 같은 후보의 중앙 Google Play before-release L3도 이번 작업에서 다시 통과했다.
 
@@ -39,11 +39,19 @@
 - [한국어 제품 방침](https://www.seorilabs.com/apps/lucid-reversi/privacy/)
 - [영어 제품 방침](https://www.seorilabs.com/en/apps/lucid-reversi/privacy/)
 
+## 로그인 완료 뒤 Console 검수와 제출82
+
+사용자가 “로그인 완료”라고 알린 뒤 해당 작업 세션을 자동화 모드로 돌렸다. 05:57:04 UTC 실제 Google 로그인 identity와 Seori Apps 개인 계정5547060480954653351, 루시드 리버시 패키지를 다시 확인했다. 제출 직전 같은 source5b8268b·tagv2.2.12의 중앙 before-release L3도 통과했다.
+
+Console에서 내려받은 CSV는782행이며 기존 정정안과 질문·응답 ID가 모두 같았다. 불리언 대소문자와 선택하지 않은 빈 값/false를 정규화해 대조한 결과 차이는0개다. 실제 export SHA256은 eda89c104b51a2811e9823cec1f613bd6d14e864135a0afe93f6901673b3b642다. 실제 화면에서도8개 데이터 유형의 취급·처리가 모두 완료됐고, 미리보기의 수집8유형·공유4유형과 암호화·삭제 URL을 읽었다. 답을 바꾸지 않아 저장 버튼은 비활성인 상태였다. 저장 완료를 API 응답만으로 추정한 것이 아니라 실제 Console 값과 대조했다.
+
+06:01:28 UTC 게시 개요에 전송 가능한 변경3개가 있었다. 프로덕션 v2.2.12 전체 출시, ko-KR 전체 설명, 데이터 보안 설문지다. 06:02:24.646883 UTC 전송 확인 버튼을 누른 뒤, 제출 활동과 세부 화면을 별도로 읽었다. 새 [제출82](https://play.google.com/console/u/0/developers/5547060480954653351/app/4973741703890923260/publishing/submission-activity/82/details)는 소스Play Console, 제출 시각15:02KST(분 단위 표시), 변경3개, 검토 중이었다. 기존81은 거부됨으로 표시돼 새82와 구분된다. 새 제출 후 실제 API lifecycle 조회는403 Listing releases quota exceeded였으므로 반복하거나 자격증명을 바꾸지 않고 Console 상태를 근거로 사용했다.
+
+06:06:56 UTC 게시 개요의 사전 검사 안내가 사라지고 “변경사항을 검토 중입니다”로 바뀌었다. 관리형 게시는 여전히 사용 중지였다. 실제 공개 페이지는06:05:34 UTC 한국·미국 모두HTTP200, 버전2.2.8이었다. [제출·대조 요약](https://github.com/seorilabs/lucid-reversi/releases/download/v2.2.12/data-safety-resubmission82.json)도 태그 Release에 보존했다.
+
 ## 남은 실행
 
-로그인 인계 중인 작업용 Edge의 사용자 로그인이 끝나면 계정·앱을 다시 읽고, 저장된 데이터 보안 전체 폼과 게시 개요의 실제 변경 목록을 확인한다. 그 뒤 같은54의 변경을 **Console에서 검토 전송**하고 새 제출 ID·시각·검토 상태를 기록한다. 공개 출시 승인은 유지되므로 같은 범위의 재승인을 요청하지 않는다. 재제출·심사 승인·공개는 서로 다른 단계이며 아직 어느 것도 새로 완료했다고 표시하지 않는다.
-
-로그인용 세션만 사용자 인계 상태로 유지하며 실제 기기는 사용하지 않는다. 승인된 운영 자격증명·프로필·사용자 작업은 보존한다. 검수 원본과 API 응답·입력 실패 이력은 NAS에 검증 이관하고 필요한 위치·해시를 이 문서에 남긴다.
+필요한 수동 로그인과 Console 재심사 전송은 해소했다. 작업용 브라우저를 반납하고 로그인 프로필은 보존했다. 남은 단계는 Google 심사 승인과 자동 공개, 실제 공개54 확인이다. 새 빌드·출시 재승인·추가 기기 사용은 필요하지 않다. 자동 감시 작업은 설정하지 않았다. 아직 심사 승인·공개를 완료로 표시하지 않는다.
 
 근거: [Google Play 데이터 보안 안내](https://support.google.com/googleplay/android-developer/answer/10787469), [Google Mobile Ads Android 데이터 공개 안내](https://developers.google.com/admob/android/privacy/play-data-disclosure), [공식 release lifecycle API](https://developers.google.com/android-publisher/api-ref/rest/v3/applications.tracks.releases), [심사 전송 제한을 설명하는 commit API](https://developers.google.com/android-publisher/api-ref/rest/v3/edits/commit).
 
@@ -53,6 +61,14 @@
 
 `smb://nas1dual/Data/Backup/agent-artifacts/lucid-reversi/2026-11-15/5b8268b10ea925bad0aa80bdd5a25ebed24d08e2/data-safety54-20261115T044717Z`
 
-검증 목록 SHA256: `746f27fc0fac071b0b751a6a32f5941c3aabe9e29828c77bd6871f49a838948f`. 성공한 CSV·정책 JSON은 Git 정본이고, 웹 실행 근거의 작은 JSON은 사이트 development-evidence Release에도 있다. 재다운로드 가능한 샘플·참고 근거·이미 PR에 있는 본문 입력은 중복 백업하지 않았다. 검증된 로컬 원본·빌드·격리 checkout은 정리하고, 사용자 로그인 인계용 Edge 세션만 유지한다. 비공개 `pending-console-handoff.json`에 복귀 절차를 남겼다.
+검증 목록 SHA256: `746f27fc0fac071b0b751a6a32f5941c3aabe9e29828c77bd6871f49a838948f`. 성공한 CSV·정책 JSON은 Git 정본이고, 웹 실행 근거의 작은 JSON은 사이트 development-evidence Release에도 있다. 재다운로드 가능한 샘플·참고 근거·이미 PR에 있는 본문 입력은 중복 백업하지 않았다. 검증된 로컬 원본·빌드·격리 checkout은 정리하고, 당시 사용자 로그인 인계용 Edge 세션과 최소 파일만 유지했다. 이번 로그인 완료·제출82 확인 뒤 기존 임시 인계 파일3개도 정리하고 세션을 반납했다. 이전 NAS의 인계 원본은 보존한다.
 
 출시관리 안내는 Backoffice에서 접수됐다. ID `lucid-reversi-v2.2.12-build54-data-safety-manual-review`, 이벤트 `cmwhcp974wgxbx801ifp8unrh`이며 확인 시한에는 `accepted=true`, `delivered=false`, `PENDING`이었다. 실제 Slack 전달을 완료로 기록하지 않았다.
+
+제출82 운영 안내는 Backoffice에 접수됐다. ID lucid-reversi-v2.2.12-build54-resubmission82, 이벤트 cmwhfm2743d1vx801i2qesuqd이며 확인 시한에는 accepted=true, delivered=false, PENDING이었다. 이전 미전송 안내와 새82 접수를 구분하고 실제 Slack 전달을 완료로 기록하지 않았다.
+
+이번 Console 선언 재조회와 제출82 원본44개, 312,849bytes도 별도 NAS 폴더에 스트림 복사한 뒤 모든 bytes·SHA256을 직접 읽어 대조했다.
+
+smb://nas1dual/Data/Backup/agent-artifacts/lucid-reversi/2026-11-15/5b8268b10ea925bad0aa80bdd5a25ebed24d08e2/resubmission82-20261115T061136Z
+
+검증 목록 SHA256: 8673b2b791c155e67eb35878cbc02aa31c1dd5931798fb64d082f7ad19d515f2. 같은 후보의 중앙 검사 로그, 실제 Console export·782응답 비교, 단계별 화면 텍스트, 전송 동작과 제출82 상세, 공개 버전 조회 및 API quota 응답을 포함한다. 검증한 로컬 원본과 브라우저 다운로드 사본을 정리하고 로그인 프로필은 유지한다.

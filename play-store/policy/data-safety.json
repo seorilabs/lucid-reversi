@@ -6,7 +6,7 @@
     "versionCode": 54,
     "sourceSha": "5b8268b10ea925bad0aa80bdd5a25ebed24d08e2"
   },
-  "status": "applied-by-api-awaiting-console-review-send",
+  "status": "submitted-for-review",
   "reviewedAt": "2026-11-15",
   "issue": "Google-reported policy declaration mismatch: Personal info / Email address for code54; exact network request attribution not proven",
   "collectsOrShares": true,
@@ -162,16 +162,35 @@
     "googleMobileAds": "https://developers.google.com/admob/android/privacy/play-data-disclosure",
     "csvTemplate": "https://storage.googleapis.com/support-kms-prod/b5v9It2EgwrgyY1gPFVB3jPUypc5lL3oNg2G"
   },
-  "consoleReadback": null,
+  "consoleReadback": {
+    "checkedAt": "2026-11-15T06:00:59.220492+00:00",
+    "exportedAt": "2026-11-15T06:00:15.579969+00:00",
+    "rows": 782,
+    "semanticMismatchCount": 0,
+    "actualExportSha256": "eda89c104b51a2811e9823cec1f613bd6d14e864135a0afe93f6901673b3b642",
+    "sourceCsvSha256": "abc25400f48361fee133bd89671dacd2b29227185aff95eff2a04b9ae83a0f89",
+    "allEightTypesComplete": true,
+    "storePreview": "collected8types, shared4types, encryption and deletion URL match reviewed declaration",
+    "evidence": "https://github.com/seorilabs/lucid-reversi/releases/download/v2.2.12/data-safety-resubmission82.json"
+  },
   "submission": {
-    "submitted": false,
-    "reason": "Google400: Changes cannot be sent for review automatically; changesNotSentForReview=true required, then Console UI send",
-    "stagedEditId": "07627815509965188082",
-    "commitStatus": 200,
-    "committedAt": "2026-11-15T04:40:28.033805+00:00",
-    "releaseLifecycleState": "RELEASE_LIFECYCLE_STATE_NOT_APPROVED",
-    "checkedAt": "2026-11-15T04:40:57.577345+00:00",
-    "consoleSubmissionId": null
+    "submitted": true,
+    "id": "82",
+    "source": "Play Console",
+    "submittedAt": "2026-11-15T06:02:00Z",
+    "timestampPrecision": "minute from Console, 15:02 KST; manual send requested06:02:24.646883Z",
+    "checkedAt": "2026-11-15T06:06:56.426802+00:00",
+    "status": "검토 중",
+    "preReviewChecks": "completed by06:06:56UTC",
+    "url": "https://play.google.com/console/u/0/developers/5547060480954653351/app/4973741703890923260/publishing/submission-activity/82/details",
+    "changes": [
+      "production v2.2.12 full rollout",
+      "ko-KR fullDescription",
+      "Data safety"
+    ],
+    "managedPublishing": false,
+    "apiReleaseLifecycleStateAfterSubmit": null,
+    "apiReadbackLimitation": "403 Listing releases quota exceeded; Console supplies current review status"
   },
   "supportedAccountCreationMethods": [
     "PSL_ACM_NONE"
@@ -200,5 +219,15 @@
     "ko": "7c1d593b7ee0553b5b11514e2141d0680b57d4c4945ed67bd5ea490653b54ffc",
     "en": "52a74cec5061942598542ce5759b664067a0dd2fd9f4ffdacaac4bfcc43c6cd1",
     "status": "both HTTP200 and corrected support/SDK/date text confirmed"
+  },
+  "previousApiStaging": {
+    "submitted": false,
+    "reason": "Google400: Changes cannot be sent for review automatically; changesNotSentForReview=true required, then Console UI send",
+    "stagedEditId": "07627815509965188082",
+    "commitStatus": 200,
+    "committedAt": "2026-11-15T04:40:28.033805+00:00",
+    "releaseLifecycleState": "RELEASE_LIFECYCLE_STATE_NOT_APPROVED",
+    "checkedAt": "2026-11-15T04:40:57.577345+00:00",
+    "consoleSubmissionId": null
   }
 }
