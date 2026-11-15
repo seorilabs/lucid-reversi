@@ -30,5 +30,9 @@
     "requiredVars": "vars.ADMOB_APP_ID와 vars.ADMOB_INTERSTITIAL_AD_UNIT_ID. org 워크플로우는 이 값들이 AdMob 공식 테스트 ID가 아닌지 검증만 하고, 실제 주입은 android_export.cfg와 mobile_ads.gd가 한다."
   },
   "defaultLanguageNote": "Play 실측값. 2015년 등록 당시 기준이며 게임 내 기본 로케일(ko)과는 별개다. 변경하려면 Play Console에서 기본 언어를 바꿔야 한다.",
-  "listingDir": "play-store/listing"
+  "listingDir": "play-store/listing",
+  "contentDeclarations": {
+    "dataSafety": "applied-by-api: 2026-11-15; Console review send required after rejection",
+    "dataSafetyCsv": "play-store/policy/data-safety.csv"
+  }
 }
